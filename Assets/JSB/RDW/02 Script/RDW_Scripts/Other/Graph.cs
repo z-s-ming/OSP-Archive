@@ -160,7 +160,7 @@ public class Graph
         Graph copiedGraph = new Graph(this);
 
         Vector2 startVertex = Vector2.negativeInfinity;
-        foreach(var v in adjList.Keys)
+        foreach(var v in copiedGraph.adjList.Keys)
         {
             if (v.x > startVertex.x)
                 startVertex = v;
@@ -175,7 +175,14 @@ public class Graph
         {
             Vector2 currentVetex = stack.Peek();
 
-            if (GetDegree(currentVetex, isBidirection) == 0)
+            // Check if vertex still exists in copied graph
+            if (!copiedGraph.HasVertex(currentVetex))
+            {
+                stack.Pop();
+                continue;
+            }
+
+            if (copiedGraph.GetDegree(currentVetex, isBidirection) == 0)
             {
                 answer.Add(currentVetex);
                 stack.Pop();
@@ -185,22 +192,29 @@ public class Graph
                 float minAngle = 361;
                 Vector2 nextVertex = Vector2.zero;
 
-                foreach (var neighborVertex in adjList[currentVetex])
+                if (copiedGraph.adjList[currentVetex].Count > 0)
                 {
-                    Vector2 selectedEdge = neighborVertex - currentVetex;
-                    float ccwAngle = Utility.GetCCWAngle(currentDirection, selectedEdge);
-
-                    if (ccwAngle < minAngle)
+                    foreach (var neighborVertex in copiedGraph.adjList[currentVetex])
                     {
-                        minAngle = ccwAngle;
-                        nextVertex = neighborVertex;
+                        Vector2 selectedEdge = neighborVertex - currentVetex;
+                        float ccwAngle = Utility.GetCCWAngle(currentDirection, selectedEdge);
+
+                        if (ccwAngle < minAngle)
+                        {
+                            minAngle = ccwAngle;
+                            nextVertex = neighborVertex;
+                        }
                     }
+
+                    currentDirection = (currentVetex - nextVertex).normalized;
+                    copiedGraph.RemoveAllEdgeInVertex(currentVetex, isBidirection);
+                    stack.Push(nextVertex);
                 }
-
-                currentDirection = (currentVetex - nextVertex).normalized;
-
-                RemoveAllEdgeInVertex(currentVetex, isBidirection);
-                stack.Push(nextVertex);
+                else
+                {
+                    answer.Add(currentVetex);
+                    stack.Pop();
+                }
             }
         }
 
