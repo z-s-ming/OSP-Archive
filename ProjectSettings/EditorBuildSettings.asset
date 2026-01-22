@@ -4,5 +4,8 @@
 EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
-  m_Scenes: []
+  m_Scenes:
+  - enabled: 1
+    path: Assets/JSB/RDW/01 Scene/400/10/RDW Square 400 10users RL.unity
+    guid: 89e7b890512aaa343af51cdbfc41b97b
   m_configObjects: {}

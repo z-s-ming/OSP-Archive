@@ -25,13 +25,14 @@ public class ARC_Resetter : RotationResetter
         if (isFirst)
         {
             Vector3 targetCenterPoint = Vector3.zero;
+            int realUserIndex = GetUserIndex(realUser?.transform2D?.transform);
+            int virtualUserIndex = GetUserIndex(virtualUser?.transform2D?.transform);
 
             Calc_NWay_Distances(realUser.transform2D.transform, true, 20);
             //Calc_NWay_Distances(virtualUser.transform2D.transform, false, 20);
 
             // Find obstacle normal in physical squared env
             Vector3 wallnormalvec = Vector3.right;
-            RaycastHit hit;
             List<Vector3> dir4way = new List<Vector3>();
             List<float> dist4way = new List<float>();
             dir4way.Add(Vector3.forward);
@@ -41,17 +42,7 @@ public class ARC_Resetter : RotationResetter
 
             for (int i = 0; i < 4; i++)
             {
-                if (Physics.Raycast(realUser.transform2D.transform.position, dir4way[i], out hit, 1000.0f))
-                {
-                    if (hit.collider.gameObject.layer == LayerMask.NameToLayer("PhysicalWall") || hit.collider.gameObject.layer == LayerMask.NameToLayer("PhysicalUser"))
-                    {
-                        dist4way.Add(hit.distance);
-                    }
-                    else if (hit.collider.gameObject.name == "obstacle_" + i)
-                    {
-                        dist4way.Add(hit.distance);
-                    }
-                }
+                dist4way.Add(GetBoundaryDistance(realUser.transform2D.transform.position, dir4way[i], true, 1000.0f, realUserIndex));
             }
             int tempindex = dist4way.IndexOf(dist4way.Min());
             wallnormalvec = -dir4way[tempindex];
@@ -76,14 +67,7 @@ public class ARC_Resetter : RotationResetter
 
             // Find values that satisfy condi 1 && condi 2
             float virtualDist = 0.0f;
-            if (Physics.Raycast(virtualUser.transform2D.transform.position, virtualUser.transform2D.transform.forward, out hit, 1000.0f))
-            {
-                Debug.DrawLine(virtualUser.transform2D.transform.position, virtualUser.transform2D.transform.position + virtualUser.transform2D.transform.forward * 1000.0f, Color.blue, 10.0f);
-                if (hit.collider.gameObject.layer == LayerMask.NameToLayer("VirtualWall"))
-                {
-                    virtualDist = hit.distance;
-                }
-            }
+            virtualDist = GetBoundaryDistance(virtualUser.transform2D.transform.position, virtualUser.transform2D.transform.forward, false, 1000.0f, virtualUserIndex);
 
             List<int> list_dir_SecondConditionSatisfied = new List<int>();
             List<float> list_dir_SecondConditionSatisfied_distance = new List<float>();
@@ -157,10 +141,10 @@ public class ARC_Resetter : RotationResetter
     public void Calc_NWay_Distances(Transform _transform, bool bActual, int N_waycount)
     {
         float distance = 0.0f;
-        RaycastHit hit;
         List<Vector3> direction = new List<Vector3>();
 
         int totalUserCount = RDWSimulationManager.instance.GetRedirectedUnits.Length;
+        int userIndex = GetUserIndex(_transform);
 
 
 
@@ -200,53 +184,7 @@ public class ARC_Resetter : RotationResetter
 
         for (int i = 0; i < direction.Count; i++)
         {
-            if (Physics.Raycast(_transform.position, direction[i], out hit, 1000.0f))
-            {
-                if (bActual)
-                {
-                    if (hit.collider.gameObject.layer == LayerMask.NameToLayer("PhysicalWall") || hit.collider.gameObject.layer == LayerMask.NameToLayer("PhysicalUser"))
-                    {
-                        distance = hit.distance;
-                        //Debug.Log(hit.collider.gameObject.name);
-                    }
-                    //else
-                    //{
-                    //    for (int j = 0; j < totalUserCount; j++)
-                    //    {
-                    //        if (hit.collider.gameObject.tag == "RealUser" + j)
-                    //        {
-                    //            distance = hit.distance;
-                    //            break;
-                    //        }
-                    //    }
-                    //}
-                }
-                else
-                {
-                    if (hit.collider.gameObject.layer == LayerMask.NameToLayer("VirtualWall"))
-                    {
-                        distance = hit.distance;
-                        //Debug.DrawLine(_transform.position, _transform.position + direction[i] * 10, Color.red, 10.0f);
-                    }
-                    else
-                    {
-                        //Debug.Log(hit.transform.gameObject.name);
-                        //Debug.DrawLine(_transform.position, _transform.position + direction[i] * 10, Color.blue, 10.0f);
-                    }
-                    //else
-                    //{
-                    //    for (int j = 0; j < totalUserCount; j++)
-                    //    {
-                    //        if (hit.collider.gameObject.layer == LayerMask.NameToLayer("VirtualUser" + j))
-                    //        {
-                    //            distance = hit.distance;
-                    //            break;
-                    //        }
-                    //    }
-                    //}
-                }
-
-            }
+            distance = GetBoundaryDistance(_transform.position, direction[i], bActual, 1000.0f, userIndex);
 
             if (N_waycount == 3)
             {
@@ -288,5 +226,130 @@ public class ARC_Resetter : RotationResetter
         //    Debug.Log(sb.ToString());
         //}
 
+    }
+
+    private float GetBoundaryDistance(Vector3 origin, Vector3 direction, bool isPhysical, float maxDistance, int userIndex)
+    {
+        if (TryGetPartitionDistance(origin, direction, userIndex, maxDistance, out float partitionDistance))
+            return partitionDistance;
+
+        var settings = RDWSimulationManager.instance.simulationSetting;
+        Vector2 halfSize = isPhysical
+            ? new Vector2(Mathf.Abs(settings.realSpaceSetting.spaceObjectSetting.vertices[0].x), Mathf.Abs(settings.realSpaceSetting.spaceObjectSetting.vertices[0].y))
+            : new Vector2(Mathf.Abs(settings.virtualSpaceSetting.spaceObjectSetting.vertices[0].x), Mathf.Abs(settings.virtualSpaceSetting.spaceObjectSetting.vertices[0].y));
+
+        Vector2 dir2 = new Vector2(direction.x, direction.z);
+        if (dir2.sqrMagnitude < Mathf.Epsilon)
+            return maxDistance;
+
+        dir2.Normalize();
+
+        float tMin = float.PositiveInfinity;
+
+        if (Mathf.Abs(dir2.x) > Mathf.Epsilon)
+        {
+            float tx1 = (-halfSize.x - origin.x) / dir2.x;
+            float tx2 = (halfSize.x - origin.x) / dir2.x;
+            if (tx1 > 0) tMin = Mathf.Min(tMin, tx1);
+            if (tx2 > 0) tMin = Mathf.Min(tMin, tx2);
+        }
+
+        if (Mathf.Abs(dir2.y) > Mathf.Epsilon)
+        {
+            float tz1 = (-halfSize.y - origin.z) / dir2.y;
+            float tz2 = (halfSize.y - origin.z) / dir2.y;
+            if (tz1 > 0) tMin = Mathf.Min(tMin, tz1);
+            if (tz2 > 0) tMin = Mathf.Min(tMin, tz2);
+        }
+
+        if (float.IsInfinity(tMin) || tMin <= 0)
+            return maxDistance;
+
+        return Mathf.Min(tMin, maxDistance);
+    }
+
+    private int GetUserIndex(Transform userTransform)
+    {
+        if (userTransform == null || userTransform.gameObject == null)
+            return -1;
+
+        string tag = userTransform.gameObject.tag;
+        if (string.IsNullOrEmpty(tag))
+            return -1;
+
+        if (tag.StartsWith("RealUser"))
+        {
+            string indexText = tag.Substring("RealUser".Length);
+            if (int.TryParse(indexText, out int index))
+                return index;
+        }
+        else if (tag.StartsWith("VirtualUser"))
+        {
+            string indexText = tag.Substring("VirtualUser".Length);
+            if (int.TryParse(indexText, out int index))
+                return index;
+        }
+
+        return -1;
+    }
+
+    private bool TryGetPartitionDistance(Vector3 origin, Vector3 direction, int userIndex, float maxDistance, out float distance)
+    {
+        distance = maxDistance;
+
+        if (userIndex < 0 || _OSP.OSP_Agent.instance == null)
+            return false;
+
+        if (!_OSP.OSP_Agent.instance.dic_AreaSegmentsVertex.TryGetValue(userIndex, out List<Vector2> polygon)
+            || polygon == null || polygon.Count < 3)
+            return false;
+
+        Vector2 dir2 = new Vector2(direction.x, direction.z);
+        if (dir2.sqrMagnitude < Mathf.Epsilon)
+            return false;
+
+        dir2.Normalize();
+        Vector2 origin2 = new Vector2(origin.x, origin.z);
+
+        float tMin = float.PositiveInfinity;
+        for (int i = 0; i < polygon.Count; i++)
+        {
+            Vector2 a = polygon[i];
+            Vector2 b = polygon[(i + 1) % polygon.Count];
+            if (TryRaySegmentIntersection(origin2, dir2, a, b, out float t) && t > 0)
+                tMin = Mathf.Min(tMin, t);
+        }
+
+        if (float.IsInfinity(tMin) || tMin <= 0)
+            return false;
+
+        distance = Mathf.Min(tMin, maxDistance);
+        return true;
+    }
+
+    private bool TryRaySegmentIntersection(Vector2 origin, Vector2 dir, Vector2 a, Vector2 b, out float t)
+    {
+        t = 0f;
+        Vector2 s = b - a;
+        float denom = Cross(dir, s);
+        if (Mathf.Abs(denom) < 1e-6f)
+            return false;
+
+        Vector2 diff = a - origin;
+        float tRay = Cross(diff, s) / denom;
+        float u = Cross(diff, dir) / denom;
+
+        if (tRay >= 0f && u >= 0f && u <= 1f)
+        {
+            t = tRay;
+            return true;
+        }
+
+        return false;
+    }
+
+    private float Cross(Vector2 a, Vector2 b)
+    {
+        return a.x * b.y - a.y * b.x;
     }
 }

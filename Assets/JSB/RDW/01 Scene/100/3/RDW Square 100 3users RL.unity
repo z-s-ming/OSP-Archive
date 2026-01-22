@@ -989,6 +989,7 @@ MonoBehaviour:
         radius: 0
         p1: {x: 0, y: 0}
         p2: {x: 0, y: 0}
+      voronoiBuildMethod: 0
     virtualSpaceSetting:
       usePredefinedSpace: 0
       name: Virtual Space
@@ -1013,6 +1014,7 @@ MonoBehaviour:
         p1: {x: 0, y: 0}
         p2: {x: 0, y: 0}
       obstacleObjectSettings: []
+      voronoiBuildMethod: 0
     unitSettings:
     - redirectType: 6
       resetType: 5

@@ -1206,8 +1206,8 @@ MonoBehaviour:
         p2: {x: 0, y: 0}
       obstacleObjectSettings: []
     unitSettings:
-    - redirectType: 6
-      resetType: 5
+    - redirectType: 3
+      resetType: 2
       episodeType: 1
       episodeLength: 99999
       episodeFileName: 
@@ -1222,8 +1222,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
+    - redirectType: 3
+      resetType: 2
       episodeType: 1
       episodeLength: 99999
       episodeFileName: 
@@ -1238,8 +1238,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
+    - redirectType: 3
+      resetType: 2
       episodeType: 1
       episodeLength: 99999
       episodeFileName: 
@@ -1254,8 +1254,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
+    - redirectType: 3
+      resetType: 2
       episodeType: 1
       episodeLength: 99999
       episodeFileName: 
@@ -1270,8 +1270,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
+    - redirectType: 7
+      resetType: 6
       episodeType: 1
       episodeLength: 99999
       episodeFileName: 
@@ -1286,8 +1286,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
+    - redirectType: 3
+      resetType: 2
       episodeType: 1
       episodeLength: 99999
       episodeFileName: 
@@ -1425,6 +1425,7 @@ GameObject:
   - component: {fileID: 2003462192}
   - component: {fileID: 2003462193}
   - component: {fileID: 2003462195}
+  - component: {fileID: 2003462190}
   m_Layer: 0
   m_Name: Virtual Shutter Actor
   m_TagString: Untagged
@@ -1432,6 +1433,33 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
+--- !u!114 &2003462190
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2003462189}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 27ec82e1e8d3a8c44bb2d7cd9eb1005f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  showPartitionBoundaries: 1
+  showUserPositions: 1
+  boundaryColor: {r: 0, g: 1, b: 0, a: 1}
+  userMarkerSize: 0.2
+  gridCellSize: 0.1
+  forwardSpeed: 1
+  sideSpeed: 0.75
+  backwardSpeed: 0.5
+  forwardAngle: 45
+  sideAngle: 135
+  rayMarchStepSize: 0
+  maxRayDistance: 10
+  boundaryMargin: 0.5
+  userSafetyDistance: 0.5
+  showGrid: 0
 --- !u!4 &2003462191
 Transform:
   m_ObjectHideFlags: 0
@@ -1512,10 +1540,7 @@ MonoBehaviour:
   text_currentReward: {fileID: 1172250593}
   SimulationCount_max: 100
   bEnable_InitPhyUserPosUni: 0
-  prefab_VoronoiVertex: {fileID: 5505899062355568956, guid: 096dad0eb818a6446a18d03f44a52724,
-    type: 3}
-  prefab_VoronoiSeedPoint: {fileID: 5505899062355568956, guid: b537e0df341b96f4abfefa5db2256338,
-    type: 3}
+  spacePartitioner: {fileID: 2003462190}
   totalUserCount: 6
   userRadius: 0.5
   shutterWidth: 0.5
@@ -1539,6 +1564,3 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 9d8af6d21c4f3384e8b883eaa946e498, type: 2}
   - {fileID: 2100000, guid: 1345d5228d116654bb3151fea4cf31dd, type: 2}
   - {fileID: 2100000, guid: 5909335d10fc56e4cadcd5976c6b0e2e, type: 2}
-  prefab_VoronoiEdgesCollider: {fileID: 3491661778377261238, guid: 70d3f05e765ee7f449bc1d671b9f2328,
-    type: 3}
-  list_VoronoiEdgesCollider: []

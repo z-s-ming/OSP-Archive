@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
+using _OSP;
 
 public class Resetter
 {
@@ -76,11 +77,15 @@ public class Resetter
 
     public (bool,bool) NeedWallReset(Object2D realUser, Space2D realSpace)
     {
+        if (OSP_Agent.instance != null && OSP_Agent.instance.TryGetPartitionCollision(realUser, out bool needReset, out bool isShutterReset))
+        {
+            return (needReset, isShutterReset);
+        }
+
         Vector2 realUserPosition = realUser.transform2D.localPosition;
 
         //(bool, bool) item = realSpace.IsInside(realUserPosition, Space.Self, 0.00001f);
         (bool, bool) item = realSpace.IsInside(realUserPosition, Space.Self, 0.5f);
-      
 
         return (!item.Item1, item.Item2); // 0.2f
         //return !realSpace.IsInside(realUser, 0);

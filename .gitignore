@@ -59,3 +59,16 @@ sysinfo.txt
 crashlytics-build.properties
 
 /JSB_RL_Simulator/Assets/JSB_RL/results
+
+# ---------------------------------
+# 用户自定义规则 (My Custom Rules)
+# ---------------------------------
+
+# 忽略 ML-Agents 训练产生的计时器 JSON 文件
+Assets/ML-Agents/Timers/*.json
+
+# 忽略实验数据日志文件夹 (包含里面所有的 txt)
+CGnA_DataLog/
+
+# 忽略 VS Code 的配置文件夹
+.vscode/

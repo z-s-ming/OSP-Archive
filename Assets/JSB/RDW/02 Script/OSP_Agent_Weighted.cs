@@ -8,21 +8,34 @@ using Random = UnityEngine.Random;
 using UnityEngine.UI;
 using System.Text;
 using System.Linq;
-using JSB.RDW.SpacePartitioning;
+using JSB.RDW.Voronoi;
 
 namespace _OSP
 {
-    public enum Enum_CurriculumState
-    {
-        _1stQuater, _2ndQuater, _3rdQuater, _4thQuater
-    };
-
-    public class OSP_Agent : Agent
+    /// <summary>
+    /// OSP Agent using Weighted Voronoi Partitioning
+    /// 使用加权Voronoi分区的OSP代理
+    /// 
+    /// 核心功能：
+    /// 1. 初始化：创建物理/虚拟用户、种子点、快门等对象池
+    /// 2. 空间分区：使用加权Voronoi算法将物理空间动态分割为多个子区域
+    /// 3. 观察收集：收集用户位置、方向、距离等状态信息用于ML决策
+    /// 4. 动作执行：根据AI决策调整种子点位置，改变空间分区边界
+    /// 5. 奖励计算：基于重置次数、用户距离等多维指标计算奖励
+    /// 6. 重定向模拟：运行RDW(重定向行走)模拟，评估分区质量
+    /// 
+    /// 关键概念：
+    /// - Seed Point：种子点，代表每个用户对应的Voronoi分区中心
+    /// - Voronoi Partition：网格化的分区数组，记录每个网格单元属于哪个用户区域
+    /// - Virtual Shutter：虚拟快门，位于相邻区域边界处的碰撞体，用于模拟物理隔挡
+    /// - Weighted Voronoi：考虑用户权重的Voronoi分区，权重由方向决定
+    /// </summary>
+    public class OSP_Agent_Weighted : Agent
     {
         /// <summary>
         /// for singleton pattern
         /// </summary>
-        public static OSP_Agent instance = null;
+        public static OSP_Agent_Weighted instance = null;
 
         /// <summary>
         /// enable to input state information
@@ -163,14 +176,28 @@ namespace _OSP
         private RaycastHit rayCastHit;
 
         /// <summary>
-        /// Partition seed points (world space)
+        /// Weighted Voronoi space partition (grid-based)
         /// </summary>
-        private List<Vector2> list_partitionSeedPoints = new List<Vector2>();
+        private int[,] weightedVoronoiPartition;
 
         /// <summary>
-        /// Fixed seed points for uniform initialization
+        /// Region metrics computed from weighted Voronoi partition
         /// </summary>
-        private List<Vector2> list_partitionSeedPointsFixed = new List<Vector2>();
+        private List<WeightedVoronoiUtility.RegionMetrics> voronoiRegionMetrics;
+
+        /// <summary>
+        /// 
+        /// </summary>
+        List<WeightedVoronoiGrid.SeedPoint> list_VoronoiSeedPoint = new List<WeightedVoronoiGrid.SeedPoint>();
+
+        /// <summary>
+        /// 
+        /// </summary>
+        List<GameObject> list_VoronoiVertexMarker = new List<GameObject>();
+        /// <summary>
+        /// 
+        /// </summary>
+        List<Vector2> list_WayPoint_vertices = new List<Vector2>();
         /// <summary>
         /// 
         /// </summary>
@@ -186,12 +213,37 @@ namespace _OSP
         public bool bEnable_InitPhyUserPosUni = false;
 
         /// <summary>
-        /// Preserve initial partitioning
+        /// Preserve initial Voronoi Diagram 
         /// </summary>
-        private bool bLock_Partitioning = false;
+        private bool bLock_VoronoiDiagram = false;
 
+        /// <summary>
+        /// voronoi vertex
+        /// </summary>
         [SerializeField]
-        private SpacePartitioner spacePartitioner;
+        private GameObject prefab_VoronoiVertex;
+
+        /// <summary>
+        /// seed
+        /// </summary>
+        [SerializeField]
+        private GameObject prefab_VoronoiSeedPoint;
+
+        /// <summary>
+        /// seed
+        /// </summary>
+        List<GameObject> list_seedPointVisual = new List<GameObject>();
+
+        /// <summary>
+        /// AI动作对种子点的有限偏移（每个用户对应一个偏移向量）
+        /// 由模型/策略输出，大小受CalcStableAreaRadius()限制
+        /// </summary>
+        private List<Vector2> list_currentActionOffset = new List<Vector2>();
+
+        /// <summary>
+        /// 
+        /// </summary>
+        private List<GameObject> list_VirtualSutterDelegate = new List<GameObject>();
 
         /// <summary>
         /// 
@@ -209,6 +261,12 @@ namespace _OSP
         /// </summary>
         [SerializeField]
         private float shutterWidth = 0.5f;
+
+        /// <summary>
+        /// Grid cell size for weighted Voronoi (meters)
+        /// </summary>
+        [SerializeField]
+        private float gridCellSize = 0.1f;
 
         /// <summary>
         /// 
@@ -275,9 +333,27 @@ namespace _OSP
         public Dictionary<int, List<Vector2>> dic_AreaSegmentsVertex = new Dictionary<int, List<Vector2>>();
 
         /// <summary>
-        /// 
+        /// Partition space materials
         /// </summary>
         public List<Material> PartitionedSpaceMaterials = new List<Material>();
+
+        /// <summary>
+        /// Renderer for displaying Voronoi texture
+        /// </summary>
+        [SerializeField]
+        private Renderer voronoiRenderer;
+
+        /// <summary>
+        /// Color palette for Voronoi visualization
+        /// </summary>
+        [SerializeField]
+        private Color[] voronoiPalette = new Color[]
+        {
+            new Color(0.93f, 0.49f, 0.19f),
+            new Color(0.25f, 0.76f, 0.47f),
+            new Color(0.22f, 0.55f, 0.91f),
+            new Color(0.96f, 0.82f, 0.26f),
+        };
 
         /// <summary>
         /// 
@@ -294,7 +370,7 @@ namespace _OSP
         /// </summary>
         private float eps = 0.001f;
 
-        private bool bOneframetimerblockPartitioning = false;
+        private bool bOneframetimerblockVoronoi = false;
 
 
         //------------------------
@@ -323,7 +399,7 @@ namespace _OSP
             if(totalUserCount < 3 && bEnable_InitPhyUserPosUni)
             {
                 bEnable_InitPhyUserPosUni = false;
-                bOneframetimerblockPartitioning = true;
+                bOneframetimerblockVoronoi = true;
             }
         }
 
@@ -345,7 +421,13 @@ namespace _OSP
         }
 
         /// <summary>
-        /// ML-agent Framework API 
+        /// ML-agent Framework API
+        /// 每步收集观察信息，用于训练神经网络
+        /// 
+        /// 观察内容：
+        /// 1. 物理用户状态(位置XZ、方向Y、到障碍距离8方向、分配空间面积)
+        /// 2. 虚拟用户状态(位置XZ、方向Y、到障碍距离8方向)
+        /// 3. 种子点被动更新(由物理用户位置驱动)
         /// </summary>
         public override void CollectObservations(VectorSensor sensor)
         {
@@ -380,9 +462,8 @@ namespace _OSP
                     for (int j = 0; j < 8; j++)
                     {
                         dic_data.TryGetValue(j, out queue_data);
-
-                        float[] array_oneWayWallDist = queue_data.ToArray();
-                        sensor.AddObservation(array_oneWayWallDist);
+                        float[] array_data = queue_data.ToArray();
+                        sensor.AddObservation(array_data);
                     }
 
                     /// physical sub-space room size
@@ -410,40 +491,41 @@ namespace _OSP
                     for (int j = 0; j < 8; j++)
                     {
                         dic_data.TryGetValue(j, out queue_data);
-
-                        float[] array_oneWayWallDist = queue_data.ToArray();
-                        sensor.AddObservation(array_oneWayWallDist);
+                        float[] array_data = queue_data.ToArray();
+                        sensor.AddObservation(array_data);
                     }
                 }
-
-
-                //Queue<float> queue_data1 = new Queue<float>();
-                //dic_ActualUser00_WallDistance.TryGetValue(0, out queue_data1);
-
-                //float[] array_fromQueue1 = queue_data1.ToArray();
-
-                //StringBuilder sb = new StringBuilder();
-
-                //for (int i = 0; i < queue_data1.Count; i++)
-                //{
-
-                //    sb.Append(queue_data1.ToArray().GetValue(i)).Append("/");
-                //}
-
-                //Debug.Log("Count : " + queue_data1.Count.ToString() + " || " + sb.ToString());
-                //Debug.Log(array_fromQueue1[array_fromQueue1.Length - 1]);
             }
 
-            /// Seed point Init
+            /// Update seed points with user positions + AI model offset
+            UpdateSeedPointsWithOffset();
+            /// Update Voronoi Diagram based on seed points (which include model offset)
+            UpdateVoronoiDiagram();
+
+            /// Display seed points
             for (int i = 0; i < totalUserCount; i++)
             {
-                list_partitionSeedPoints[i] = new Vector2(list_physical_simulatedUsers[i].transform.position.x, list_physical_simulatedUsers[i].transform.position.z);
+                list_seedPointVisual[i].transform.position = new Vector3(list_VoronoiSeedPoint[i].position.x, 0.0f, list_VoronoiSeedPoint[i].position.y);
             }
+
 
         }
 
         /// <summary>
-        /// ML-agent Framework API 
+        /// ML-agent Framework API
+        /// 执行AI决策动作，更新系统状态
+        /// 
+        /// 关键改变 - RDW驱动的用户移动流程：
+        /// 1. 检查Episode是否结束，若结束则初始化障碍信息并计算结果
+        /// 2. 执行RDW重定向模拟(根据Voronoi快门，逐步移动用户)
+        ///    - 用户根据物理约束逐帧移动，不是瞬移
+        /// 3. 计算当前步的奖励(基于实际移动距离)
+        /// 4. 更新空间信息队列(位置、距离等)
+        /// 
+        /// 种子点和Voronoi更新延迟到下一帧CollectObservations()：
+        /// - 在CollectObservations()中调用UpdateSeedPoints()被动跟踪用户新位置
+        /// - 然后调用UpdateVoronoiDiagram()基于新位置重新分割空间
+        /// - 这确保Voronoi边界和虚拟快门始终反映用户的实际位置
         /// </summary>
         public override void OnActionReceived(ActionBuffers actionBuffers)
         {
@@ -454,9 +536,9 @@ namespace _OSP
             /// Init Obstacle mesh info for next episode
             if (StepCount == MaxStep)
             {
-                if (spacePartitioner != null)
+                for (int i = 0; i < edgeMaxcount; i++)
                 {
-                    spacePartitioner.InitObstacleInfo();
+                    RDWSimulationManager.instance.InitObstacleInfo(list_VirtualSutterDelegate[i].transform);
                 }
 
                 CalcResultPerEpisode();
@@ -464,58 +546,42 @@ namespace _OSP
                 return;
             }
 
-            if (!bLock_Partitioning)
-            {
-                ///calc maximum available radius
-                float allowedRange = CalcStableAreaRadius() - eps;
 
-                /// action values based on the number of users
+            if (!bLock_VoronoiDiagram)
+            {
+                /// Compute AI action offset to guide Voronoi partition
+                /// This offset will be applied to seed points in next CollectObservations
+                float allowedRange = CalcStableAreaRadius() - eps;
                 int actionValueCount = 0;
 
-                /// decide the action
                 for (int i = 0; i < totalUserCount; i++)
                 {
-                    ///calc actions value
-                    var action1 = Mathf.Clamp(actionBuffers.ContinuousActions[actionValueCount++], 0.0f, 1.0f) * allowedRange;
-                    var action2 = Mathf.Clamp(actionBuffers.ContinuousActions[actionValueCount++], 0.0f, 1.0f) * 360.0f;
+                    /// Parse continuous actions: distance and direction
+                    var actionDistance = Mathf.Clamp(actionBuffers.ContinuousActions[actionValueCount++], 0.0f, 1.0f) * allowedRange;
+                    var actionDirection = Mathf.Clamp(actionBuffers.ContinuousActions[actionValueCount++], 0.0f, 1.0f) * 360.0f;
 
-                    ///calc new seed points pos
-                    Vector2 pos = new Vector2(list_physical_simulatedUsers[i].transform.position.x, list_physical_simulatedUsers[i].transform.position.z);
-                    pos += rotateVec2D(Vector2.right, action2) * action1;
-                    list_partitionSeedPoints[i] = pos;
+                    /// Calculate the offset vector (limited by allowedRange)
+                    /// This offset will push the Voronoi partition to reduce resets
+                    list_currentActionOffset[i] = rotateVec2D(Vector2.right, actionDirection) * actionDistance;
+                    
+                    /// Store direction in seed point for weighted Voronoi calculation
+                    list_VoronoiSeedPoint[i].direction = actionDirection;
                 }
-
-
-                /// display seed points
-                if (spacePartitioner != null)
-                {
-                    spacePartitioner.UpdateSeedVisuals(list_partitionSeedPoints);
-                }
-
-
-                /// Update partitioning for current state
-                UpdatePartitioning();
             }
 
-            if (bEnable_InitPhyUserPosUni && !bLock_Partitioning)
+            if (bEnable_InitPhyUserPosUni && !bLock_VoronoiDiagram)
             {
-                bLock_Partitioning = true;
+                bLock_VoronoiDiagram = true;
             }
 
-            if (bOneframetimerblockPartitioning)
+            if (bOneframetimerblockVoronoi)
             {
-                //for (int i = 0; i < totalUserCount; i++)
-                //{
-                //    Vector2 ranVec = Random.insideUnitCircle * ((physicalRoom_width_half / 2.0f) - 0.26f);
-
-                //    list_physical_simulatedUsers[i].transform.position = new Vector3(list_S2C_CenterPointer[i].transform.position.x + ranVec.x, 0.0f, list_S2C_CenterPointer[i].transform.position.z + ranVec.y);
-                //}
-
-                bLock_Partitioning = true;
+                bLock_VoronoiDiagram = true;
             }
 
 
             /// Simulate the designated redirection controller
+            /// Users move gradually driven by RDW, not teleport
             RDWSimulationManager.instance.SimulateRDW();
 
             /// Add rewards for current action
@@ -553,8 +619,8 @@ namespace _OSP
                 queue_data.Dequeue();
 
                 /// 8-way distances from physical walls/obstacles
-                // doubleDic_physicalUsers_8wayWallDist.TryGetValue(i, out dic_data);
-                // Calc_8Way_Distances(list_physical_simulatedUsers[i].transform, ref dic_data, true);
+                doubleDic_physicalUsers_8wayWallDist.TryGetValue(i, out dic_data);
+                Calc_8Way_Distances(list_physical_simulatedUsers[i].transform, ref dic_data, true);
 
                 /// physical sub-space room size
                 dic_physicalRoomSize_users.TryGetValue(i, out queue_data);
@@ -577,13 +643,20 @@ namespace _OSP
                 queue_data.Dequeue();
 
                 /// 8-way distances from virtual walls/obstacles
-                // doubleDic_virtualUsers_8wayWallDist.TryGetValue(i, out dic_data);
-                // Calc_8Way_Distances(list_virtual_simulatedUsers[i].transform, ref dic_data, false);
+                doubleDic_virtualUsers_8wayWallDist.TryGetValue(i, out dic_data);
+                Calc_8Way_Distances(list_virtual_simulatedUsers[i].transform, ref dic_data, false);
             }
         }
 
         /// <summary>
-        /// Add rewards for current action
+        /// 添加奖励
+        /// 
+        /// 奖励构成：
+        /// 1. 基础奖励：+10 (每步都有)
+        /// 2. 距离奖励：用户移动距离 * rewardWeight[0] (鼓励运动)
+        /// 3. 墙壁重置惩罚：重置增加数 * rewardWeight[1] (避免碰墙)
+        /// 4. 快门重置惩罚：重置增加数 * rewardWeight[2] (避免穿过快门)
+        /// 5. 公平性惩罚：用户重置差异 * rewardWeight[3] (促进均衡)
         /// </summary>
         private void AddRewards()
         {
@@ -671,13 +744,12 @@ namespace _OSP
                 if (list_currentTotalWallReset[i] != users_wallReset_pre[i])
                 {
                     float MDbR_wall = list_UsersCumulativeDist[i];
-                    //Debug.Log("MDbR_wall " + MDbR_wall);
                     UsersCumulative_MDbR_sqeuence.Add(MDbR_wall);
                     list_UsersCumulativeDist[i] = 0;
                 }
             }
 
-            /// acculmulate Mean distance between resets (for user reset) for Non-OSP Algorithms and Non-UP (e.g. original APF-SC, ...)
+            /// acculmulate Mean distance between resets (for user reset)
             for (int i = 0; i < totalUserCount; i++)
             {
                 if (list_currentTotalUserReset[i] != users_userReset_pre[i])
@@ -695,7 +767,6 @@ namespace _OSP
                 if (list_currentTotalSutterReset[i] != users_shutterReset_pre[i])
                 {
                     float MDbR_shutter = list_UsersCumulativeDist[i];
-                    //Debug.Log("MDbR_shutter " + MDbR_shutter);
                     UsersCumulative_MDbR_sqeuence.Add(MDbR_shutter);
                     list_UsersCumulativeDist[i] = 0;
                 }
@@ -710,187 +781,152 @@ namespace _OSP
         }
 
         /// <summary>
-        /// Update partitioning for current frame
+        /// 更新加权Voronoi图
+        /// 
+        /// 核心步骤：
+        /// 1. 根据当前种子点位置生成网格化的Voronoi分区
+        /// 2. 计算每个分区的指标(面积、重心、边界分段)
+        /// 3. 更新种子点中心指针(S2C重定向中心)
+        /// 4. 根据实际边界分段数动态创建/销毁快门碰撞体
+        /// 5. 设置虚拟快门委托的位置和碰撞信息
+        /// 
+        /// 注意：快门数量由实际边界分段数决定(非预设固定值)
         /// </summary>
-        private void UpdatePartitioning()
+        private void UpdateVoronoiDiagram()
         {
-            if (spacePartitioner == null)
-                return;
+            // Create physical space rectangle
+            Rect physicalRect = new Rect(
+                -physicalRoom_width_half,
+                -physicalRoom_height_half,
+                physicalRoom_width_half * 2,
+                physicalRoom_height_half * 2);
 
-            SpacePartitioner.SpaceBounds bounds = GetPhysicalBounds();
+            // Generate weighted Voronoi partition
+            weightedVoronoiPartition = WeightedVoronoiUtility.GeneratePartition(
+                list_VoronoiSeedPoint,
+                physicalRect,
+                gridCellSize);
 
-            if (spacePartitioner is GridProbabilityPartitioner)
+            // Compute region metrics (area, centroid, boundary segments)
+            voronoiRegionMetrics = WeightedVoronoiUtility.ComputeRegionMetrics(
+                weightedVoronoiPartition,
+                list_VoronoiSeedPoint,
+                physicalRect,
+                gridCellSize);
+
+            // Render partition texture for visualization (optional)
+            if (voronoiRenderer != null)
             {
-                List<SpacePartitioner.UserInfo> users = new List<SpacePartitioner.UserInfo>();
-                for (int i = 0; i < list_physical_simulatedUsers.Count; i++)
+                int gridW = weightedVoronoiPartition.GetLength(0);
+                int gridH = weightedVoronoiPartition.GetLength(1);
+
+                WeightedVoronoiUtility.AssignColorsToSeeds(
+                    list_VoronoiSeedPoint,
+                    weightedVoronoiPartition,
+                    gridW,
+                    gridH,
+                    voronoiPalette);
+
+                var tex = WeightedVoronoiUtility.RenderPartitionTexture(
+                    weightedVoronoiPartition,
+                    gridW,
+                    gridH,
+                    list_VoronoiSeedPoint,
+                    voronoiPalette,
+                    Color.gray);
+
+                // Avoid leaking textures: replace material instance texture
+                voronoiRenderer.material.mainTexture = tex;
+
+                // Adjust tiling so texture spans the physical room size
+                var tiling = new Vector2(
+                    physicalRoom_width_half * 2f / gridCellSize / gridW,
+                    physicalRoom_height_half * 2f / gridCellSize / gridH);
+                voronoiRenderer.material.mainTextureScale = tiling;
+            }
+
+            // Update centroid and area information
+            list_voronoiCentroid.Clear();
+            list_voronoiArea.Clear();
+
+            for (int i = 0; i < voronoiRegionMetrics.Count; i++)
+            {
+                list_voronoiCentroid.Add(voronoiRegionMetrics[i].centroid);
+                list_voronoiArea.Add(voronoiRegionMetrics[i].area);
+
+                // Update S2C center pointers if using vector observations
+                if (bUseVecOberv && i < list_S2C_CenterPointer.Count)
                 {
-                    users.Add(new SpacePartitioner.UserInfo(list_physical_simulatedUsers[i], i, 1.0f));
+                    list_S2C_CenterPointer[i].transform.position = new Vector3(
+                        voronoiRegionMetrics[i].centroid.x,
+                        0.0f,
+                        voronoiRegionMetrics[i].centroid.y);
+                    list_S2C_CenterPointer[i].SetActive(true);
                 }
 
-                List<SpacePartitioner.PartitionResult> results = spacePartitioner.CalculatePartition(users, bounds);
-                list_voronoiCentroid.Clear();
-                list_voronoiArea.Clear();
-                foreach (var result in results)
+                // Update redirector center points if applicable
+                if (RDWSimulationManager.instance.GetRedirectedUnits[i].GetRedirector() is S2CRedirector)
                 {
-                    list_voronoiCentroid.Add(result.centroid);
-                    list_voronoiArea.Add(result.area);
+                    ((S2CRedirector)RDWSimulationManager.instance.GetRedirectedUnits[i].GetRedirector())
+                        .SetCenterPoint(new Vector3(
+                            voronoiRegionMetrics[i].centroid.x,
+                            0.0f,
+                            voronoiRegionMetrics[i].centroid.y));
                 }
 
-                return;
-            }
-
-            SpacePartitioner.PartitionFrameResult frame = spacePartitioner.UpdatePartitioning(
-                list_partitionSeedPoints,
-                list_physical_simulatedUsers,
-                bounds,
-                totalUserCount,
-                bUseVecOberv,
-                list_S2C_CenterPointer,
-                dic_AreaSegmentsVertex,
-                shutterWidth);
-
-            if (frame != null)
-            {
-                list_voronoiCentroid.Clear();
-                list_voronoiCentroid.AddRange(frame.centroids);
-                list_voronoiArea.Clear();
-                list_voronoiArea.AddRange(frame.areas);
-            }
-        }
-
-        /// <summary>
-        /// 分区结果驱动的碰撞判定（统一接口 + 特定算法优化）
-        /// </summary>
-        public bool TryGetPartitionCollision(Object2D realUser, out bool needReset, out bool isShutterReset)
-        {
-            needReset = false;
-            isShutterReset = false;
-
-            if (spacePartitioner == null || realUser == null)
-                return false;
-
-            int userIndex = TryGetUserIndex(realUser);
-            if (userIndex < 0)
-                return false;
-
-            Vector2 position = realUser.transform2D.position;
-
-            // 优先使用子类重写的碰撞检测方法
-            if (spacePartitioner.CheckPositionCollision(position, userIndex, out needReset, out isShutterReset))
-            {
-                return true;
-            }
-
-            // 回退到 Voronoi 多边形检测（兼容老代码）
-            if (spacePartitioner is VoronoiPartitioner)
-            {
-                if (!dic_AreaSegmentsVertex.TryGetValue(userIndex, out List<Vector2> polygon) || polygon == null || polygon.Count < 3)
-                    return false;
-
-                bool insideBounds = IsInsidePhysicalBounds(position, 0.5f);
-                if (!insideBounds)
+                // Store boundary segments
+                List<Vector2> list_AreaSegmentsVertex = new List<Vector2>();
+                dic_AreaSegmentsVertex.TryGetValue(i, out list_AreaSegmentsVertex);
+                list_AreaSegmentsVertex.Clear();
+                
+                foreach (var segment in voronoiRegionMetrics[i].boundarySegments)
                 {
-                    needReset = true;
-                    isShutterReset = false;
-                    return true;
-                }
-
-                bool insidePolygon = IsPointInPolygon(position, polygon);
-                if (!insidePolygon)
-                {
-                    needReset = true;
-                    isShutterReset = true;
-                }
-
-                return true;
-            }
-
-            return false;
-        }
-
-        private int TryGetUserIndex(Object2D realUser)
-        {
-            if (realUser?.gameObject == null)
-                return -1;
-
-            string tag = realUser.gameObject.tag;
-            if (tag != null && tag.StartsWith("RealUser"))
-            {
-                string indexText = tag.Substring("RealUser".Length);
-                if (int.TryParse(indexText, out int index))
-                    return index;
-            }
-
-            return -1;
-        }
-
-        private bool IsInsidePhysicalBounds(Vector2 position, float bound)
-        {
-            if (physicalRoom_width_half <= 0 || physicalRoom_height_half <= 0)
-                return false;
-
-            return position.x >= -physicalRoom_width_half + bound
-                   && position.x <= physicalRoom_width_half - bound
-                   && position.y >= -physicalRoom_height_half + bound
-                   && position.y <= physicalRoom_height_half - bound;
-        }
-
-        private SpacePartitioner.SpaceBounds GetPhysicalBounds()
-        {
-            Vector2 center = Vector2.zero;
-
-            if (RDWSimulationManager.instance != null && RDWSimulationManager.instance.GetRedirectedUnits != null
-                && RDWSimulationManager.instance.GetRedirectedUnits.Length > 0)
-            {
-                Space2D realSpace = RDWSimulationManager.instance.GetRedirectedUnits[0].GetRealSpace();
-                if (realSpace != null && realSpace.spaceObject != null)
-                {
-                    center = realSpace.spaceObject.transform2D.position;
+                    list_AreaSegmentsVertex.Add(segment.start);
+                    list_AreaSegmentsVertex.Add(segment.end);
                 }
             }
 
-            return new SpacePartitioner.SpaceBounds(center, new Vector2(physicalRoom_width_half * 2, physicalRoom_height_half * 2));
-        }
-
-        private bool IsPointInPolygon(Vector2 point, List<Vector2> polygon)
-        {
-            bool inside = false;
-            int count = polygon.Count;
-
-            for (int i = 0, j = count - 1; i < count; j = i++)
+            // Update virtual shutter delegates along Voronoi edges (no 3D colliders)
+            int delegateIndex = 0;
+            for (int i = 0; i < voronoiRegionMetrics.Count && delegateIndex < list_VirtualSutterDelegate.Count; i++)
             {
-                Vector2 pi = polygon[i];
-                Vector2 pj = polygon[j];
+                foreach (var segment in voronoiRegionMetrics[i].boundarySegments)
+                {
+                    if (delegateIndex >= list_VirtualSutterDelegate.Count)
+                        break;
 
-                bool intersect = ((pi.y > point.y) != (pj.y > point.y)) &&
-                                 (point.x < (pj.x - pi.x) * (point.y - pi.y) / (pj.y - pi.y + Mathf.Epsilon) + pi.x);
+                    Vector2 dir = segment.end - segment.start;
+                    Vector2 midpoint = (segment.start + segment.end) * 0.5f;
 
-                if (intersect)
-                    inside = !inside;
+                    // Align delegate transform with edge for downstream obstacle updates
+                    list_VirtualSutterDelegate[delegateIndex].transform.forward = new Vector3(dir.x, 0.0f, dir.y);
+                    list_VirtualSutterDelegate[delegateIndex].transform.position = new Vector3(midpoint.x, 0.0f, midpoint.y) + Vector3.up * 0.02f;
+
+                    RDWSimulationManager.instance.UpdateObstacleVertexInfo(
+                        ref list_WayPoint_vertices,
+                        list_VirtualSutterDelegate[delegateIndex].transform,
+                        delegateIndex);
+
+                    delegateIndex++;
+                }
             }
-
-            return inside;
         }
 
-        /// Calculate the radius of a circular region where partition seed points can be located
+        /// Calculate the radius of a circular region where Voronoi Seed Points can be located
         private float CalcStableAreaRadius()
         {
             /// min distance of bet. users = calculate stable radius for new seed points
             Dictionary<string, float> dist_dic = new Dictionary<string, float>();
             for (int i = 0; i < totalUserCount; i++)
             {
-                Vector3 me = new Vector3(list_partitionSeedPoints[i].x, 0.0f, list_partitionSeedPoints[i].y);
-                Vector3 target = Vector3.zero;
+                Vector3 me = new Vector3(list_VoronoiSeedPoint[i].position.x, 0.0f, list_VoronoiSeedPoint[i].position.y);
 
-                for (int j = i; j < totalUserCount; j++)
+                for (int j = i + 1; j < totalUserCount; j++)
                 {
-                    if (i == j)
-                        continue;
-
-                    target = new Vector3(list_partitionSeedPoints[j].x, 0.0f, list_partitionSeedPoints[j].y);
-                    Vector3 distVec_users00_01 = me - target;
-
-                    dist_dic.Add(i.ToString()+j.ToString(), distVec_users00_01.magnitude);
+                    Vector3 target = new Vector3(list_VoronoiSeedPoint[j].position.x, 0.0f, list_VoronoiSeedPoint[j].position.y);
+                    float dist = Vector3.Distance(me, target);
+                    string key = i + "_" + j;
+                    dist_dic[key] = dist;
                 }
             }
 
@@ -917,15 +953,6 @@ namespace _OSP
                 }
                 int wallResetSum = list_userWallReset.Sum();
 
-                ///user reset count
-                //List<int> list_useruserReset = new List<int>();
-                //for (int i = 0; i < totalUserCount; i++)
-                //{
-                //    list_useruserReset.Add((int)(RDWSimulationManager.instance.GetRedirectedUnits[i].resultData.getUserReset()));
-                //}
-                //int userResetSum = list_useruserReset.Sum();
-                //int userResetSum = list_useruserReset.Sum();
-
                 ///shutter reset count
                 List<int> list_userShutterReset = new List<int>();
                 for (int i = 0; i < totalUserCount; i++)
@@ -934,9 +961,6 @@ namespace _OSP
                 }
                 int ShutterResetSum = list_userShutterReset.Sum();
 
-                /// user reset zero concept
-                //int userbet = 0;
-                //int userbet = userResetSum;
                 int userbet = RDWSimulationManager.instance.Calc_UserResetFilter();
 
                 list_usersTotalReset_perEpisode.Add(wallResetSum + userbet + ShutterResetSum);
@@ -953,10 +977,7 @@ namespace _OSP
                     MDbR_AVG = list_UsersCumulativeDist.Average();
                 }
 
-
                 Debug.LogWarning(string.Format("walllreset {0} / userreset {1} /shutterreset {2} / MDbR AVg. {3}", wallResetSum, userbet, ShutterResetSum, MDbR_AVG));
-                Debug.Log(string.Format("[Episode End] Total Reset: {0} | Wall: {1} | User: {2} | Shutter: {3} | Cumulative Reward: {4:F2} | MDbR: {5:F3}", 
-                    wallResetSum + userbet + ShutterResetSum, wallResetSum, userbet, ShutterResetSum, GetCumulativeReward(), MDbR_AVG));
 
                 UsersCumulative_MDbR_SimulationCount_max.Add(MDbR_AVG);
 
@@ -969,8 +990,6 @@ namespace _OSP
                 sb.Append(userbet).Append(',');
                 sb.Append(ShutterResetSum).Append(',');
                 sb.Append(MDbR_AVG).Append(',');
-
-                //sb.AppendFormat("{0:F4}", GetCumulativeReward()).Append(',');
 
                 if (sb.Length > 0 && sb[sb.Length - 1] == ',')
                 {
@@ -995,7 +1014,6 @@ namespace _OSP
                 {
                     currnet_CurriculumState = Enum_CurriculumState._4thQuater;
                 }
-
 
                 if (currentSimulationCount == SimulationCount_max)
                 {
@@ -1026,15 +1044,42 @@ namespace _OSP
         }
 
         /// <summary>
-        /// Initialize Dictionary for spatial information
+        /// 初始化数据结构字典
+        /// 
+        /// 创建内容：
+        /// 1. 快门对象池：基于totalUserCount计算所需快门数量
+        /// 2. 顶点标记池：Voronoi顶点可视化(预分配足够容量)
+        /// 3. 种子点可视化：每个用户一个
+        /// 4. 虚拟快门委托：每条边界一个
+        /// 5. 观察数据字典：为每个用户创建位置/距离/面积队列
+        /// 6. 分区段数据：为每个用户初始化分区信息存储
         /// </summary>
         private void InitializeInfoDics()
         {
             edgeMaxcount = (totalUserCount * (totalUserCount - 1)) / 2;
 
-            if (spacePartitioner != null)
+            // Create vertex markers for Voronoi diagram (enough for all possible vertices)
+            int maxVertexCount = edgeMaxcount * 2;
+            for (int i = 0; i < maxVertexCount; i++)
             {
-                spacePartitioner.InitializeSpatialObjects(totalUserCount, edgeMaxcount, shutterWidth);
+                list_VoronoiVertexMarker.Add(Instantiate(prefab_VoronoiVertex, new Vector3(-50.0f, 0.0f, 0.0f), Quaternion.identity));
+                list_VoronoiVertexMarker[i].SetActive(false);
+                list_VoronoiVertexMarker[i].name = "VoronoiVertexMarker " + i;
+            }
+
+            // Create seed point visualizations for each user
+            for (int i = 0; i < totalUserCount; i++)
+            {
+                list_seedPointVisual.Add(Instantiate(prefab_VoronoiSeedPoint, new Vector3(-50.0f, 0.0f, 0.0f), Quaternion.identity));
+                list_seedPointVisual[i].name = "seedpointView " + i;
+            }
+
+            for (int i = 0; i < edgeMaxcount; i++)
+            {
+                GameObject go = new GameObject();
+                list_VirtualSutterDelegate.Add(go);
+                list_VirtualSutterDelegate[i].transform.position = Vector3.zero + Vector3.up * 0.02f;
+                list_VirtualSutterDelegate[i].name = "VirtualSutterDelegate " + i;
             }
 
             for (int i = 0; i < totalUserCount; i++)
@@ -1086,13 +1131,9 @@ namespace _OSP
                 {
                     Queue<float> queue = new Queue<float>();
                     dic_data.Add(j, queue);
-
-                    //Debug.Log("dic_data : " + dic_data.Count);
                 }
                 doubleDic_physicalUsers_8wayWallDist.Add(i, dic_data);
             }
-
-            //Debug.Log("doubleDic_ActualUsers_8wayWallDist : " + doubleDic_ActualUsers_8wayWallDist.Count);
 
             for (int i = 0; i < totalUserCount; i++)
             {
@@ -1104,6 +1145,7 @@ namespace _OSP
                 }
                 doubleDic_virtualUsers_8wayWallDist.Add(i, dic_data);
             }
+
             for (int i = 0; i < totalUserCount; i++)
             {
                 List<Vector2> list = new List<Vector2>();
@@ -1114,7 +1156,6 @@ namespace _OSP
         /// <summary>
         /// Initialize list for spatial information
         /// </summary>
-        /// <param name="_initUserPhyiscalPos"></param>
         private void InitializeInfoLists(Vector2 _initUserPhyiscalPos)
         {
             list_UsersCumulativeDist.Clear();
@@ -1123,6 +1164,7 @@ namespace _OSP
             users_wallReset_pre.Clear();
             users_userReset_pre.Clear();
             users_shutterReset_pre.Clear();
+            list_currentActionOffset.Clear();
             for (int i = 0; i < totalUserCount; i++)
             {
                 list_UsersCumulativeDist.Add(0.0f);
@@ -1132,14 +1174,19 @@ namespace _OSP
                 users_wallReset_pre.Add(0);
                 users_userReset_pre.Add(0);
                 users_shutterReset_pre.Add(0);
+                list_currentActionOffset.Add(Vector2.zero);
             }
         }
 
-
-
-
         /// <summary>
-        /// Reset the parameters
+        /// 重置参数(每个Episode开始)
+        /// 
+        /// 重置流程：
+        /// 1. 获取房间尺寸和虚拟空间参数
+        /// 2. 销毁并重建用户对象(物理和虚拟)
+        /// 3. 清空所有历史数据
+        /// 4. 一次性初始化种子点(位置+方向)
+        /// 5. 生成初始Voronoi图和快门
         /// </summary>
         public void SetResetParameters()
         {
@@ -1155,92 +1202,41 @@ namespace _OSP
             actual_halfRoomsize_default = physicalRoom_height_half * 2 * physicalRoom_width_half;
             actual_roomhypotenuse = Mathf.Sqrt(Mathf.Pow(physicalRoom_width_half, 2) + Mathf.Pow(physicalRoom_height_half, 2));
 
-            /// refresh pointers for physical user 
-            foreach (var item in list_physical_simulatedUsers)
-            {
-                DestroyImmediate(item);
-            }
-
+            /// 直接引用RDWSimulationManager中的用户对象，而不创建重复拷贝
             list_physical_simulatedUsers.Clear();
-
             for (int i = 0; i < totalUserCount; i++)
             {
-                GameObject actuser = GameObject.FindWithTag("RealUser" + i);
-                list_physical_simulatedUsers.Add(actuser);
-            }
-
-            /// refresh pointers for virtual user 
-            foreach (var item in list_virtual_simulatedUsers)
-            {
-                DestroyImmediate(item);
+                list_physical_simulatedUsers.Add(RDWSimulationManager.instance.GetRedirectedUnits[i].realUser.gameObject);
             }
 
             list_virtual_simulatedUsers.Clear();
-
             for (int i = 0; i < totalUserCount; i++)
             {
-                GameObject viruser = GameObject.FindWithTag("VirtualUser" + i);
-                viruser.GetComponent<CapsuleCollider>().enabled = false;
-                list_virtual_simulatedUsers.Add(viruser);
+                list_virtual_simulatedUsers.Add(RDWSimulationManager.instance.GetRedirectedUnits[i].virtualUser.gameObject);
             }
 
-            //Debug.Log("A");
-
-            if (bEnable_InitPhyUserPosUni && currentSimulationCount == 0)
-            {
-                list_partitionSeedPointsFixed.Clear();
-
-                SpacePartitioner.SpaceBounds bounds = GetPhysicalBounds();
-                List<Vector2> generated = null;
-                if (spacePartitioner != null)
-                {
-                    generated = spacePartitioner.GenerateUniformSeedPoints(totalUserCount, bounds, eps);
-                }
-
-                if (generated != null && generated.Count == totalUserCount)
-                {
-                    list_partitionSeedPointsFixed.AddRange(generated);
-                }
-                else
-                {
-                    for (int i = 0; i < totalUserCount; i++)
-                    {
-                        SpacePartitioner.SpaceBounds localBounds = GetPhysicalBounds();
-                        list_partitionSeedPointsFixed.Add(new Vector2(Random.Range(localBounds.min.x, localBounds.max.x), Random.Range(localBounds.min.y, localBounds.max.y)));
-                    }
-                }
-            }
-
-            if (bEnable_InitPhyUserPosUni)
-            {
-                //Debug.Log("G:" + list_physical_simulatedUsers.Count);
-
-                for (int i = 0; i < totalUserCount; i++)
-                {
-                    list_physical_simulatedUsers[i].transform.position = new Vector3(list_partitionSeedPointsFixed[i].x, 0.0f, list_partitionSeedPointsFixed[i].y);
-                }
-
-                if(totalUserCount == 4)
-                {
-                    for (int i = 0; i < totalUserCount; i++)
-                    {
-                        list_physical_simulatedUsers[i].transform.Translate(Vector3.forward * Random.Range(-0.001f, 0.001f));
-                    }
-                }
-            }
-
-            bLock_Partitioning = false;
-
-
-
+            bLock_VoronoiDiagram = false;
 
             prev_wallReset_mean = 0;
 
             InitializeInfoLists(Vector2.zero);
 
             UsersCumulative_MDbR_sqeuence.Clear();
+            
+            // Reset action offset for new episode
+            list_currentActionOffset.Clear();
+            for (int i = 0; i < totalUserCount; i++)
+            {
+                list_currentActionOffset.Add(Vector2.zero);
+            }
 
             InitializeInfoQueues();
+
+            /// Initialize seed points with user positions and orientations
+            InitializeSeedPoints();
+
+            /// Generate initial Voronoi diagram
+            UpdateVoronoiDiagram();
         }
 
         /// <summary>
@@ -1255,126 +1251,128 @@ namespace _OSP
             {
                 dic_physicalUsers_pos_X.TryGetValue(i, out queue_data);
                 queue_data.Clear();
+                for (int j = 0; j < sptialInfo_windowSize; j++)
+                {
+                    queue_data.Enqueue(0.0f);
+                }
 
                 dic_physicalUsers_pos_Z.TryGetValue(i, out queue_data);
                 queue_data.Clear();
+                for (int j = 0; j < sptialInfo_windowSize; j++)
+                {
+                    queue_data.Enqueue(0.0f);
+                }
 
                 dic_physicalUsers_orient_Y.TryGetValue(i, out queue_data);
                 queue_data.Clear();
-
-                doubleDic_physicalUsers_8wayWallDist.TryGetValue(i, out dic_data);
-                for (int j = 0; j < 8; j++)
+                for (int j = 0; j < sptialInfo_windowSize; j++)
                 {
-                    dic_data.TryGetValue(j, out queue_data);
-                    queue_data.Clear();
+                    queue_data.Enqueue(0.0f);
                 }
 
                 dic_physicalRoomSize_users.TryGetValue(i, out queue_data);
                 queue_data.Clear();
+                for (int j = 0; j < sptialInfo_windowSize; j++)
+                {
+                    queue_data.Enqueue(0.0f);
+                }
 
                 dic_virtualUsers_pos_X.TryGetValue(i, out queue_data);
                 queue_data.Clear();
+                for (int j = 0; j < sptialInfo_windowSize; j++)
+                {
+                    queue_data.Enqueue(0.0f);
+                }
 
                 dic_VirtualUsers_Position_Z.TryGetValue(i, out queue_data);
                 queue_data.Clear();
+                for (int j = 0; j < sptialInfo_windowSize; j++)
+                {
+                    queue_data.Enqueue(0.0f);
+                }
 
                 dic_VirtualUsers_Orient_Y.TryGetValue(i, out queue_data);
                 queue_data.Clear();
-
-                doubleDic_virtualUsers_8wayWallDist.TryGetValue(i, out dic_data);
-                for (int j = 0; j < 8; j++)
-                {
-                    dic_data.TryGetValue(j, out queue_data);
-                    queue_data.Clear();
-                }
-            }
-
-
-            list_partitionSeedPoints.Clear();
-            for (int i = 0; i < totalUserCount; i++)
-            {
-                list_partitionSeedPoints.Add(Vector2.zero);
-            }
-
-            for (int i = 0; i < totalUserCount; i++)
-            {
-                dic_physicalUsers_pos_X.TryGetValue(i, out queue_data);
                 for (int j = 0; j < sptialInfo_windowSize; j++)
                 {
-                    queue_data.Enqueue(RDWSimulationManager.instance.simulationSetting.unitSettings[i].realStartPosition.x / physicalRoom_width_half);
-                }
-
-                dic_physicalUsers_pos_Z.TryGetValue(i, out queue_data);
-                for (int j = 0; j < sptialInfo_windowSize; j++)
-                {
-                    queue_data.Enqueue(RDWSimulationManager.instance.simulationSetting.unitSettings[i].realStartPosition.x / physicalRoom_width_half);
-                }
-
-                dic_physicalUsers_orient_Y.TryGetValue(i, out queue_data);
-                Vector3 orient = list_physical_simulatedUsers[i].transform.rotation.eulerAngles;
-                for (int j = 0; j < sptialInfo_windowSize; j++)
-                {
-                    queue_data.Enqueue(orient.y);
+                    queue_data.Enqueue(0.0f);
                 }
 
                 doubleDic_physicalUsers_8wayWallDist.TryGetValue(i, out dic_data);
-                for (int j = 0; j < 8; j++)
+                for (int k = 0; k < 8; k++)
                 {
-                    dic_data.TryGetValue(j, out queue_data);
-
-                    for (int k = 0; k < sptialInfo_windowSize; k++)
+                    dic_data.TryGetValue(k, out queue_data);
+                    queue_data.Clear();
+                    for (int j = 0; j < sptialInfo_windowSize; j++)
                     {
-                        queue_data.Enqueue(physicalRoom_height_half / 2);
+                        queue_data.Enqueue(0.0f);
                     }
-                }
-
-                dic_physicalRoomSize_users.TryGetValue(i, out queue_data);
-                for (int j = 0; j < sptialInfo_windowSize; j++)
-                {
-                    queue_data.Enqueue((actual_halfRoomsize_default * 2) / totalUserCount);
-                }
-
-                dic_virtualUsers_pos_X.TryGetValue(i, out queue_data);
-                for (int j = 0; j < sptialInfo_windowSize; j++)
-                {
-                    queue_data.Enqueue(RDWSimulationManager.instance.simulationSetting.unitSettings[i].virtualStartPosition.x / virtualRoom_width_half);
-                }
-
-                dic_VirtualUsers_Position_Z.TryGetValue(i, out queue_data);
-                for (int j = 0; j < sptialInfo_windowSize; j++)
-                {
-                    queue_data.Enqueue(RDWSimulationManager.instance.simulationSetting.unitSettings[i].virtualStartPosition.y / virtualRoom_height_Half);
-                }
-
-                dic_VirtualUsers_Orient_Y.TryGetValue(i, out queue_data);
-                orient = list_virtual_simulatedUsers[i].transform.rotation.eulerAngles;
-                for (int j = 0; j < sptialInfo_windowSize; j++)
-                {
-                    queue_data.Enqueue(orient.y);
                 }
 
                 doubleDic_virtualUsers_8wayWallDist.TryGetValue(i, out dic_data);
-                for (int j = 0; j < 8; j++)
+                for (int k = 0; k < 8; k++)
                 {
-                    dic_data.TryGetValue(j, out queue_data);
-
-                    for (int k = 0; k < sptialInfo_windowSize; k++)
+                    dic_data.TryGetValue(k, out queue_data);
+                    queue_data.Clear();
+                    for (int j = 0; j < sptialInfo_windowSize; j++)
                     {
-                        queue_data.Enqueue(virtualRoom_height_Half / 2);
+                        queue_data.Enqueue(0.0f);
                     }
                 }
+            }
+        }
 
+        /// <summary>
+        /// 一次性初始化种子点(Episode开始时调用)
+        /// 
+        /// 功能：
+        /// 1. 清空现有种子点列表
+        /// 2. 从物理用户当前位置创建新种子点
+        /// 3. 设置用户朝向作为种子点方向(用于加权计算)
+        /// </summary>
+        private void InitializeSeedPoints()
+        {
+            list_VoronoiSeedPoint.Clear();
+            for (int i = 0; i < totalUserCount; i++)
+            {
+                // Create seed point with user's current position and orientation
+                Vector2 seedPosition = new Vector2(
+                    list_physical_simulatedUsers[i].transform.position.x,
+                    list_physical_simulatedUsers[i].transform.position.z);
+                float seedDirection = list_physical_simulatedUsers[i].transform.rotation.eulerAngles.y;
+                
+                list_VoronoiSeedPoint.Add(new WeightedVoronoiGrid.SeedPoint(seedPosition, seedDirection));
+            }
+        }
 
-
+        /// <summary>
+        /// 运行时更新种子点(每帧在CollectObservations中调用)
+        /// 
+        /// 功能：
+        /// 1. 跟踪物理用户的实时位置
+        /// 2. 应用AI模型的有限偏移（推动空间分割减少重置）
+        /// 3. 更新每个种子点的位置和方向
+        /// 4. 驱动Voronoi图的动态更新
+        /// 
+        /// 注意：种子点位置 = 用户位置 + 有限偏移（来自模型）
+        /// </summary>
+        private void UpdateSeedPointsWithOffset()
+        {
+            for (int i = 0; i < totalUserCount && i < list_VoronoiSeedPoint.Count; i++)
+            {
+                // Update seed point position from user's current position
+                list_VoronoiSeedPoint[i].position = new Vector2(
+                    list_physical_simulatedUsers[i].transform.position.x,
+                    list_physical_simulatedUsers[i].transform.position.z);
+                
+                // Update seed point orientation from user's current rotation
+                list_VoronoiSeedPoint[i].direction = list_physical_simulatedUsers[i].transform.rotation.eulerAngles.y;
             }
         }
 
         /// <summary>
         /// calculate 8 distances from physical/virtual wall, obstacle, shutter
         /// </summary>
-        /// <param name="_origintransform"></param>
-        /// <param name="_distanceDic"></param>
-        /// <param name="bActual"></param>
         public void Calc_8Way_Distances(Transform _origintransform, ref Dictionary<int, Queue<float>> _distanceDic, bool bActual)
         {
             float distance = 0.0f;
@@ -1392,149 +1390,30 @@ namespace _OSP
 
             for (int i = 0; i < direction.Count; i++)
             {
-                distance = GetBoundaryDistance(_origintransform, direction[i], bActual, 100.0f);
-
-                Queue<float> queue_data;
-                _distanceDic.TryGetValue(i, out queue_data);
-                queue_data.Enqueue(distance);
-                queue_data.Dequeue();
-
-                distance = 0.0f;
+                if (Physics.Raycast(_origintransform.position, direction[i], out rayCastHit, 100.0f))
+                {
+                    if (bActual)
+                    {
+                        if (rayCastHit.collider.gameObject.layer == LayerMask.NameToLayer("PhysicalWall"))
+                        {
+                            distance = rayCastHit.distance;
+                        }
+                    }
+                    else
+                    {
+                        if (rayCastHit.collider.gameObject.layer == LayerMask.NameToLayer("VirtualWall"))
+                        {
+                            distance = rayCastHit.distance;
+                        }
+                    }
+                }
             }
+
+            Queue<float> queue_dist = new Queue<float>();
+            _distanceDic.TryGetValue(0, out queue_dist);
+            queue_dist.Enqueue(distance);
+            queue_dist.Dequeue();
         }
-
-        private float GetBoundaryDistance(Transform originTransform, Vector3 direction, bool isPhysical, float maxDistance)
-        {
-            if (originTransform == null)
-                return maxDistance;
-
-            int userIndex = TryGetUserIndexFromTransform(originTransform);
-            if (TryGetPartitionDistance(originTransform.position, direction, userIndex, maxDistance, out float partitionDistance))
-                return partitionDistance;
-
-            Vector3 origin = originTransform.position;
-            Vector2 halfSize = isPhysical
-                ? new Vector2(physicalRoom_width_half, physicalRoom_height_half)
-                : new Vector2(virtualRoom_width_half, virtualRoom_height_Half);
-
-            if (halfSize.x <= 0 || halfSize.y <= 0)
-                return maxDistance;
-
-            Vector2 dir2 = new Vector2(direction.x, direction.z);
-            if (dir2.sqrMagnitude < Mathf.Epsilon)
-                return maxDistance;
-
-            dir2.Normalize();
-
-            float tMin = float.PositiveInfinity;
-
-            if (Mathf.Abs(dir2.x) > Mathf.Epsilon)
-            {
-                float tx1 = (-halfSize.x - origin.x) / dir2.x;
-                float tx2 = (halfSize.x - origin.x) / dir2.x;
-                if (tx1 > 0) tMin = Mathf.Min(tMin, tx1);
-                if (tx2 > 0) tMin = Mathf.Min(tMin, tx2);
-            }
-
-            if (Mathf.Abs(dir2.y) > Mathf.Epsilon)
-            {
-                float tz1 = (-halfSize.y - origin.z) / dir2.y;
-                float tz2 = (halfSize.y - origin.z) / dir2.y;
-                if (tz1 > 0) tMin = Mathf.Min(tMin, tz1);
-                if (tz2 > 0) tMin = Mathf.Min(tMin, tz2);
-            }
-
-            if (float.IsInfinity(tMin) || tMin <= 0)
-                return maxDistance;
-
-            return Mathf.Min(tMin, maxDistance);
-        }
-
-        private int TryGetUserIndexFromTransform(Transform userTransform)
-        {
-            if (userTransform == null || userTransform.gameObject == null)
-                return -1;
-
-            string tag = userTransform.gameObject.tag;
-            if (string.IsNullOrEmpty(tag))
-                return -1;
-
-            if (tag.StartsWith("RealUser"))
-            {
-                string indexText = tag.Substring("RealUser".Length);
-                if (int.TryParse(indexText, out int index))
-                    return index;
-            }
-            else if (tag.StartsWith("VirtualUser"))
-            {
-                string indexText = tag.Substring("VirtualUser".Length);
-                if (int.TryParse(indexText, out int index))
-                    return index;
-            }
-
-            return -1;
-        }
-
-        private bool TryGetPartitionDistance(Vector3 origin, Vector3 direction, int userIndex, float maxDistance, out float distance)
-        {
-            distance = maxDistance;
-
-            if (userIndex < 0)
-                return false;
-
-            if (!dic_AreaSegmentsVertex.TryGetValue(userIndex, out List<Vector2> polygon)
-                || polygon == null || polygon.Count < 3)
-                return false;
-
-            Vector2 dir2 = new Vector2(direction.x, direction.z);
-            if (dir2.sqrMagnitude < Mathf.Epsilon)
-                return false;
-
-            dir2.Normalize();
-            Vector2 origin2 = new Vector2(origin.x, origin.z);
-
-            float tMin = float.PositiveInfinity;
-            for (int i = 0; i < polygon.Count; i++)
-            {
-                Vector2 a = polygon[i];
-                Vector2 b = polygon[(i + 1) % polygon.Count];
-                if (TryRaySegmentIntersection(origin2, dir2, a, b, out float t) && t > 0)
-                    tMin = Mathf.Min(tMin, t);
-            }
-
-            if (float.IsInfinity(tMin) || tMin <= 0)
-                return false;
-
-            distance = Mathf.Min(tMin, maxDistance);
-            return true;
-        }
-
-        private bool TryRaySegmentIntersection(Vector2 origin, Vector2 dir, Vector2 a, Vector2 b, out float t)
-        {
-            t = 0f;
-            Vector2 s = b - a;
-            float denom = Cross(dir, s);
-            if (Mathf.Abs(denom) < 1e-6f)
-                return false;
-
-            Vector2 diff = a - origin;
-            float tRay = Cross(diff, s) / denom;
-            float u = Cross(diff, dir) / denom;
-
-            if (tRay >= 0f && u >= 0f && u <= 1f)
-            {
-                t = tRay;
-                return true;
-            }
-
-            return false;
-        }
-
-        private float Cross(Vector2 a, Vector2 b)
-        {
-            return a.x * b.y - a.y * b.x;
-        }
-
 
         public void Enqueue_RoomSize(float element, ref Queue<float> _queue)
         {
@@ -1542,68 +1421,17 @@ namespace _OSP
             _queue.Dequeue();
         }
 
-        // public void Enqueue_Veloc(float element, ref Queue<float> _queue)
-        // {
-        //     _queue.Enqueue(element);
-        //     _queue.Dequeue();
-        // }
-
-        // private void CalculateCircleTangentPoint(out Vector3 P1, Vector3 circleCenterlPoint, Vector3 externalPoint, float radius)
-        // {
-        //     float distanceBetP_C = Mathf.Sqrt(Mathf.Pow(externalPoint.x - circleCenterlPoint.x, 2) + Mathf.Pow(externalPoint.z - circleCenterlPoint.z, 2));
-        //     float theta = Mathf.Acos(radius / distanceBetP_C);
-        //     float d = Mathf.Atan2(externalPoint.z - circleCenterlPoint.z, externalPoint.x - circleCenterlPoint.x);
-        //     float d1 = d + theta;
-        //     float d2 = d - theta;
-        //     Vector3 T1 = new Vector3(circleCenterlPoint.x + radius * Mathf.Cos(d1), 0.0f, circleCenterlPoint.z + radius * Mathf.Sin(d1));
-        //     Vector3 T2 = new Vector3(circleCenterlPoint.x + radius * Mathf.Cos(d2), 0.0f, circleCenterlPoint.z + radius * Mathf.Sin(d2));
-
-        //     P1 = T1;
-        // }
-
-        // private bool LineLineIntersection(out Vector3 intersection, Vector3 linePoint1, Vector3 lineVec1, Vector3 linePoint2, Vector3 lineVec2)
-        // {
-        //     Vector3 lineVec3 = linePoint2 - linePoint1;
-        //     Vector3 crossVec1and2 = Vector3.Cross(lineVec1, lineVec2);
-        //     Vector3 crossVec3and2 = Vector3.Cross(lineVec3, lineVec2);
-
-        //     float planarFactor = Vector3.Dot(lineVec3, crossVec1and2);
-
-        //     //is coplanar, and not parallel
-        //     if (Mathf.Abs(planarFactor) < 0.0001f
-        //             && crossVec1and2.sqrMagnitude > 0.0001f)
-        //     {
-        //         float s = Vector3.Dot(crossVec3and2, crossVec1and2) / crossVec1and2.sqrMagnitude;
-        //         intersection = linePoint1 + (lineVec1 * s);
-        //         return true;
-        //     }
-        //     else
-        //     {
-        //         intersection = Vector3.zero;
-        //         return false;
-        //     }
-        // }
-
-        // private float GetSignedAngle(Vector3 vStart, Vector3 vEnd)
-        // {
-        //     Vector3 v = vEnd - vStart;
-
-        //     return Mathf.Atan2(v.y, v.x) * Mathf.Rad2Deg;
-        // }
-
-        // private Vector3 RotateAroundSpecialAxis(Vector3 position, Vector3 center, Vector3 axis, float angle)
-        // {
-        //     Vector3 point = Quaternion.AngleAxis(angle, axis) * (position - center);
-        //     Vector3 resultVec3 = center + point;
-
-        //     return resultVec3;
-        // }
+        public void Enqueue_Veloc(float element, ref Queue<float> _queue)
+        {
+            _queue.Enqueue(element);
+            _queue.Dequeue();
+        }
 
         public static Vector2 rotateVec2D(Vector2 v, float delta)
         {
             return new Vector2(
-                v.x * Mathf.Cos(delta) - v.y * Mathf.Sin(delta),
-                v.x * Mathf.Sin(delta) + v.y * Mathf.Cos(delta)
+                v.x * Mathf.Cos(delta * Mathf.Deg2Rad) - v.y * Mathf.Sin(delta * Mathf.Deg2Rad),
+                v.x * Mathf.Sin(delta * Mathf.Deg2Rad) + v.y * Mathf.Cos(delta * Mathf.Deg2Rad)
             );
         }
 
@@ -1613,10 +1441,10 @@ namespace _OSP
             float sumOfDerivation = 0;
             foreach (float value in floatList)
             {
-                sumOfDerivation += (value) * (value);
+                sumOfDerivation += (value - average) * (value - average);
             }
             float sumOfDerivationAverage = sumOfDerivation / floatList.Count;
-            return Mathf.Sqrt(sumOfDerivationAverage - (average * average));
+            return Mathf.Sqrt(sumOfDerivationAverage);
         }
 
         private double getStandardDeviation(List<int> floatList)
@@ -1625,10 +1453,10 @@ namespace _OSP
             int sumOfDerivation = 0;
             foreach (int value in floatList)
             {
-                sumOfDerivation += (value) * (value);
+                sumOfDerivation += (int)((value - average) * (value - average));
             }
             int sumOfDerivationAverage = sumOfDerivation / floatList.Count;
-            return Mathf.Sqrt((float)(sumOfDerivationAverage - (average * average)));
+            return Mathf.Sqrt((float)(sumOfDerivationAverage));
         }
     }
 }
