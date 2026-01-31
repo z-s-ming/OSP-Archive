@@ -1128,7 +1128,7 @@ MonoBehaviour:
     unitSettings:
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1144,7 +1144,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1160,7 +1160,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1176,7 +1176,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1192,7 +1192,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
