@@ -344,6 +344,10 @@ namespace _OSP
 
         private bool bOneframetimerblockVoronoi = false;
 
+        [Header("=== 快速测试开关 ===")]
+        public bool bQuickTestMode = true; // 勾选这个，就忽略RL，强制用朝向划分
+        public float testOffsetDistance = 0.5f; // 虚拟种子点向前偏移几米
+
 
         //------------------------
 
@@ -514,23 +518,60 @@ namespace _OSP
 
             if (!bLock_VoronoiDiagram)
             {
-                ///calc maximum available radius
-                float allowedRange = CalcStableAreaRadius() - eps;
 
-                /// action values based on the number of users
-                int actionValueCount = 0;
-
-                /// decide the action
-                for (int i = 0; i < totalUserCount; i++)
+                if (bQuickTestMode)
                 {
-                    ///calc actions value
-                    var action1 = Mathf.Clamp(actionBuffers.ContinuousActions[actionValueCount++], 0.0f, 1.0f) * allowedRange;
-                    var action2 = Mathf.Clamp(actionBuffers.ContinuousActions[actionValueCount++], 0.0f, 1.0f) * 360.0f;
+                    Debug.Log("OSP 快速测试模式开启，使用朝向偏移 Voronoi 种子点" + testOffsetDistance + "米");
+                    // 1. 【关键一步】先计算当前物理状态下的最大安全半径
+                    float maxSafeRadius = CalcStableAreaRadius();
 
-                    ///calc new seed points pos
-                    Vector2 pos = new Vector2(list_physical_simulatedUsers[i].transform.position.x, list_physical_simulatedUsers[i].transform.position.z);
-                    pos += rotateVec2D(Vector2.right, action2) * action1;
-                    list_VoronoiSeedPoint[i] = new Vector2f(pos.x, pos.y);
+                    // 防止半径为负（过度拥挤时）
+                    maxSafeRadius = Mathf.Max(0f, maxSafeRadius);
+
+                    for (int i = 0; i < totalUserCount; i++)
+                    {
+                        Vector3 userPos = list_physical_simulatedUsers[i].transform.position;
+                        Vector3 userFwd = list_physical_simulatedUsers[i].transform.forward;
+
+                        // 2. 【安全钳制】取 "预设测试距离" 和 "最大安全半径" 之间的较小值
+                        // 如果离得远，就用 testOffsetDistance (比如 1.2m)
+                        // 如果离得近，就被 maxSafeRadius 限制住 (比如 0.3m)，防止穿模
+                        float actualOffset = Mathf.Min(testOffsetDistance, maxSafeRadius);
+
+                        // 3. 计算位置
+                        Vector3 virtualPos = userPos + (userFwd.normalized * actualOffset);
+
+                        // 4. 房间边界限制 (保持不变)
+                        float safeHalfW = physicalRoom_width_half - 0.1f;
+                        float safeHalfH = physicalRoom_height_half - 0.1f;
+                        float clampedX = Mathf.Clamp(virtualPos.x, -safeHalfW, safeHalfW);
+                        float clampedZ = Mathf.Clamp(virtualPos.z, -safeHalfH, safeHalfH);
+
+                        // 5. 平滑赋值 (可选，建议加上 Lerp 减少抖动)
+                        Vector2 targetSeed = new Vector2(clampedX, clampedZ);
+                        Vector2 currentSeed = new Vector2(list_VoronoiSeedPoint[i].x, list_VoronoiSeedPoint[i].y);
+                        Vector2 smoothedSeed = Vector2.Lerp(currentSeed, targetSeed, Time.deltaTime * 10f);
+
+                        list_VoronoiSeedPoint[i] = new Vector2f(smoothedSeed.x, smoothedSeed.y);
+                    }
+                }
+                else
+                {
+                    Debug.Log("OSP RL训练模式开启");
+                    // 【RL训练模式】保持你原有的逻辑不变
+                    float allowedRange = CalcStableAreaRadius() - eps;
+                    int actionValueCount = 0; // 重置计数器
+
+                    for (int i = 0; i < totalUserCount; i++)
+                    {
+                        var action1 = Mathf.Clamp(actionBuffers.ContinuousActions[actionValueCount++], 0.0f, 1.0f) * allowedRange;
+                        var action2 = Mathf.Clamp(actionBuffers.ContinuousActions[actionValueCount++], 0.0f, 1.0f) * 360.0f;
+
+                        Vector2 pos = new Vector2(list_physical_simulatedUsers[i].transform.position.x, list_physical_simulatedUsers[i].transform.position.z);
+                        pos += rotateVec2D(Vector2.right, action2) * action1;
+                        
+                        list_VoronoiSeedPoint[i] = new Vector2f(pos.x, pos.y);
+                    }
                 }
 
 
@@ -762,7 +803,7 @@ namespace _OSP
         /// </summary>
         private void UpdateVoronoiDiagram()
         {
-            /// define physcial boundary for Voronoi Diagram 
+            /// define physcial boundary for Voronoi Dia gram 
             Rectf bounds = new Rectf(-physicalRoom_width_half, -physicalRoom_height_half, physicalRoom_width_half * 2, physicalRoom_height_half * 2);
 
             /// Calculate Voronoi Diagram                                                                                                              
@@ -1016,14 +1057,21 @@ namespace _OSP
             }
         }
 
-        /// Calculate the radius of a circular region where Voronoi Seed Points can be located
+        /// <summary>
+        /// [FIXED] 计算安全半径
+        /// 修正：必须使用 list_physical_simulatedUsers (真实物理位置) 来计算距离
+        /// 不能使用 list_VoronoiSeedPoint，因为偏移后种子点距离会虚高
+        /// </summary>
         private float CalcStableAreaRadius()
         {
-            /// min distance of bet. users = calculate stable radius for new seed points
             Dictionary<string, float> dist_dic = new Dictionary<string, float>();
+            
             for (int i = 0; i < totalUserCount; i++)
             {
-                Vector3 me = new Vector3(list_VoronoiSeedPoint[i].x, 0.0f, list_VoronoiSeedPoint[i].y);
+                // 【修改点 1】获取真实用户的 Transform 位置
+                // 注意：这里要确保 list_physical_simulatedUsers 已经正确赋值
+                Vector3 me = list_physical_simulatedUsers[i].transform.position; 
+                
                 Vector3 target = Vector3.zero;
 
                 for (int j = i; j < totalUserCount; j++)
@@ -1031,18 +1079,24 @@ namespace _OSP
                     if (i == j)
                         continue;
 
-                    target = new Vector3(list_VoronoiSeedPoint[j].x, 0.0f, list_VoronoiSeedPoint[j].y);
-                    Vector3 distVec_users00_01 = me - target;
+                    // 【修改点 2】获取对方真实用户的位置
+                    target = list_physical_simulatedUsers[j].transform.position;
+                    
+                    // 计算水平面上的物理距离（忽略高度差）
+                    Vector3 distVec_users00_01 = new Vector3(me.x, 0, me.z) - new Vector3(target.x, 0, target.z);
 
-                    dist_dic.Add(i.ToString()+j.ToString(), distVec_users00_01.magnitude);
+                    dist_dic.Add(i.ToString() + j.ToString(), distVec_users00_01.magnitude);
                 }
             }
+
+            if (dist_dic.Count == 0) return 0f; // 防止只有1个用户时报错
 
             ///calc min dist
             var keyAndValue = dist_dic.OrderBy(kvp => kvp.Value).First();
             float minDistValue = keyAndValue.Value;
 
             ///calc maximum available radius
+            // 这个半径决定了种子点能乱动的范围，必须基于物理实体的最小间距来限制
             return ((minDistValue - shutterWidth) / 2) - userRadius;
         }
 
@@ -1097,7 +1151,7 @@ namespace _OSP
                     MDbR_AVG = list_UsersCumulativeDist.Average();
                 }
 
-
+                Debug.Log(string.Format("walllreset {0} / userreset {1} /shutterreset {2} / MDbR AVg. {3}", wallResetSum, userbet, ShutterResetSum, MDbR_AVG));
                 Debug.LogWarning(string.Format("walllreset {0} / userreset {1} /shutterreset {2} / MDbR AVg. {3}", wallResetSum, userbet, ShutterResetSum, MDbR_AVG));
 
                 UsersCumulative_MDbR_SimulationCount_max.Add(MDbR_AVG);

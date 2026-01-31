@@ -123,6 +123,8 @@ public class RandomEpisode : Episode
                 int pathPatternturningPoint_max = 5;
                 int pathPatternType_max = 1;
 
+                Debug.Log($"Curriculum Learning Exploration Enabled, currnet_CurriculumState: {_OSP.OSP_Agent.instance.currnet_CurriculumState}");                
+                
                 switch (_OSP.OSP_Agent.instance.currnet_CurriculumState)
                 {
                     case _OSP.Enum_CurriculumState._2ndQuater:
