@@ -1208,7 +1208,7 @@ MonoBehaviour:
     unitSettings:
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1240,7 +1240,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1256,7 +1256,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1272,7 +1272,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1288,7 +1288,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1542,3 +1542,5 @@ MonoBehaviour:
   prefab_VoronoiEdgesCollider: {fileID: 3491661778377261238, guid: 70d3f05e765ee7f449bc1d671b9f2328,
     type: 3}
   list_VoronoiEdgesCollider: []
+  bQuickTestMode: 0
+  testOffsetDistance: 0.5

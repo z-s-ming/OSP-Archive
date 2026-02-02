@@ -345,9 +345,22 @@ namespace _OSP
         private bool bOneframetimerblockVoronoi = false;
 
         [Header("=== 快速测试开关 ===")]
-        public bool bQuickTestMode = true; // 勾选这个，就忽略RL，强制用朝向划分
-        public float testOffsetDistance = 0.5f; // 虚拟种子点向前偏移几米
+        public bool bQuickTestMode = true; // 勾选这个，就忽略RL，并使用下方的 Paper-Based Velocity Settings 进行偏移计算
 
+        [Header("=== Paper-Based Velocity Settings ===")]
+        public float alphaMax = 0.15f;
+        public float vMax = 0.6f;
+        public float velocityToOffsetFactor = 0.3f;
+        public float maxVelocityOffsetDist = 0.5f; // Limit
+        public float stopThreshold = 0.05f;
+
+        private Vector3[] _userLastPos;
+        private Vector3[] _userSmoothV1;
+        private Vector3[] _userSmoothV2;
+        private Vector3[] _userFrozenOffset;
+        private Vector3[] _userCurrentOffset;
+        private bool[] _userIsStopped;
+        private bool _velocityInit = false;
 
         //------------------------
 
@@ -376,6 +389,91 @@ namespace _OSP
             {
                 bEnable_InitPhyUserPosUni = false;
                 bOneframetimerblockVoronoi = true;
+            }
+
+            InitializeVelocityTracker();
+        }
+
+        private void InitializeVelocityTracker()
+        {
+            _userLastPos = new Vector3[totalUserCount];
+            _userSmoothV1 = new Vector3[totalUserCount];
+            _userSmoothV2 = new Vector3[totalUserCount];
+            _userFrozenOffset = new Vector3[totalUserCount];
+            _userCurrentOffset = new Vector3[totalUserCount];
+            _userIsStopped = new bool[totalUserCount];
+            
+            _velocityInit = false; // 等待SetResetParameters填充
+        }
+
+        private void UpdateVelocityTracker()
+        {
+            if (!_velocityInit) return;
+
+            float dt = Time.fixedDeltaTime;
+            // Safety check
+            if (dt <= 0.0001f) return;
+
+            for (int i = 0; i < totalUserCount; i++)
+            {
+                if (list_physical_simulatedUsers[i] == null) continue;
+
+                Vector3 currentPos = list_physical_simulatedUsers[i].transform.position;
+
+                // 1. Calc Raw
+                Vector3 rawVelocity = (currentPos - _userLastPos[i]) / dt;
+                rawVelocity.y = 0;
+                float rawSpeed = rawVelocity.magnitude;
+
+                // 2. Dynamic Alpha
+                float speedRatio = Mathf.Clamp01(rawSpeed / vMax);
+                float alpha = alphaMax * (speedRatio * speedRatio);
+
+                // 3. Double Exponential Smoothing
+                _userSmoothV1[i] = alpha * rawVelocity + (1f - alpha) * _userSmoothV1[i];
+                _userSmoothV2[i] = alpha * _userSmoothV1[i] + (1f - alpha) * _userSmoothV2[i];
+
+                Vector3 finalVelocity = _userSmoothV2[i];
+                float finalSpeed = finalVelocity.magnitude;
+
+                // 4. Target Offset
+                Vector3 offsetDir = finalVelocity.normalized;
+                // Use velocityToOffsetFactor to scale speed to distance
+                float targetOffsetDist = Mathf.Clamp(finalSpeed * velocityToOffsetFactor, 0f, maxVelocityOffsetDist);
+                Vector3 computedOffset = offsetDir * targetOffsetDist;
+
+                // 5. Freeze / Decay
+                if (finalSpeed < stopThreshold)
+                {
+                    if (!_userIsStopped[i])
+                    {
+                        _userFrozenOffset[i] = computedOffset;
+                        _userIsStopped[i] = true;
+                    }
+                    
+                    // Slow decay
+                    _userFrozenOffset[i] = Vector3.Lerp(_userFrozenOffset[i], Vector3.zero, dt * 0.5f);
+                    computedOffset = _userFrozenOffset[i];
+                }
+                else
+                {
+                    _userIsStopped[i] = false;
+                }
+
+                // Update LastPos
+                _userLastPos[i] = currentPos;
+
+                // Store result
+                _userCurrentOffset[i] = computedOffset;
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (voronoi != null)
+            {
+                voronoi.Dispose();
+                voronoi = null;
             }
         }
 
@@ -521,7 +619,7 @@ namespace _OSP
 
                 if (bQuickTestMode)
                 {
-                    Debug.Log("OSP 快速测试模式开启，使用朝向偏移 Voronoi 种子点" + testOffsetDistance + "米");
+                    Debug.Log("OSP 快速测试模式开启：基于双重指数平滑速度的偏移");
                     // 1. 【关键一步】先计算当前物理状态下的最大安全半径
                     float maxSafeRadius = CalcStableAreaRadius();
 
@@ -531,15 +629,18 @@ namespace _OSP
                     for (int i = 0; i < totalUserCount; i++)
                     {
                         Vector3 userPos = list_physical_simulatedUsers[i].transform.position;
-                        Vector3 userFwd = list_physical_simulatedUsers[i].transform.forward;
+                        
+                        // 使用新的平滑速度算法计算偏移
+                        Vector3 offsetVector = _userCurrentOffset[i];
 
-                        // 2. 【安全钳制】取 "预设测试距离" 和 "最大安全半径" 之间的较小值
-                        // 如果离得远，就用 testOffsetDistance (比如 1.2m)
-                        // 如果离得近，就被 maxSafeRadius 限制住 (比如 0.3m)，防止穿模
-                        float actualOffset = Mathf.Min(testOffsetDistance, maxSafeRadius);
+                        // 2. 【安全钳制】限制偏移量不超过安全半径
+                        if (offsetVector.magnitude > maxSafeRadius)
+                        {
+                            offsetVector = offsetVector.normalized * maxSafeRadius;
+                        }
 
                         // 3. 计算位置
-                        Vector3 virtualPos = userPos + (userFwd.normalized * actualOffset);
+                        Vector3 virtualPos = userPos + offsetVector;
 
                         // 4. 房间边界限制 (保持不变)
                         float safeHalfW = physicalRoom_width_half - 0.1f;
@@ -547,7 +648,8 @@ namespace _OSP
                         float clampedX = Mathf.Clamp(virtualPos.x, -safeHalfW, safeHalfW);
                         float clampedZ = Mathf.Clamp(virtualPos.z, -safeHalfH, safeHalfH);
 
-                        // 5. 平滑赋值 (可选，建议加上 Lerp 减少抖动)
+                        // 5. 平滑赋值 (双重平滑本身已经很平滑，这里可以保留或减少额外Lerp)
+                        // 保留一点点Lerp用于防止边界Clamp时的突变
                         Vector2 targetSeed = new Vector2(clampedX, clampedZ);
                         Vector2 currentSeed = new Vector2(list_VoronoiSeedPoint[i].x, list_VoronoiSeedPoint[i].y);
                         Vector2 smoothedSeed = Vector2.Lerp(currentSeed, targetSeed, Time.deltaTime * 10f);
@@ -805,6 +907,11 @@ namespace _OSP
         {
             /// define physcial boundary for Voronoi Dia gram 
             Rectf bounds = new Rectf(-physicalRoom_width_half, -physicalRoom_height_half, physicalRoom_width_half * 2, physicalRoom_height_half * 2);
+
+            if (voronoi != null)
+            {
+                voronoi.Dispose();
+            }
 
             /// Calculate Voronoi Diagram                                                                                                              
             voronoi = new Voronoi(list_VoronoiSeedPoint, bounds);
@@ -1213,7 +1320,7 @@ namespace _OSP
 
         private void FixedUpdate()
         {
-
+            UpdateVelocityTracker();
         }
 
         public override void Heuristic(in ActionBuffers actionsOut)
@@ -1374,26 +1481,64 @@ namespace _OSP
             actual_roomhypotenuse = Mathf.Sqrt(Mathf.Pow(physicalRoom_width_half, 2) + Mathf.Pow(physicalRoom_height_half, 2));
 
             /// refresh pointers for physical user 
-            foreach (var item in list_physical_simulatedUsers)
+            if (list_physical_simulatedUsers != null)
             {
-                DestroyImmediate(item);
+                foreach (var item in list_physical_simulatedUsers)
+                {
+                    if (item != null) DestroyImmediate(item);
+                }
+                list_physical_simulatedUsers.Clear();
             }
-
-            list_physical_simulatedUsers.Clear();
+            else
+            {
+                list_physical_simulatedUsers = new List<GameObject>();
+            }
 
             for (int i = 0; i < totalUserCount; i++)
             {
                 GameObject actuser = GameObject.FindWithTag("RealUser" + i);
-                list_physical_simulatedUsers.Add(actuser);
+                if (actuser != null) list_physical_simulatedUsers.Add(actuser);
+            }
+
+            // 【新增】每回合重置时，重新初始化速度追踪器的位置点
+            if (_userLastPos != null && _userLastPos.Length == totalUserCount)
+            {
+                for (int i = 0; i < totalUserCount; i++)
+                {
+                    // 安全检查：只有当列表长度足够且对象非空时才读取位置
+                    if (i < list_physical_simulatedUsers.Count && list_physical_simulatedUsers[i] != null)
+                    {
+                        _userLastPos[i] = list_physical_simulatedUsers[i].transform.position;
+                    }
+                    else
+                    {
+                        // 如果找不到用户，此时保持原值或设为0 (视具体需求，这里设为0防止错误跳变)
+                        _userLastPos[i] = Vector3.zero;
+                    }
+                    
+                    // 重置相关状态
+                    _userSmoothV1[i] = Vector3.zero;
+                    _userSmoothV2[i] = Vector3.zero;
+                    _userFrozenOffset[i] = Vector3.zero;
+                    _userCurrentOffset[i] = Vector3.zero;
+                    _userIsStopped[i] = false;
+                }
+                _velocityInit = true;
             }
 
             /// refresh pointers for virtual user 
-            foreach (var item in list_virtual_simulatedUsers)
+            if (list_virtual_simulatedUsers != null)
             {
-                DestroyImmediate(item);
+                foreach (var item in list_virtual_simulatedUsers)
+                {
+                    if (item != null) DestroyImmediate(item);
+                }
+                list_virtual_simulatedUsers.Clear();
             }
-
-            list_virtual_simulatedUsers.Clear();
+            else 
+            {
+                list_virtual_simulatedUsers = new List<GameObject>();
+            }
 
             for (int i = 0; i < totalUserCount; i++)
             {
@@ -1416,6 +1561,10 @@ namespace _OSP
 
                 //Debug.Log("B:" + list_VoronoiSeedPoint_Fixed.Count);
 
+                if (voronoi != null)
+                {
+                    voronoi.Dispose();
+                }
                 voronoi = new Voronoi(list_VoronoiSeedPoint_Fixed, bounds, 5000);
                 sites = voronoi.SitesIndexedByLocation;
                 int count = 0;

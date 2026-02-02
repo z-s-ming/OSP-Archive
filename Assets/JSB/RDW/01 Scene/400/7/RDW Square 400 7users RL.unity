@@ -1304,7 +1304,7 @@ MonoBehaviour:
     unitSettings:
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1320,7 +1320,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1336,7 +1336,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1352,7 +1352,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1368,7 +1368,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1384,7 +1384,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1400,7 +1400,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1622,7 +1622,7 @@ MonoBehaviour:
   text_currentEpi: {fileID: 1237824341}
   text_currentStep: {fileID: 1829637901}
   text_currentReward: {fileID: 1172250593}
-  SimulationCount_max: 100
+  SimulationCount_max: 10
   bEnable_InitPhyUserPosUni: 0
   prefab_VoronoiVertex: {fileID: 5505899062355568956, guid: 096dad0eb818a6446a18d03f44a52724,
     type: 3}
@@ -1654,3 +1654,5 @@ MonoBehaviour:
   prefab_VoronoiEdgesCollider: {fileID: 3491661778377261238, guid: 70d3f05e765ee7f449bc1d671b9f2328,
     type: 3}
   list_VoronoiEdgesCollider: []
+  bQuickTestMode: 1
+  testOffsetDistance: 0.3

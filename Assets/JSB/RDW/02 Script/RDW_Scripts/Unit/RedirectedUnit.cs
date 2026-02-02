@@ -174,6 +174,9 @@ public class RedirectedUnit
 
             if (item.Item1)
             {
+                // Debug.LogError($"[Wall Reset Triggered] User ID: {id} | 触发墙壁重置！暂停中...");
+                // Debug.Break(); // 暂停 Unity 编辑器，方便观察碰撞现场
+
                 if (item.Item2)
                 {
                     resultData.AddShutterReset();
@@ -190,6 +193,9 @@ public class RedirectedUnit
             }
             else if (RDWSimulationManager.instance.simulationSetting.bAllowUserReset && resetter.NeedUserReset(realUser, otherUsers, out intersectedUser, out truc) && previousStatus != "USER_RESET_DONE" )
             {
+                // Debug.LogError($"[User Reset Triggered] User ID: {id} | 触发用户间重置！暂停中...");
+                // Debug.Break(); // 暂停 Unity 编辑器，方便观察碰撞现场
+                
                 status = "USER_RESET";
                 resultData.AddUserReset();
                 //Debug.Log(realUser.gameObject.tag.ToString() + " AddUserReset");
