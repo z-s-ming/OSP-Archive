@@ -59,11 +59,7 @@ public class APF_R_Resetter_OSP : RotationResetter
 
             List<Object2D> obstacles = new List<Object2D>();
             Space2D partitionedSpace = new Space2DBuilder().SetName("PS_" + RedirectedUnitIndex).SetSpaceObject(spaceObject).SetObstacles(obstacles).Build();
-            //realSpace = RDWSimulationManager.simulationSetting.realSpaceSetting.GetSpace();
-            //RDWSimulationManager.instance.simulationSetting.realSpaceSetting.spaceObjectSetting.vertices = ;
-            partitionedSpace.spaceObject.GenerateShape(_OSP.OSP_Agent.instance.PartitionedSpaceMaterials[RedirectedUnitIndex], 3, false, "gPS_" + RedirectedUnitIndex);
-
-            partitionedSpace.spaceObject.gameObject.transform.position = partitionedSpace.spaceObject.gameObject.transform.position + Vector3.up * 0.01f;
+            // Do not generate temporary visualization mesh here; only use polygon data for APF computation.
 
             realPolygonObject = (Polygon2D)partitionedSpace.spaceObject;
         }

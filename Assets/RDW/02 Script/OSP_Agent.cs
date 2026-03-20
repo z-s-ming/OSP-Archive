@@ -190,15 +190,12 @@ namespace _OSP
         [SerializeField] private GameObject prefab_VoronoiVertex;
         [SerializeField] private GameObject prefab_VoronoiSeedPoint;
         [SerializeField] private GameObject S2C_CenterPointerObject_Prefab;
-        public GameObject prefab_VoronoiEdgesCollider;
         public List<Material> PartitionedSpaceMaterials = new List<Material>();
 
         // Object Pools / Lists for visual elements
         List<GameObject> list_VoronoiVertexMarker = new List<GameObject>();
         List<GameObject> list_seedPointVisual = new List<GameObject>();
         List<GameObject> list_S2C_CenterPointer = new List<GameObject>();
-        private List<GameObject> list_VirtualSutterDelegate = new List<GameObject>();
-        public List<GameObject> list_VoronoiEdgesCollider = new List<GameObject>();
         List<Vector2> list_WayPoint_vertices = new List<Vector2>(); // Used for obstacle mesh info
         #endregion
 
@@ -420,11 +417,6 @@ namespace _OSP
             if (currentEpisodeTotalDistance >= targetTotalDistance)
             {
                 Debug.Log($"Episode Finished. Total Dist: {currentEpisodeTotalDistance}");
-                for (int i = 0; i < edgeMaxcount; i++)
-                {
-                     if (i < list_VirtualSutterDelegate.Count)
-                        RDWSimulationManager.instance.InitObstacleInfo(list_VirtualSutterDelegate[i].transform);
-                }
 
                 CalcResultPerEpisode();
                 ResetEpisode();
@@ -718,12 +710,6 @@ namespace _OSP
                     list_WayPoint_vertices.Add(new Vector2(-49, 1));
                     list_WayPoint_vertices.Add(new Vector2(-49, -1));
                     list_WayPoint_vertices.Add(new Vector2(-51, -1));
-
-                    list_VoronoiEdgesCollider[count3].transform.forward = new Vector3(dir.x, 0.0f, dir.y);
-                    float x = (list_VoronoiVertexMarker[1].transform.position.x + list_VoronoiVertexMarker[0].transform.position.x) / 2;
-                    float z = (list_VoronoiVertexMarker[1].transform.position.z + list_VoronoiVertexMarker[0].transform.position.z) / 2;
-                    list_VoronoiEdgesCollider[count3].transform.position = new Vector3(x, 0.0f, z);
-                    list_VoronoiEdgesCollider[count3].transform.localScale = new Vector3(shutterWidth, 2.0f, dir.magnitude);
                 }
                 else
                 {
@@ -744,22 +730,8 @@ namespace _OSP
                         list_WayPoint_vertices.Add(new Vector2(list_VoronoiVertexMarker[VoronoiVertexCount].transform.position.x + dir_perpendicular_unit.x, list_VoronoiVertexMarker[VoronoiVertexCount].transform.position.z + dir_perpendicular_unit.y));
                         list_WayPoint_vertices.Add(new Vector2(list_VoronoiVertexMarker[VoronoiVertexCount + 1].transform.position.x + dir_perpendicular_unit.x, list_VoronoiVertexMarker[VoronoiVertexCount + 1].transform.position.z + dir_perpendicular_unit.y));
                         list_WayPoint_vertices.Add(new Vector2(list_VoronoiVertexMarker[VoronoiVertexCount + 1].transform.position.x - dir_perpendicular_unit.x, list_VoronoiVertexMarker[VoronoiVertexCount + 1].transform.position.z - dir_perpendicular_unit.y));
-
-                        list_VoronoiEdgesCollider[count3].transform.forward = new Vector3(dir.x, 0.0f, dir.y);
-
-                        float x = (list_VoronoiVertexMarker[VoronoiVertexCount + 1].transform.position.x + list_VoronoiVertexMarker[VoronoiVertexCount].transform.position.x) / 2;
-                        float z = (list_VoronoiVertexMarker[VoronoiVertexCount + 1].transform.position.z + list_VoronoiVertexMarker[VoronoiVertexCount].transform.position.z) / 2;
-                        list_VoronoiEdgesCollider[count3].transform.position = new Vector3(x, 0.0f, z);
-                        list_VoronoiEdgesCollider[count3].transform.localScale = new Vector3(shutterWidth, 2.0f, dir.magnitude);
                     }
                 }
-
-                /// just for display
-                list_VirtualSutterDelegate[count3].transform.position = Vector3.zero + Vector3.up * 0.02f;
-
-
-                ///Update obstacle mesh info
-                RDWSimulationManager.instance.UpdateObstacleVertexInfo(ref list_WayPoint_vertices, list_VirtualSutterDelegate[count3].transform, count3);
 
                 VoronoiVertexCount += 2;
                 count3++;
@@ -951,16 +923,12 @@ namespace _OSP
         {
             edgeMaxcount = (totalUserCount * (totalUserCount - 1)) / 2;
 
-            for (int i = 0; i < edgeMaxcount; i++)
-            {
-                list_VoronoiEdgesCollider.Add(Instantiate(prefab_VoronoiEdgesCollider));
-            }
-
             for (int i = 0; i < 100; i++)
             {
                 list_VoronoiVertexMarker.Add(Instantiate(prefab_VoronoiVertex, new Vector3(-50.0f, 0.0f, 0.0f), Quaternion.identity));
                 list_VoronoiVertexMarker[i].SetActive(false);
                 list_VoronoiVertexMarker[i].name = "VoronoiVertexMarker " + i;
+                list_VoronoiVertexMarker[i].hideFlags = HideFlags.HideInHierarchy;
             }
 
             for (int i = 0; i < totalUserCount; i++)
@@ -968,14 +936,6 @@ namespace _OSP
                 list_seedPointVisual.Add(Instantiate(prefab_VoronoiSeedPoint, new Vector3(-50.0f, 0.0f, 0.0f), Quaternion.identity));
                 list_seedPointVisual[i].name = "seedpointView " + i;
                 //list_seedPointVisual[i].SetActive(false);
-            }
-
-            for (int i = 0; i < edgeMaxcount; i++)
-            {
-                GameObject go = new GameObject();
-                list_VirtualSutterDelegate.Add(go);
-                list_VirtualSutterDelegate[i].transform.position = Vector3.zero + Vector3.up * 0.02f;
-                list_VirtualSutterDelegate[i].name = "VirtualSutterDelegate " + i;
             }
 
             for (int i = 0; i < totalUserCount; i++)

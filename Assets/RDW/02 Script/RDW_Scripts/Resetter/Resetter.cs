@@ -76,13 +76,13 @@ public class Resetter
 
     public (bool,bool) NeedWallReset(Object2D realUser, Space2D realSpace)
     {
-        Vector2 realUserPosition = realUser.transform2D.localPosition;
+        // Use world coordinates so checks are robust even when user and space have different parents.
+        Vector2 realUserPosition = realUser.transform2D.position;
+        bool isInsideOuterBoundary = realSpace.spaceObject != null &&
+                                     realSpace.spaceObject.IsInside(realUserPosition, Space.World, 0.5f);
 
-        //(bool, bool) item = realSpace.IsInside(realUserPosition, Space.Self, 0.00001f);
-        (bool, bool) item = realSpace.IsInside(realUserPosition, Space.Self, 0.5f);
-      
-
-        return (!item.Item1, item.Item2); // 0.2f
+        // Ignore obstacle-based shutter reset in OSP flow; only outer-boundary reset is kept.
+        return (!isInsideOuterBoundary, false);
         //return !realSpace.IsInside(realUser, 0);
     }
 

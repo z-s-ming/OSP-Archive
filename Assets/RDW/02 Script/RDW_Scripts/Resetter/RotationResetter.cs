@@ -37,7 +37,8 @@ public abstract class RotationResetter : Resetter
         else
         {
             Utility.SyncDirection(virtualUser, realUser, virtualTargetRotation, realTargetRotation);
-            while(!realSpace.IsInside(realUser.transform2D.localPosition, Space.Self, 0.00001f).Item1) realUser.transform2D.localPosition = realUser.transform2D.localPosition + realUser.transform2D.forward * translationSpeed * Time.fixedDeltaTime;
+            while (!realSpace.spaceObject.IsInside(realUser.transform2D.position, Space.World, 0.00001f))
+                realUser.transform2D.localPosition = realUser.transform2D.localPosition + realUser.transform2D.forward * translationSpeed * Time.fixedDeltaTime;
 
             isFirst = true;
             return "WALL_RESET_DONE";
