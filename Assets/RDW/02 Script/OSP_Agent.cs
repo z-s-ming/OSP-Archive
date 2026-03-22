@@ -1,11 +1,16 @@
 using System.Collections;
 using System.Collections.Generic;
+using System;
+using System.IO;
 using UnityEngine;
 using Random = UnityEngine.Random;
 using UnityEngine.UI;
 using System.Text;
 using System.Linq;
 using csDelaunay;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace _OSP
 {
@@ -61,6 +66,21 @@ namespace _OSP
         /// Enable mixed exploration logic (if applicable)
         /// </summary>
         public bool bMixedExploration = true;
+
+        [Header("=== Experiment Mode ===")]
+        [Tooltip("开启后使用固定种子文件进行对比实验；关闭后使用随机实验")]
+        [SerializeField]
+        private bool bUseCompareExperiment = true;
+
+        private const string CompareSeedFileName = "experiment_seeds_100.txt";
+        private readonly List<int> compareExperimentSeeds = new List<int>();
+        private bool compareSeedsLoaded = false;
+        private int currentEpisodeSeed = int.MinValue;
+
+        /// <summary>
+        /// Use Lloyd Relaxation for initial uniform distribution
+        /// </summary>
+        public bool bEnable_InitPhyUserPosUni = false;
         #endregion
 
         #region Room Dimensions
@@ -173,11 +193,6 @@ namespace _OSP
         /// </summary>
         public Dictionary<int, List<Vector2>> dic_AreaSegmentsVertex = new Dictionary<int, List<Vector2>>();
 
-        /// <summary>
-        /// Use Lloyd Relaxation for initial uniform distribution
-        /// </summary>
-        public bool bEnable_InitPhyUserPosUni = false;
-
 
         
         private int edgeMaxcount = 45;
@@ -267,10 +282,77 @@ namespace _OSP
                 bEnable_InitPhyUserPosUni = false;
             }
 
+            LoadCompareSeedsIfNeeded();
+
             InitializeVelocityTracker();
 
             // Manually trigger the first episode since we removed ML-Agents
             ResetEpisode();
+        }
+
+        public void SetCompareExperimentMode(bool useCompareExperiment)
+        {
+            bUseCompareExperiment = useCompareExperiment;
+            compareSeedsLoaded = false;
+            LoadCompareSeedsIfNeeded();
+        }
+
+        private void LoadCompareSeedsIfNeeded()
+        {
+            if (compareSeedsLoaded)
+                return;
+
+            compareSeedsLoaded = true;
+            compareExperimentSeeds.Clear();
+
+            if (!bUseCompareExperiment)
+                return;
+
+            string filePath = Path.Combine(Application.streamingAssetsPath, CompareSeedFileName);
+            if (!File.Exists(filePath))
+            {
+                Debug.LogWarning($"Compare experiment enabled, but seed file not found: {filePath}. Fallback to random mode.");
+                return;
+            }
+
+            string[] lines = File.ReadAllLines(filePath);
+            for (int i = 0; i < lines.Length; i++)
+            {
+                string line = lines[i].Trim();
+                if (string.IsNullOrEmpty(line) || line.StartsWith("#", StringComparison.Ordinal))
+                    continue;
+
+                if (int.TryParse(line, out int seedValue))
+                {
+                    compareExperimentSeeds.Add(seedValue);
+                }
+                else
+                {
+                    Debug.LogWarning($"Invalid seed value at line {i + 1} in {CompareSeedFileName}: {lines[i]}");
+                }
+            }
+
+            if (compareExperimentSeeds.Count != 100)
+            {
+                Debug.LogWarning($"Expected 100 seeds in {CompareSeedFileName}, but loaded {compareExperimentSeeds.Count}.");
+            }
+        }
+
+        private bool TryApplyCompareSeedForEpisode()
+        {
+            currentEpisodeSeed = int.MinValue;
+
+            if (!bUseCompareExperiment)
+                return false;
+
+            LoadCompareSeedsIfNeeded();
+            if (compareExperimentSeeds.Count == 0)
+                return false;
+
+            int seedIndex = currentSimulationCount % compareExperimentSeeds.Count;
+            currentEpisodeSeed = compareExperimentSeeds[seedIndex];
+            Random.InitState(currentEpisodeSeed);
+            return true;
         }
 
         private void InitializeVelocityTracker()
@@ -913,6 +995,68 @@ namespace _OSP
             ProcessStep();
         }
 
+        private void OnDrawGizmos()
+        {
+            DrawPartitionAreaGizmos();
+        }
+
+        private void DrawPartitionAreaGizmos()
+        {
+            if (dic_AreaSegmentsVertex == null || dic_AreaSegmentsVertex.Count == 0)
+                return;
+
+            const float gizmoHeight = 0.02f;
+            const float outlineHeightOffset = 0.005f;
+            const float fillAlpha = 0.24f;
+
+            foreach (var kv in dic_AreaSegmentsVertex)
+            {
+                int userIndex = kv.Key;
+                List<Vector2> vertices2D = kv.Value;
+
+                if (vertices2D == null || vertices2D.Count < 3)
+                    continue;
+
+                Color baseColor = ResolvePartitionColor(userIndex);
+                Vector3[] points = new Vector3[vertices2D.Count];
+
+                for (int i = 0; i < vertices2D.Count; i++)
+                {
+                    points[i] = new Vector3(vertices2D[i].x, gizmoHeight, vertices2D[i].y);
+                }
+
+#if UNITY_EDITOR
+                Color fillColor = baseColor;
+                fillColor.a = fillAlpha;
+                Handles.color = fillColor;
+                Handles.DrawAAConvexPolygon(points);
+#endif
+
+                Color outlineColor = baseColor;
+                outlineColor.a = 0.95f;
+                Gizmos.color = outlineColor;
+
+                for (int i = 0; i < points.Length; i++)
+                {
+                    Vector3 a = points[i] + Vector3.up * outlineHeightOffset;
+                    Vector3 b = points[(i + 1) % points.Length] + Vector3.up * outlineHeightOffset;
+                    Gizmos.DrawLine(a, b);
+                }
+            }
+        }
+
+        private Color ResolvePartitionColor(int userIndex)
+        {
+            if (PartitionedSpaceMaterials != null && userIndex >= 0 && userIndex < PartitionedSpaceMaterials.Count)
+            {
+                Material mat = PartitionedSpaceMaterials[userIndex];
+                if (mat != null)
+                    return mat.color;
+            }
+
+            return Color.HSVToRGB(Mathf.Repeat(userIndex * 0.173f, 1f), 0.75f, 1f);
+        }
+
         // Heuristic removed
         // public override void Heuristic(in ActionBuffers actionsOut) {}
 
@@ -976,6 +1120,12 @@ namespace _OSP
         {
             RDWSimulationManager.instance.BStart = false;
             RDWSimulationManager.instance.StartSimulation();
+
+            bool seeded = TryApplyCompareSeedForEpisode();
+            if (seeded)
+            {
+                Debug.Log($"[CompareExperiment] Episode {currentSimulationCount + 1} uses seed {currentEpisodeSeed}.");
+            }
 
             physicalRoom_width_half = Mathf.Abs(RDWSimulationManager.instance.simulationSetting.realSpaceSetting.spaceObjectSetting.vertices[0].x);
             physicalRoom_height_half = Mathf.Abs(RDWSimulationManager.instance.simulationSetting.realSpaceSetting.spaceObjectSetting.vertices[0].y);

@@ -1126,7 +1126,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    bAllowUserReset: 0
+    bAllowUserReset: 1
     showTarget: 1
     showResetLocator: 1
     showRealWall: 0
@@ -1294,8 +1294,6 @@ MonoBehaviour:
     type: 3}
   S2C_CenterPointerObject_Prefab: {fileID: 2182985730587091720, guid: 53d6093e823ec2d44892c1f2fc7062e9,
     type: 3}
-  prefab_VoronoiEdgesCollider: {fileID: 3491661778377261238, guid: 70d3f05e765ee7f449bc1d671b9f2328,
-    type: 3}
   PartitionedSpaceMaterials:
   - {fileID: 2100000, guid: 1345d5228d116654bb3151fea4cf31dd, type: 2}
   - {fileID: 2100000, guid: 5909335d10fc56e4cadcd5976c6b0e2e, type: 2}
@@ -1307,7 +1305,6 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 9d8af6d21c4f3384e8b883eaa946e498, type: 2}
   - {fileID: 2100000, guid: 1345d5228d116654bb3151fea4cf31dd, type: 2}
   - {fileID: 2100000, guid: 5909335d10fc56e4cadcd5976c6b0e2e, type: 2}
-  list_VoronoiEdgesCollider: []
   bUseVelocityOffset: 0
   alphaMax: 0.15
   vMax: 0.6
