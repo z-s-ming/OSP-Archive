@@ -185,7 +185,7 @@ public class APFRedirector_OSP : GainRedirector
 
         List<Vector2> partitionedSpaceVertices = new List<Vector2>();
 
-        _OSP.OSP_Agent.instance.dic_AreaSegmentsVertex.TryGetValue(RedirectedUnitIndex, out partitionedSpaceVertices);
+        _GCM.GlobalCoordinationManager.instance.dic_AreaSegmentsVertex.TryGetValue(RedirectedUnitIndex, out partitionedSpaceVertices);
 
         List<Vector2> partitionedSpaceVertices2 = new List<Vector2>(partitionedSpaceVertices);
         if (partitionedSpaceVertices2.Count == 0)

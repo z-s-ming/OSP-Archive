@@ -8,7 +8,7 @@ using System.Text;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-namespace _OSP
+namespace _GCM
 {
 
     public class GM_DataRecord : MonoBehaviour

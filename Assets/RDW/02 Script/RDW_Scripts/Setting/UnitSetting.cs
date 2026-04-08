@@ -186,7 +186,7 @@ public class UnitSetting
                 episode = new WanderingEpisodeForAnyReset(episodeLength);
                 break;
             case EpisodeType.NaturalTouring:
-                episode = new _OSP.NaturalTouringEpisode(episodeLength);
+                episode = new _GCM.NaturalTouringEpisode(episodeLength);
                 break;
             default:
                 episode = new Episode(episodeLength);

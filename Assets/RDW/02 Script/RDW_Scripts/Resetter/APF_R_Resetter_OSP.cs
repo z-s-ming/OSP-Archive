@@ -44,13 +44,13 @@ public class APF_R_Resetter_OSP : RotationResetter
 
         List<Vector2> partitionedSpaceVertices = new List<Vector2>();
 
-        _OSP.OSP_Agent.instance.dic_AreaSegmentsVertex.TryGetValue(RedirectedUnitIndex, out partitionedSpaceVertices);
+        _GCM.GlobalCoordinationManager.instance.dic_AreaSegmentsVertex.TryGetValue(RedirectedUnitIndex, out partitionedSpaceVertices);
 
         List<Vector2> partitionedSpaceVertices2 = new List<Vector2>(partitionedSpaceVertices);
         if (partitionedSpaceVertices2.Count == 0)
         {
             Debug.LogWarning("count 0");
-            _OSP.OSP_Agent.instance.ResetEpisode();
+            _GCM.GlobalCoordinationManager.instance.ResetEpisode();
             realPolygonObject = (Polygon2D)realSpace.spaceObject;
         }
         else

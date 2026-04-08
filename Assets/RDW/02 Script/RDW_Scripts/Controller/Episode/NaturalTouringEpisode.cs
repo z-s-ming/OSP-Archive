@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace _OSP
+namespace _GCM
 {
     public class NaturalTouringEpisode : Episode
     {
@@ -44,10 +44,10 @@ namespace _OSP
                 float distance = 0.0f;
 
                 // --- 步骤 A: 距离生成 (保持原有课程逻辑，确保实验变量受控) ---
-                if (_OSP.OSP_Agent.instance.bMixedExploration)
+                if (_GCM.GlobalCoordinationManager.instance.bMixedExploration)
                 {
                      // 这里为了简化代码，直接复用之前的逻辑分支
-                     // 你也可以根据需要直接调用 OSP_Agent 的参数
+                     // 你也可以根据需要直接调用 GlobalCoordinationManager 的参数
                      // 游览通常包含走走停停，所以这里我们倾向于使用 LE (长距离) 和 SE (短距离)
                      if(Random.value > 0.3f) 
                         distance = Utility.sampleUniform(1.0f, 3.0f); // 正常行走

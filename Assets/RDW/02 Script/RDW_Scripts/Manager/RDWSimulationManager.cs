@@ -382,7 +382,7 @@ public class RDWSimulationManager : MonoBehaviour
 
             while (!IsAllEpisodeEnd())
             {
-                // _OSP.OSP_Agent.instance.RequestDecision(); // Removed as OSP_Agent now runs via FixedUpdate
+                // _GCM.GlobalCoordinationManager.instance.RequestDecision(); // Removed as GlobalCoordinationManager now runs via FixedUpdate
 
                 //for (int i = 0; i < redirectedUnits.Length; i++)
                 //{

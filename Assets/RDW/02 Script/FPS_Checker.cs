@@ -2,7 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-namespace _OSP
+namespace _GCM
 {
     public class FPS_Checker : MonoBehaviour
     {
@@ -53,18 +53,18 @@ namespace _OSP
             deltaTime += (Time.fixedDeltaTime - deltaTime) * 0.1f;
         }
 
-        void OnGUI()//¼Ò½º·Î GUI Ç¥½Ã.
+        void OnGUI()//ï¿½Ò½ï¿½ï¿½ï¿½ GUI Ç¥ï¿½ï¿½.
         {
             msec = deltaTime * 1000.0f;
-            fps = 1.0f / deltaTime;  //ÃÊ´ç ÇÁ·¹ÀÓ - 1ÃÊ¿¡
+            fps = 1.0f / deltaTime;  //ï¿½Ê´ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ - 1ï¿½Ê¿ï¿½
 
-            if (fps < worstFps)  //»õ·Î¿î ÃÖÀú fps°¡ ³ª¿Ô´Ù¸é worstFps ¹Ù²ãÁÜ.
+            if (fps < worstFps)  //ï¿½ï¿½ï¿½Î¿ï¿½ ï¿½ï¿½ï¿½ï¿½ fpsï¿½ï¿½ ï¿½ï¿½ï¿½Ô´Ù¸ï¿½ worstFps ï¿½Ù²ï¿½ï¿½ï¿½.
                 worstFps = fps;
             text = msec.ToString("F2") + "ms (" + fps.ToString("F0") + ") //worst : " + worstFps.ToString("F1");
             GUI.Label(rect, text, style);
         }
 
-        IEnumerator worstReset() //ÄÚ·çÆ¾À¸·Î 15ÃÊ °£°ÝÀ¸·Î ÃÖÀú ÇÁ·¹ÀÓ ¸®¼ÂÇØÁÜ.
+        IEnumerator worstReset() //ï¿½Ú·ï¿½Æ¾ï¿½ï¿½ï¿½ï¿½ 15ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½.
         {
             while (tempb)
             {

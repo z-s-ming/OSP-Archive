@@ -117,7 +117,7 @@ public class RandomEpisode : Episode
 
 
             /// Curriculum learning 
-            if (_OSP.OSP_Agent.instance.bMixedExploration)
+            if (_GCM.GlobalCoordinationManager.instance.bMixedExploration)
             {
                 // Removed Curriculum and set to Max Complexity (formerly 4th Quarter)
                 int pathPatternturningPoint_min = 2;
@@ -132,7 +132,7 @@ public class RandomEpisode : Episode
                     targetCount_max = Random.Range(pathPatternturningPoint_min, pathPatternturningPoint_max);
                     currentPathPatternType = Random.Range(0, pathPatternType_max);
                     //Debug.Log("currentPathPatternType " + currentPathPatternType);
-                    //Debug.Log("currnet_CurriculumState " + _OSP.OSP_Agent.instance.currnet_CurriculumState);
+                    //Debug.Log("currnet_CurriculumState " + _GCM.GlobalCoordinationManager.instance.currnet_CurriculumState);
                 }
                 else
                 {

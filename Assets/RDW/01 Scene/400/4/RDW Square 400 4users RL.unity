@@ -1248,7 +1248,7 @@ GameObject:
   - component: {fileID: 2003462191}
   - component: {fileID: 2003462195}
   m_Layer: 0
-  m_Name: Virtual Shutter Actor
+  m_Name: GlobalCoordination
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1287,6 +1287,7 @@ MonoBehaviour:
   SimulationCount_max: 100
   TargetDistancePerUser: 200
   bMixedExploration: 0
+  bUseCompareExperiment: 1
   bEnable_InitPhyUserPosUni: 0
   prefab_VoronoiVertex: {fileID: 5505899062355568956, guid: 096dad0eb818a6446a18d03f44a52724,
     type: 3}
