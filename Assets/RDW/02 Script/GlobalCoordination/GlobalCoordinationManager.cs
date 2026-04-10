@@ -163,6 +163,47 @@ namespace _GCM
         private string predictionExperimentFolderPath = string.Empty;
         private int simulationFrameIndex = 0;
         private float simulationElapsedTime = 0f;
+
+        [Header("=== Predictive Occupancy ===")]
+        [SerializeField] private bool bEnablePredictiveOccupancy = true;
+        [SerializeField] private List<float> predictiveOccupancyHorizons = new List<float> { 0.3f, 0.5f, 1.0f, 1.5f };
+        [SerializeField] private bool bEnablePredictiveOccupancyGizmos = true;
+        [SerializeField] private float predictiveOccupancyGizmoHeight = 0.03f;
+
+        [Header("=== Horizon Selection (from Eval) ===")]
+        [SerializeField] private float trustedHorizonMeanErrorThreshold = 0.60f;
+        [SerializeField] private float trustedHorizonStdErrorThreshold = 0.45f;
+        [SerializeField] private int trustedHorizonMaxCensoredCount = 0;
+
+        private PredictiveOccupancyBuilder predictiveOccupancyBuilder;
+        private PredictionUncertaintyModel predictiveUncertaintyModel;
+        private PredictedOccupancyFrame latestPredictedOccupancyFrame;
+        private PredictionHorizonSelector horizonSelector;
+        private PredictiveOccupancyVisualizer predictiveOccupancyVisualizer;
+
+        [Header("=== Partition Risk Evaluation (Read-Only) ===")]
+        [SerializeField] private bool bEnablePartitionRiskEvaluation = true;
+        [SerializeField] private bool bEnableRiskLogging = true;
+        [SerializeField] private bool bEnableRiskVisualization = true;
+        [SerializeField] private int riskOutputEveryNFrames = 10;
+
+        [SerializeField] private float riskCellBoundarySafeClearance = 0.35f;
+        [SerializeField] private float riskPhysicalBoundarySafeClearance = 0.50f;
+        [SerializeField] private float riskPairSafeSeparation = 0.40f;
+        [SerializeField] private float riskSeedDeltaReference = 0.25f;
+
+        [SerializeField] private float riskWeightCellBoundary = 0.40f;
+        [SerializeField] private float riskWeightUser = 0.40f;
+        [SerializeField] private float riskWeightSmooth = 0.20f;
+
+        [SerializeField] private float riskAdjacencyThreshold = 0.35f;
+        [SerializeField] private float riskDominantNoneThreshold = 0.10f;
+        [SerializeField] private float riskDominantMixedGap = 0.08f;
+
+        private PartitionRiskEvaluator partitionRiskEvaluator;
+        private PartitionRiskLogger partitionRiskLogger;
+        private PartitionRiskVisualizer partitionRiskVisualizer;
+        private PartitionRiskFrame latestPartitionRiskFrame;
         #endregion
 
         #region UI References
@@ -213,6 +254,8 @@ namespace _GCM
             InitializeVelocityTracker();
             InitializePredictionEvaluator();
             InitializePredictionExportFolderForExperiment();
+            InitializePredictiveOccupancy();
+            InitializePartitionRiskLayer();
 
             // Manually trigger the first episode since we removed ML-Agents
             ResetEpisode();
@@ -317,6 +360,23 @@ namespace _GCM
             predictionEvaluator.ClearAll();
         }
 
+        private void InitializePredictiveOccupancy()
+        {
+            predictiveOccupancyBuilder = new PredictiveOccupancyBuilder();
+            predictiveUncertaintyModel = new PredictionUncertaintyModel();
+            latestPredictedOccupancyFrame = new PredictedOccupancyFrame();
+
+            predictiveOccupancyVisualizer = new PredictiveOccupancyVisualizer();
+            predictiveOccupancyVisualizer.ColorResolver = ResolvePartitionColor;
+
+            horizonSelector = new PredictionHorizonSelector
+            {
+                MeanErrorThreshold = trustedHorizonMeanErrorThreshold,
+                StdErrorThreshold = trustedHorizonStdErrorThreshold,
+                MaxCensoredCount = trustedHorizonMaxCensoredCount
+            };
+        }
+
         private void InitializePredictionExportFolderForExperiment()
         {
             if (!bEnablePredictionEvaluation || !bExportPredictionSamples)
@@ -339,6 +399,32 @@ namespace _GCM
             predictionExperimentFolderPath = candidateFolderPath;
 
             Debug.Log($"[PredictionEvaluator] Experiment export folder: {predictionExperimentFolderPath}");
+        }
+
+        private void InitializePartitionRiskLayer()
+        {
+            PartitionRiskConfig config = new PartitionRiskConfig
+            {
+                OutputEveryNFrames = Mathf.Max(1, riskOutputEveryNFrames),
+                CellBoundarySafeClearance = riskCellBoundarySafeClearance,
+                PhysicalBoundarySafeClearance = riskPhysicalBoundarySafeClearance,
+                PairSafeSeparation = riskPairSafeSeparation,
+                SeedDeltaReference = riskSeedDeltaReference,
+                AdjacencyRiskThreshold = riskAdjacencyThreshold,
+                DominantRiskNoneThreshold = riskDominantNoneThreshold,
+                DominantRiskMixedGap = riskDominantMixedGap,
+                Weights = new RiskWeights
+                {
+                    CellBoundaryWeight = riskWeightCellBoundary,
+                    UserWeight = riskWeightUser,
+                    SmoothWeight = riskWeightSmooth
+                }
+            };
+
+            partitionRiskEvaluator = new PartitionRiskEvaluator(config);
+            partitionRiskLogger = new PartitionRiskLogger(config.OutputEveryNFrames);
+            partitionRiskVisualizer = new PartitionRiskVisualizer();
+            latestPartitionRiskFrame = null;
         }
 
         private int GetCurrentEpisodeId()
@@ -372,6 +458,13 @@ namespace _GCM
             {
                 predictionEvaluator.BeginEpisode(GetCurrentEpisodeId());
             }
+
+            if (partitionRiskEvaluator != null)
+            {
+                partitionRiskEvaluator.ResetTemporalState();
+            }
+
+            latestPartitionRiskFrame = null;
         }
 
         /// <summary>
@@ -398,6 +491,17 @@ namespace _GCM
             velocityPredictor.MaxVelocityOffsetDist = maxVelocityOffsetDist;
             velocityPredictor.StopThreshold = stopThreshold;
             velocityPredictor.Update(frameState.PhysicalUsers, Time.fixedDeltaTime, bUseVelocityOffset);
+
+            if (bEnablePredictiveOccupancy && predictiveOccupancyBuilder != null)
+            {
+                latestPredictedOccupancyFrame = predictiveOccupancyBuilder.BuildFrame(
+                    frameState.PhysicalUsers,
+                    velocityPredictor,
+                    predictiveOccupancyHorizons,
+                    predictiveUncertaintyModel,
+                    simulationFrameIndex,
+                    simulationElapsedTime);
+            }
 
             // 先注册当前帧预测
             if (predictionEvaluator != null && predictionEvaluator.ShouldSample(simulationFrameIndex))
@@ -434,6 +538,12 @@ namespace _GCM
                 {
                     List<EpisodePredictionSummary> episodeSummaries = predictionEvaluator.EndEpisode(true);
                     Debug.Log("[PredictionEvaluator] " + predictionEvaluator.BuildReadableSummary(episodeSummaries));
+
+                    if (horizonSelector != null)
+                    {
+                        HorizonSelectionResult selection = horizonSelector.SelectTrustedHorizons(episodeSummaries, trajectoryModeLabel);
+                        Debug.Log($"[HorizonSelector] Trusted horizons: {string.Join(", ", selection.TrustedHorizons)} | Untrusted horizons: {string.Join(", ", selection.UntrustedHorizons)}");
+                    }
 
                     if (bExportPredictionSamples)
                     {
@@ -491,6 +601,23 @@ namespace _GCM
 
             ApplyPartitionResult(latestPartitionResult);
 
+            if (bEnablePartitionRiskEvaluation && partitionRiskEvaluator != null)
+            {
+                latestPartitionRiskFrame = partitionRiskEvaluator.Evaluate(
+                    simulationFrameIndex,
+                    simulationElapsedTime,
+                    latestPartitionResult,
+                    latestPredictedOccupancyFrame,
+                    frameState.PhysicalUsers,
+                    physicalRoom_width_half,
+                    physicalRoom_height_half);
+
+                if (bEnableRiskLogging && partitionRiskLogger != null)
+                {
+                    partitionRiskLogger.TryLogFrame(latestPartitionRiskFrame);
+                }
+            }
+
 
             // Removed bEnable_InitPhyUserPosUni one-frame lock logic
             // Removed bOneframetimerblockVoronoi logic
@@ -546,8 +673,20 @@ namespace _GCM
 
         private void OnDrawGizmos()
         {
+            if (bEnablePredictiveOccupancyGizmos && predictiveOccupancyVisualizer != null && latestPredictedOccupancyFrame != null)
+            {
+                predictiveOccupancyVisualizer.Draw(latestPredictedOccupancyFrame, predictiveOccupancyGizmoHeight);
+            }
+
+            if (bEnableRiskVisualization && partitionRiskVisualizer != null && latestPartitionRiskFrame != null && stateCollector != null)
+            {
+                partitionRiskVisualizer.Draw(latestPartitionRiskFrame, stateCollector.PhysicalUsers);
+            }
+
             DrawPartitionAreaGizmos();
         }
+
+
 
         private void DrawPartitionAreaGizmos()
         {

@@ -1312,4 +1312,13 @@ MonoBehaviour:
   velocityToOffsetFactor: 0.3
   maxVelocityOffsetDist: 0.5
   stopThreshold: 0.05
+  bEnablePredictionEvaluation: 1
+  bExportPredictionSamples: 0
+  predictionSampleEveryNFrames: 10
+  trajectoryModeLabel: DefaultMode
+  predictionEvaluationHorizons:
+  - 0.3
+  - 0.5
+  - 1
+  - 1.5
   text_currentEpi: {fileID: 1237824341}
