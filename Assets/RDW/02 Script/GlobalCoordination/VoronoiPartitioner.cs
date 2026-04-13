@@ -46,6 +46,45 @@ namespace _GCM
             }
         }
 
+        public List<Vector2> GetSeedPointsCopy()
+        {
+            List<Vector2> seedPoints = new List<Vector2>(_seedPoints.Count);
+            for (int i = 0; i < _seedPoints.Count; i++)
+            {
+                seedPoints.Add(new Vector2(_seedPoints[i].x, _seedPoints[i].y));
+            }
+
+            return seedPoints;
+        }
+
+        public Vector2 GetSeedPoint(int userId)
+        {
+            if (userId < 0 || userId >= _seedPoints.Count)
+                return Vector2.zero;
+
+            return new Vector2(_seedPoints[userId].x, _seedPoints[userId].y);
+        }
+
+        public void SetSeedPoint(int userId, Vector2 seedPoint)
+        {
+            if (userId < 0 || userId >= _seedPoints.Count)
+                return;
+
+            _seedPoints[userId] = new Vector2f(seedPoint.x, seedPoint.y);
+        }
+
+        public void SetSeedPoints(IReadOnlyList<Vector2> seedPoints)
+        {
+            if (seedPoints == null)
+                return;
+
+            int count = Mathf.Min(_totalUserCount, seedPoints.Count);
+            for (int i = 0; i < count; i++)
+            {
+                _seedPoints[i] = new Vector2f(seedPoints[i].x, seedPoints[i].y);
+            }
+        }
+
         public List<Vector2> BuildInitialUniformSeeds(float roomHalfWidth, float roomHalfHeight)
         {
             List<Vector2f> seedPointsFixed = new List<Vector2f>();

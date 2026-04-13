@@ -8,11 +8,18 @@ public class S2CRedirector : SteerToTargetRedirector
     private const float S2C_TEMP_TARGET_DISTANCE = 4;
 
     private Vector3 centerPoint = Vector3.zero;
+    private Vector2? externalSafeTarget = null;
 
     public override void PickSteeringTarget() {
-        //Vector2 trackingAreaPosition = Vector2.zero; // center must be zero in local space (정사각형인경우)
+        // Priority 1: Use external safe target if available (Phase 5)
+        if (externalSafeTarget.HasValue)
+        {
+            targetPosition = externalSafeTarget.Value;
+            return;
+        }
+
+        // Fallback: Original S2C logic
         Vector2 trackingAreaPosition = centerPoint;
-        //Debug.Log(trackingAreaPosition.ToString("F3"));
         Vector2 userToCenter = trackingAreaPosition - userPosition;
 
         //Compute steering target for S2C
@@ -36,4 +43,21 @@ public class S2CRedirector : SteerToTargetRedirector
     {
         return centerPoint;
     }
+
+    /// <summary>
+    /// Set external safe target (Phase 5: Local Safe Target Selection)
+    /// </summary>
+    public void SetExternalSafeTarget(Vector2 target)
+    {
+        externalSafeTarget = target;
+    }
+
+    /// <summary>
+    /// Clear external safe target, reverting to S2C logic
+    /// </summary>
+    public void ClearExternalSafeTarget()
+    {
+        externalSafeTarget = null;
+    }
 }
+

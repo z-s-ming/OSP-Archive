@@ -1206,7 +1206,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    bAllowUserReset: 0
+    bAllowUserReset: 1
     showTarget: 1
     showResetLocator: 1
     showRealWall: 0
@@ -1326,8 +1326,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2003462191}
-  - component: {fileID: 2003462192}
-  - component: {fileID: 2003462193}
   - component: {fileID: 2003462195}
   m_Layer: 0
   m_Name: Virtual Shutter Actor
@@ -1351,49 +1349,6 @@ Transform:
   m_Father: {fileID: 0}
   m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2003462192
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2003462189}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5d1c4e0b1822b495aa52bc52839ecb30, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_BrainParameters:
-    VectorObservationSize: 51750
-    NumStackedVectorObservations: 1
-    m_ActionSpec:
-      m_NumContinuousActions: 10
-      BranchSizes: 
-    VectorActionSize: 0a000000
-    VectorActionDescriptions: []
-    VectorActionSpaceType: 1
-    hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
-  m_InferenceDevice: 2
-  m_BehaviorType: 0
-  m_BehaviorName: VirtualShutter3
-  TeamId: 0
-  m_UseChildSensors: 1
-  m_UseChildActuators: 1
-  m_ObservableAttributeHandling: 1
---- !u!114 &2003462193
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2003462189}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3a6da8f78a394c6ab027688eab81e04d, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  debugCommandLineOverride: 
 --- !u!114 &2003462195
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1406,30 +1361,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2dea9268e3f6ce41a56d0f1f4d5d064, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  agentParameters:
-    maxStep: 0
-  hasUpgradedFromAgentParameters: 1
-  MaxStep: 16200
-  bUseVecOberv: 1
-  text_currentEpi: {fileID: 1237824341}
-  text_currentStep: {fileID: 1829637901}
-  text_currentReward: {fileID: 1172250593}
-  SimulationCount_max: 50
+  totalUserCount: 5
+  userRadius: 0.5
+  shutterWidth: 0.5
+  SimulationCount_max: 100
+  TargetDistancePerUser: 200
+  bMixedExploration: 0
+  bUseCompareExperiment: 1
   bEnable_InitPhyUserPosUni: 0
   prefab_VoronoiVertex: {fileID: 5505899062355568956, guid: 096dad0eb818a6446a18d03f44a52724,
     type: 3}
   prefab_VoronoiSeedPoint: {fileID: 5505899062355568956, guid: b537e0df341b96f4abfefa5db2256338,
     type: 3}
-  totalUserCount: 5
-  userRadius: 0.5
-  shutterWidth: 0.5
-  bMixedExploration: 1
-  currnet_CurriculumState: 0
-  list_rewardWeight:
-  - 0.9
-  - -200
-  - -100
-  - -10
   S2C_CenterPointerObject_Prefab: {fileID: 2182985730587091720, guid: 53d6093e823ec2d44892c1f2fc7062e9,
     type: 3}
   PartitionedSpaceMaterials:
@@ -1443,12 +1386,19 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 9d8af6d21c4f3384e8b883eaa946e498, type: 2}
   - {fileID: 2100000, guid: 1345d5228d116654bb3151fea4cf31dd, type: 2}
   - {fileID: 2100000, guid: 5909335d10fc56e4cadcd5976c6b0e2e, type: 2}
-  prefab_VoronoiEdgesCollider: {fileID: 3491661778377261238, guid: 70d3f05e765ee7f449bc1d671b9f2328,
-    type: 3}
-  list_VoronoiEdgesCollider: []
-  bQuickTestMode: 1
+  bUseVelocityOffset: 0
   alphaMax: 0.15
   vMax: 0.6
   velocityToOffsetFactor: 0.3
   maxVelocityOffsetDist: 0.5
   stopThreshold: 0.05
+  bEnablePredictionEvaluation: 1
+  bExportPredictionSamples: 1
+  predictionSampleEveryNFrames: 10
+  trajectoryModeLabel: DefaultMode
+  predictionEvaluationHorizons:
+  - 0.3
+  - 0.5
+  - 1
+  - 1.5
+  text_currentEpi: {fileID: 1237824341}

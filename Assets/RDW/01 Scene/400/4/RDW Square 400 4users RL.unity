@@ -1131,7 +1131,7 @@ MonoBehaviour:
     showResetLocator: 1
     showRealWall: 0
   userResetTotalCount: 0
-  simulspeed: 50
+  simulspeed: 5
 --- !u!4 &1807211603
 Transform:
   m_ObjectHideFlags: 0
@@ -1313,7 +1313,7 @@ MonoBehaviour:
   maxVelocityOffsetDist: 0.5
   stopThreshold: 0.05
   bEnablePredictionEvaluation: 1
-  bExportPredictionSamples: 0
+  bExportPredictionSamples: 1
   predictionSampleEveryNFrames: 10
   trajectoryModeLabel: DefaultMode
   predictionEvaluationHorizons:
@@ -1321,4 +1321,68 @@ MonoBehaviour:
   - 0.5
   - 1
   - 1.5
+  bEnablePredictiveOccupancy: 1
+  predictiveOccupancyHorizons:
+  - 0.3
+  - 0.5
+  - 1
+  - 1.5
+  bEnablePredictiveOccupancyGizmos: 1
+  predictiveOccupancyGizmoHeight: 0.03
+  trustedHorizonMeanErrorThreshold: 0.6
+  trustedHorizonStdErrorThreshold: 0.45
+  trustedHorizonMaxCensoredCount: 0
+  bEnablePartitionRiskEvaluation: 1
+  bEnableRiskLogging: 1
+  bEnableRiskVisualization: 1
+  riskOutputEveryNFrames: 10
+  riskCellBoundarySafeClearance: 0.35
+  riskPhysicalBoundarySafeClearance: 0.5
+  riskPairSafeSeparation: 0.4
+  riskSeedDeltaReference: 0.25
+  riskWeightCellBoundary: 0.4
+  riskWeightUser: 0.4
+  riskWeightSmooth: 0.2
+  riskAdjacencyThreshold: 0.35
+  riskDominantNoneThreshold: 0.1
+  riskDominantMixedGap: 0.08
+  enableRiskDrivenPartitionUpdate: 1
+  tauCellRiskEnter: 0.6
+  tauCellRiskExit: 0.5
+  tauNeighborRiskEnter: 0.6
+  tauNeighborRiskExit: 0.5
+  persistFramesCell: 3
+  persistFramesNeighbor: 3
+  seedUpdateCooldown: 0.75
+  seedTriggerMoveThreshold: 0.12
+  seedTrendWeight: 0.55
+  seedNeighborWeight: 0.35
+  seedAnchorWeight: 0.1
+  seedStepLow: 0.05
+  seedStepMedium: 0.1
+  seedStepHigh: 0.15
+  maxSeedShiftPerUpdate: 0.2
+  maxSeedOffsetFromUser: 0.6
+  partitionAcceptEpsilon: 0.03
+  partitionCellRiskWeight: 0.5
+  partitionNeighborRiskWeight: 0.5
+  partitionMaxAllowedCellRiskWorsen: 0.02
+  partitionMaxAllowedNeighborRiskWorsen: 0.02
+  bEnablePartitionUpdateVisualization: 1
+  enableLocalSafeTargetSelection: 1
+  enableLocalSafeTargetVisualization: 1
+  enableLocalSafeTargetLogging: 0
+  localTargetFanHalfAngleDeg: 55
+  localTargetSearchRadiusMin: 1.5
+  localTargetSearchRadiusMax: 2
+  localTargetBoundaryBufferMin: 0.3
+  localTargetBoundaryBufferMax: 0.5
+  localTargetGridResolutionMin: 0.15
+  localTargetGridResolutionMax: 0.25
+  localTargetWeightBoundary: 1
+  localTargetWeightOccupancy: 1.5
+  localTargetWeightDistance: 0.4
+  localTargetSampleDensityPerM2: 55
+  localTargetMinSamples: 24
+  localTargetMaxSamples: 120
   text_currentEpi: {fileID: 1237824341}

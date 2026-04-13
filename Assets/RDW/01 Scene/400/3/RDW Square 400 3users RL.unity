@@ -1014,9 +1014,9 @@ MonoBehaviour:
         p2: {x: 0, y: 0}
       obstacleObjectSettings: []
     unitSettings:
-    - redirectType: 6
-      resetType: 5
-      episodeType: 1
+    - redirectType: 2
+      resetType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1030,9 +1030,9 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
-      episodeType: 1
+    - redirectType: 2
+      resetType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1046,9 +1046,9 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
-      episodeType: 1
+    - redirectType: 2
+      resetType: 1
+      episodeType: 5
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1062,12 +1062,12 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    bAllowUserReset: 0
+    bAllowUserReset: 1
     showTarget: 1
     showResetLocator: 1
     showRealWall: 0
   userResetTotalCount: 0
-  simulspeed: 50
+  simulspeed: 2
 --- !u!4 &1807211603
 Transform:
   m_ObjectHideFlags: 0
@@ -1223,14 +1223,13 @@ MonoBehaviour:
   SimulationCount_max: 100
   TargetDistancePerUser: 200
   bMixedExploration: 1
+  bUseCompareExperiment: 1
   bEnable_InitPhyUserPosUni: 0
   prefab_VoronoiVertex: {fileID: 5505899062355568956, guid: 096dad0eb818a6446a18d03f44a52724,
     type: 3}
   prefab_VoronoiSeedPoint: {fileID: 5505899062355568956, guid: b537e0df341b96f4abfefa5db2256338,
     type: 3}
   S2C_CenterPointerObject_Prefab: {fileID: 2182985730587091720, guid: 53d6093e823ec2d44892c1f2fc7062e9,
-    type: 3}
-  prefab_VoronoiEdgesCollider: {fileID: 3491661778377261238, guid: 70d3f05e765ee7f449bc1d671b9f2328,
     type: 3}
   PartitionedSpaceMaterials:
   - {fileID: 2100000, guid: 1345d5228d116654bb3151fea4cf31dd, type: 2}
@@ -1243,11 +1242,83 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 9d8af6d21c4f3384e8b883eaa946e498, type: 2}
   - {fileID: 2100000, guid: 1345d5228d116654bb3151fea4cf31dd, type: 2}
   - {fileID: 2100000, guid: 5909335d10fc56e4cadcd5976c6b0e2e, type: 2}
-  list_VoronoiEdgesCollider: []
-  bUseVelocityOffset: 1
+  bUseVelocityOffset: 0
   alphaMax: 0.15
   vMax: 0.6
   velocityToOffsetFactor: 0.3
   maxVelocityOffsetDist: 0.5
   stopThreshold: 0.05
+  bEnablePredictionEvaluation: 1
+  bExportPredictionSamples: 1
+  predictionSampleEveryNFrames: 10
+  trajectoryModeLabel: DefaultMode
+  predictionEvaluationHorizons:
+  - 0.3
+  - 0.5
+  - 1
+  - 1.5
+  bEnablePredictiveOccupancy: 1
+  predictiveOccupancyHorizons:
+  - 0.3
+  - 0.5
+  - 1
+  - 1.5
+  bEnablePredictiveOccupancyGizmos: 1
+  predictiveOccupancyGizmoHeight: 0.03
+  trustedHorizonMeanErrorThreshold: 0.6
+  trustedHorizonStdErrorThreshold: 0.45
+  trustedHorizonMaxCensoredCount: 0
+  bEnablePartitionRiskEvaluation: 1
+  bEnableRiskLogging: 1
+  bEnableRiskVisualization: 1
+  riskOutputEveryNFrames: 10
+  riskCellBoundarySafeClearance: 0.35
+  riskPhysicalBoundarySafeClearance: 0.5
+  riskPairSafeSeparation: 0.4
+  riskSeedDeltaReference: 0.25
+  riskWeightCellBoundary: 0.4
+  riskWeightUser: 0.4
+  riskWeightSmooth: 0.2
+  riskAdjacencyThreshold: 0.35
+  riskDominantNoneThreshold: 0.1
+  riskDominantMixedGap: 0.08
+  enableRiskDrivenPartitionUpdate: 1
+  tauCellRiskEnter: 0.6
+  tauCellRiskExit: 0.5
+  tauNeighborRiskEnter: 0.6
+  tauNeighborRiskExit: 0.5
+  persistFramesCell: 3
+  persistFramesNeighbor: 3
+  seedUpdateCooldown: 0.75
+  seedTriggerMoveThreshold: 0.12
+  seedTrendWeight: 0.55
+  seedNeighborWeight: 0.35
+  seedAnchorWeight: 0.1
+  seedStepLow: 0.05
+  seedStepMedium: 0.1
+  seedStepHigh: 0.15
+  maxSeedShiftPerUpdate: 0.2
+  maxSeedOffsetFromUser: 0.6
+  partitionAcceptEpsilon: 0.03
+  partitionCellRiskWeight: 0.5
+  partitionNeighborRiskWeight: 0.5
+  partitionMaxAllowedCellRiskWorsen: 0.02
+  partitionMaxAllowedNeighborRiskWorsen: 0.02
+  bEnablePartitionUpdateVisualization: 1
+  enableLocalSafeTargetSelection: 1
+  enableLocalSafeTargetVisualization: 1
+  enableLocalSafeTargetLogging: 0
+  localTargetFanHalfAngleDeg: 55
+  localTargetSearchRadiusMin: 1.5
+  localTargetSearchRadiusMax: 2
+  localTargetBoundaryBufferMin: 0.3
+  localTargetBoundaryBufferMax: 0.5
+  localTargetGridResolutionMin: 0.15
+  localTargetGridResolutionMax: 0.25
+  localTargetWeightBoundary: 1
+  localTargetWeightOccupancy: 1.5
+  localTargetWeightDistance: 0.4
+  localTargetSampleDensityPerM2: 55
+  localTargetMinSamples: 24
+  localTargetMaxSamples: 120
   text_currentEpi: {fileID: 1237824341}

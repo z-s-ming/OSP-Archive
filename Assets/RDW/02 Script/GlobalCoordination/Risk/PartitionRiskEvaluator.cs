@@ -83,6 +83,12 @@ namespace _GCM
 
     public class PartitionRiskEvaluator
     {
+        public class PartitionRiskTemporalSnapshot
+        {
+            public bool HasPreviousSeeds;
+            public List<Vector2> PreviousSeeds = new List<Vector2>();
+        }
+
         private readonly PartitionRiskConfig _config;
         private readonly List<Vector2> _previousSeeds = new List<Vector2>();
         private bool _hasPreviousSeeds;
@@ -96,6 +102,29 @@ namespace _GCM
         {
             _hasPreviousSeeds = false;
             _previousSeeds.Clear();
+        }
+
+        public PartitionRiskTemporalSnapshot CaptureTemporalState()
+        {
+            return new PartitionRiskTemporalSnapshot
+            {
+                HasPreviousSeeds = _hasPreviousSeeds,
+                PreviousSeeds = new List<Vector2>(_previousSeeds)
+            };
+        }
+
+        public void RestoreTemporalState(PartitionRiskTemporalSnapshot snapshot)
+        {
+            _previousSeeds.Clear();
+            if (snapshot != null && snapshot.PreviousSeeds != null)
+            {
+                for (int i = 0; i < snapshot.PreviousSeeds.Count; i++)
+                {
+                    _previousSeeds.Add(snapshot.PreviousSeeds[i]);
+                }
+            }
+
+            _hasPreviousSeeds = snapshot != null && snapshot.HasPreviousSeeds;
         }
 
         public PartitionRiskFrame Evaluate(

@@ -83,6 +83,19 @@ namespace _GCM
 
         public Vector3[] CurrentOffsets => _userCurrentOffset;
 
+        public Vector3 GetCurrentVelocity(int userId)
+        {
+            if (userId < 0 || userId >= _totalUserCount)
+                return Vector3.zero;
+
+            return _userSmoothV2[userId];
+        }
+
+        public float GetCurrentSpeed(int userId)
+        {
+            return GetCurrentVelocity(userId).magnitude;
+        }
+
         public IReadOnlyList<Vector3> GetOffsets()
         {
             return _userCurrentOffset;

@@ -5,7 +5,8 @@ using System.IO;
 using UnityEngine;
 using Random = UnityEngine.Random;
 using UnityEngine.UI;
-using csDelaunay;
+using _GCM.PartitionUpdate;
+using RDW.Coordination.LocalSafeTarget;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
@@ -200,10 +201,72 @@ namespace _GCM
         [SerializeField] private float riskDominantNoneThreshold = 0.10f;
         [SerializeField] private float riskDominantMixedGap = 0.08f;
 
+        [Header("=== Phase 4 Risk-Driven Partition Update ===")]
+        [SerializeField] private bool enableRiskDrivenPartitionUpdate = true;
+        [SerializeField] private float tauCellRiskEnter = 0.60f;
+        [SerializeField] private float tauCellRiskExit = 0.50f;
+        [SerializeField] private float tauNeighborRiskEnter = 0.60f;
+        [SerializeField] private float tauNeighborRiskExit = 0.50f;
+        [SerializeField] private int persistFramesCell = 3;
+        [SerializeField] private int persistFramesNeighbor = 3;
+        [SerializeField] private float seedUpdateCooldown = 0.75f;
+        [SerializeField] private float seedTriggerMoveThreshold = 0.12f;
+        [SerializeField] private float seedTrendWeight = 0.55f;
+        [SerializeField] private float seedNeighborWeight = 0.35f;
+        [SerializeField] private float seedAnchorWeight = 0.10f;
+        [SerializeField] private float seedStepLow = 0.05f;
+        [SerializeField] private float seedStepMedium = 0.10f;
+        [SerializeField] private float seedStepHigh = 0.15f;
+        [SerializeField] private float maxSeedShiftPerUpdate = 0.20f;
+        [SerializeField] private float maxSeedOffsetFromUser = 0.60f;
+        [SerializeField] private float partitionAcceptEpsilon = 0.03f;
+        [SerializeField] private float partitionCellRiskWeight = 0.5f;
+        [SerializeField] private float partitionNeighborRiskWeight = 0.5f;
+        [SerializeField] private float partitionMaxAllowedCellRiskWorsen = 0.02f;
+        [SerializeField] private float partitionMaxAllowedNeighborRiskWorsen = 0.02f;
+        [SerializeField] private bool bEnablePartitionUpdateVisualization = true;
+
         private PartitionRiskEvaluator partitionRiskEvaluator;
         private PartitionRiskLogger partitionRiskLogger;
         private PartitionRiskVisualizer partitionRiskVisualizer;
         private PartitionRiskFrame latestPartitionRiskFrame;
+
+        private PartitionUpdateTriggerEvaluator partitionUpdateTriggerEvaluator;
+        private RiskDrivenSeedUpdater riskDrivenSeedUpdater;
+        private PartitionUpdateAcceptancePolicy partitionUpdateAcceptancePolicy;
+        private PartitionUpdateCoordinator partitionUpdateCoordinator;
+        private PartitionUpdateLogger partitionUpdateLogger;
+        private PartitionUpdateVisualizer partitionUpdateVisualizer;
+        private RiskDrivenSeedUpdateState[] partitionUpdateStates;
+        private readonly List<PartitionUpdateAttempt> latestPartitionUpdateAttempts = new List<PartitionUpdateAttempt>();
+        #endregion
+
+        #region Phase 5: Local Safe Target Selection
+        [Header("=== Phase 5: Local Safe Target Selection ===")]
+        [SerializeField] private bool enableLocalSafeTargetSelection = true;
+        [SerializeField] private bool enableLocalSafeTargetVisualization = true;
+        [SerializeField] private bool enableLocalSafeTargetLogging = false;
+
+        [SerializeField] private float localTargetFanHalfAngleDeg = 55f;
+        [SerializeField] private float localTargetSearchRadiusMin = 1.5f;
+        [SerializeField] private float localTargetSearchRadiusMax = 2.0f;
+        [SerializeField] private float localTargetBoundaryBufferMin = 0.3f;
+        [SerializeField] private float localTargetBoundaryBufferMax = 0.5f;
+        [SerializeField] private float localTargetGridResolutionMin = 0.15f;
+        [SerializeField] private float localTargetGridResolutionMax = 0.25f;
+
+        [SerializeField] private float localTargetWeightBoundary = 1.0f;
+        [SerializeField] private float localTargetWeightOccupancy = 1.5f;
+        [SerializeField] private float localTargetWeightDistance = 0.4f;
+
+        [SerializeField] private float localTargetSampleDensityPerM2 = 55f;
+        [SerializeField] private int localTargetMinSamples = 24;
+        [SerializeField] private int localTargetMaxSamples = 120;
+
+        private LocalSafeTargetSelector localSafeTargetSelector;
+        private Dictionary<int, LocalTargetResult> latestLocalTargets = new Dictionary<int, LocalTargetResult>();
+        private string localTargetExperimentFolderPath = string.Empty;
+        private RDW.Coordination.Visualization.LocalSafeTargetVisualizer localSafeTargetVisualizer;
         #endregion
 
         #region UI References
@@ -256,6 +319,8 @@ namespace _GCM
             InitializePredictionExportFolderForExperiment();
             InitializePredictiveOccupancy();
             InitializePartitionRiskLayer();
+            InitializePartitionUpdateLayer();
+            InitializeLocalSafeTargetSelection();
 
             // Manually trigger the first episode since we removed ML-Agents
             ResetEpisode();
@@ -427,6 +492,86 @@ namespace _GCM
             latestPartitionRiskFrame = null;
         }
 
+        private void InitializePartitionUpdateLayer()
+        {
+            partitionUpdateTriggerEvaluator = new PartitionUpdateTriggerEvaluator(
+                tauCellRiskEnter,
+                tauCellRiskExit,
+                tauNeighborRiskEnter,
+                tauNeighborRiskExit,
+                persistFramesCell,
+                persistFramesNeighbor,
+                seedUpdateCooldown,
+                seedTriggerMoveThreshold);
+
+            riskDrivenSeedUpdater = new RiskDrivenSeedUpdater(
+                seedTrendWeight,
+                seedNeighborWeight,
+                seedAnchorWeight,
+                seedStepLow,
+                seedStepMedium,
+                seedStepHigh,
+                maxSeedShiftPerUpdate,
+                maxSeedOffsetFromUser);
+
+            partitionUpdateAcceptancePolicy = new PartitionUpdateAcceptancePolicy(
+                partitionAcceptEpsilon,
+                partitionCellRiskWeight,
+                partitionNeighborRiskWeight,
+                partitionMaxAllowedCellRiskWorsen,
+                partitionMaxAllowedNeighborRiskWorsen);
+
+            partitionUpdateLogger = new PartitionUpdateLogger();
+            partitionUpdateVisualizer = new PartitionUpdateVisualizer();
+            partitionUpdateCoordinator = new PartitionUpdateCoordinator(
+                totalUserCount,
+                voronoiPartitioner,
+                partitionRiskEvaluator,
+                partitionUpdateTriggerEvaluator,
+                riskDrivenSeedUpdater,
+                partitionUpdateAcceptancePolicy,
+                partitionUpdateLogger);
+
+            partitionUpdateStates = new RiskDrivenSeedUpdateState[Mathf.Max(0, totalUserCount)];
+            for (int i = 0; i < partitionUpdateStates.Length; i++)
+            {
+                partitionUpdateStates[i] = new RiskDrivenSeedUpdateState();
+            }
+
+            latestPartitionUpdateAttempts.Clear();
+        }
+
+        private void InitializeLocalSafeTargetSelection()
+        {
+            var config = new LocalSafeTargetConfig
+            {
+                FanHalfAngleDegrees = localTargetFanHalfAngleDeg,
+                SearchRadiusMin = localTargetSearchRadiusMin,
+                SearchRadiusMax = localTargetSearchRadiusMax,
+                BoundaryBufferMin = localTargetBoundaryBufferMin,
+                BoundaryBufferMax = localTargetBoundaryBufferMax,
+                GridResolutionMin = localTargetGridResolutionMin,
+                GridResolutionMax = localTargetGridResolutionMax,
+                WeightBoundaryDist = localTargetWeightBoundary,
+                WeightOccupancyDist = localTargetWeightOccupancy,
+                WeightDistancePenalty = localTargetWeightDistance,
+                SampleDensityPerM2 = localTargetSampleDensityPerM2,
+                MinSamplesPerUser = localTargetMinSamples,
+                MaxSamplesPerUser = localTargetMaxSamples
+            };
+
+            localSafeTargetSelector = new LocalSafeTargetSelector(config);
+            latestLocalTargets.Clear();
+
+            // Initialize visualizer
+            localSafeTargetVisualizer = gameObject.GetComponent<RDW.Coordination.Visualization.LocalSafeTargetVisualizer>();
+            if (localSafeTargetVisualizer == null)
+            {
+                localSafeTargetVisualizer = gameObject.AddComponent<RDW.Coordination.Visualization.LocalSafeTargetVisualizer>();
+            }
+            localSafeTargetVisualizer.Initialize(stateCollector);
+        }
+
         private int GetCurrentEpisodeId()
         {
             return episodeService.CurrentSimulationCount + 1;
@@ -464,7 +609,13 @@ namespace _GCM
                 partitionRiskEvaluator.ResetTemporalState();
             }
 
+            if (partitionUpdateLogger != null)
+            {
+                partitionUpdateLogger.ResetSession();
+            }
+
             latestPartitionRiskFrame = null;
+            latestPartitionUpdateAttempts.Clear();
         }
 
         /// <summary>
@@ -601,6 +752,7 @@ namespace _GCM
 
             ApplyPartitionResult(latestPartitionResult);
 
+            latestPartitionRiskFrame = null;
             if (bEnablePartitionRiskEvaluation && partitionRiskEvaluator != null)
             {
                 latestPartitionRiskFrame = partitionRiskEvaluator.Evaluate(
@@ -612,17 +764,33 @@ namespace _GCM
                     physicalRoom_width_half,
                     physicalRoom_height_half);
 
+                if (enableRiskDrivenPartitionUpdate)
+                {
+                    TryApplyRiskDrivenPartitionUpdate(frameState, offsetResult);
+                }
+
                 if (bEnableRiskLogging && partitionRiskLogger != null)
                 {
                     partitionRiskLogger.TryLogFrame(latestPartitionRiskFrame);
                 }
             }
 
+            // Phase 5: Local Safe Target Selection
+            if (enableLocalSafeTargetSelection && localSafeTargetSelector != null && latestPartitionResult != null)
+            {
+                TrySelectLocalSafeTargets(frameState, latestPartitionResult, latestPartitionRiskFrame, latestPredictedOccupancyFrame);
+                ApplyLocalTargetsToRedirectors();
+                
+                // Update visualizer
+                if (enableLocalSafeTargetVisualization && localSafeTargetVisualizer != null)
+                {
+                    localSafeTargetVisualizer.UpdateTargets(latestLocalTargets);
+                    localSafeTargetVisualizer.UpdateCellVertices(dic_AreaSegmentsVertex);
+                }
+            }
 
             // Removed bEnable_InitPhyUserPosUni one-frame lock logic
             // Removed bOneframetimerblockVoronoi logic
-
-
 
             /// Simulate the designated redirection controller
             RDWSimulationManager.instance.SimulateRDW();
@@ -666,6 +834,137 @@ namespace _GCM
             }
         }
 
+        private void SyncPartitionUpdateStatesWithCurrentSeeds()
+        {
+            if (partitionUpdateTriggerEvaluator == null || partitionUpdateStates == null)
+                return;
+
+            List<Vector2> currentSeeds = voronoiPartitioner != null ? voronoiPartitioner.GetSeedPointsCopy() : null;
+            partitionUpdateTriggerEvaluator.ResetAll(partitionUpdateStates, currentSeeds);
+        }
+
+        private void TryApplyRiskDrivenPartitionUpdate(FrameState frameState, IReadOnlyList<Vector3> offsetResult)
+        {
+            if (partitionUpdateCoordinator == null)
+                return;
+
+            partitionUpdateCoordinator.Execute(
+                enableRiskDrivenPartitionUpdate,
+                frameState,
+                offsetResult,
+                velocityPredictor,
+                latestPredictedOccupancyFrame,
+                partitionUpdateStates,
+                latestPartitionUpdateAttempts,
+                simulationFrameIndex,
+                simulationElapsedTime,
+                Time.deltaTime,
+                bUseVelocityOffset,
+                physicalRoom_width_half,
+                physicalRoom_height_half,
+                ref latestPartitionResult,
+                ref latestPartitionRiskFrame,
+                ApplyPartitionResult);
+        }
+
+        /// <summary>
+        /// Phase 5: Select local safe targets for each user within their Voronoi cell
+        /// </summary>
+        private void TrySelectLocalSafeTargets(
+            FrameState frameState,
+            PartitionResult partitionResult,
+            PartitionRiskFrame riskFrame,
+            PredictedOccupancyFrame occupancyFrame)
+        {
+            if (localSafeTargetSelector == null || frameState == null || partitionResult == null)
+                return;
+
+            latestLocalTargets.Clear();
+
+            // Select target for each user
+            for (int userId = 0; userId < totalUserCount; userId++)
+            {
+                // Get user data
+                if (userId >= frameState.PhysicalUsers.Count)
+                    continue;
+
+                var user = frameState.PhysicalUsers[userId];
+                Vector2 userPosition = new Vector2(user.transform.position.x, user.transform.position.z);
+                Vector2 userHeading = new Vector2(user.transform.forward.x, user.transform.forward.z).normalized;
+
+                // Get cell vertices
+                if (!dic_AreaSegmentsVertex.TryGetValue(userId, out List<Vector2> cellVertices) || cellVertices.Count < 3)
+                    continue;
+
+                // Get cell centroid
+                Vector2 cellCentroid = Vector2.zero;
+                foreach (var v in cellVertices)
+                    cellCentroid += v;
+                cellCentroid /= cellVertices.Count;
+
+                // Get all user positions for occupancy context
+                var allUserPositions = new List<Vector2>();
+                foreach (var u in frameState.PhysicalUsers)
+                {
+                    allUserPositions.Add(new Vector2(u.transform.position.x, u.transform.position.z));
+                }
+
+                // Get occupancy bands
+                var occupancyBands = occupancyFrame?.Bands ?? new List<PredictedOccupancyBand>();
+
+                // Run selector
+                var result = localSafeTargetSelector.SelectTargetForUser(
+                    userId,
+                    userPosition,
+                    userHeading,
+                    cellVertices,
+                    cellCentroid,
+                    allUserPositions,
+                    occupancyBands,
+                    riskFrame);
+
+                latestLocalTargets[userId] = result;
+            }
+        }
+
+        /// <summary>
+        /// Apply selected safe targets to steering redirectors
+        /// </summary>
+        private void ApplyLocalTargetsToRedirectors()
+        {
+            var redirectedUnits = RDWSimulationManager.instance.GetRedirectedUnits;
+            if (redirectedUnits == null)
+                return;
+
+            foreach (var kvp in latestLocalTargets)
+            {
+                int userId = kvp.Key;
+                LocalTargetResult targetResult = kvp.Value;
+
+                if (userId < 0 || userId >= redirectedUnits.Length)
+                    continue;
+
+                var redirectedUnit = redirectedUnits[userId];
+                if (redirectedUnit == null)
+                    continue;
+
+                var redirector = redirectedUnit.GetRedirector();
+                if (redirector == null)
+                    continue;
+
+                // Only apply if valid target was found
+                if (!targetResult.HasValidTarget)
+                    continue;
+
+                // Try to inject target into redirector (if it supports it)
+                if (redirector is S2CRedirector steerToTargetRedir)
+                {
+                    steerToTargetRedir.SetExternalSafeTarget(targetResult.TargetPosition);
+                }
+                // Note: APFRedirector already uses cell vertices, doesn't need explicit target
+            }
+        }
+
         private void FixedUpdate()
         {
             ProcessStep();
@@ -681,6 +980,11 @@ namespace _GCM
             if (bEnableRiskVisualization && partitionRiskVisualizer != null && latestPartitionRiskFrame != null && stateCollector != null)
             {
                 partitionRiskVisualizer.Draw(latestPartitionRiskFrame, stateCollector.PhysicalUsers);
+            }
+
+            if (bEnablePartitionUpdateVisualization && partitionUpdateVisualizer != null)
+            {
+                partitionUpdateVisualizer.Draw(latestPartitionUpdateAttempts, latestPartitionResult);
             }
 
             DrawPartitionAreaGizmos();
@@ -828,6 +1132,7 @@ namespace _GCM
 
             InitializeInfoLists(Vector2.zero);
             voronoiPartitioner.ResetSeedsFromUsers(stateCollector.PhysicalUsers);
+            SyncPartitionUpdateStatesWithCurrentSeeds();
 
             // [FIX] Update pre-positions to actual user positions to avoid initial distance jump
             stateCollector.SyncPreAndCurrentToPhysicalUsers(totalUserCount);
