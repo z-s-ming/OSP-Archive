@@ -1083,7 +1083,7 @@ MonoBehaviour:
     showResetLocator: 1
     showRealWall: 0
   userResetTotalCount: 0
-  simulspeed: 50
+  simulspeed: 5
 --- !u!4 &1807211603
 Transform:
   m_ObjectHideFlags: 0

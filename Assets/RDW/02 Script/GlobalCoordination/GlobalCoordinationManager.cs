@@ -952,14 +952,19 @@ namespace _GCM
                 if (redirector == null)
                     continue;
 
-                // Only apply if valid target was found
-                if (!targetResult.HasValidTarget)
-                    continue;
-
-                // Try to inject target into redirector (if it supports it)
                 if (redirector is S2CRedirector steerToTargetRedir)
                 {
-                    steerToTargetRedir.SetExternalSafeTarget(targetResult.TargetPosition);
+                    if (targetResult.HasValidTarget)
+                        steerToTargetRedir.SetExternalSafeTarget(targetResult.TargetPosition);
+                    else
+                        steerToTargetRedir.ClearExternalSafeTarget();
+                }
+                else if (redirector is LocalSafeCurvatureRedirector localSafeCurvatureRedirector)
+                {
+                    if (targetResult.HasValidTarget)
+                        localSafeCurvatureRedirector.SetExternalSafeTarget(targetResult.TargetPosition);
+                    else
+                        localSafeCurvatureRedirector.ClearExternalSafeTarget();
                 }
                 // Note: APFRedirector already uses cell vertices, doesn't need explicit target
             }

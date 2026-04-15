@@ -2,7 +2,7 @@
 using UnityEngine;
 
 public enum RedirectType { Null, Default, S2C, APF, Space, Arrangement,
-    APF_OSP, ARC
+    APF_OSP, ARC, LocalSafeCurvature
 }
 public enum ResetType { Default, TwoOneTurn, APF_R_Turn, FreezeTurn, CenterTurn,
     APF_R_Turn_OSP, ARC_Turn
@@ -120,6 +120,9 @@ public class UnitSetting
                 break;
             case RedirectType.ARC:
                 redirector = new ARCRedirector();
+                break;
+            case RedirectType.LocalSafeCurvature:
+                redirector = new LocalSafeCurvatureRedirector();
                 break;
             case RedirectType.Null:
                 redirector = new NullRedirector();
