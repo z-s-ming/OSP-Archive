@@ -187,3 +187,112 @@ candidate 接受条件：
 - 不修改 APF、reset 和 RDW 主控制策略
 - 保留 Phase 4-lite 的局部更新框架
 - 仅增强稳定性与可分析性
+
+根据脚本代码，我详细查证了这三个关键问题：
+
+## 一、触发分区更新的条件
+
+**多层嵌套触发机制**（PartitionUpdateTriggerEvaluator）：
+
+1. **双阈值滞回**（进/退 armed 状态）
+   - cellRisk 超过 `cellRiskEnterThreshold` (0.60) → 进入 armed
+   - cellRisk 低于 `cellRiskExitThreshold` (0.50) → 退出 armed
+   - userRisk 同理（邻域风险）
+
+2. **运动门控**
+   - 必须满足: `speedEma > seedTriggerMoveThreshold` (0.12 m/s)
+   - speedEma 使用 EMA 平滑计算，不用瞬时速度（抗抖动）
+
+3. **持久化计数**
+   - armed 且运动 → 累计计数
+   - 达到 `persistFramesCell` (3) 或 `persistFramesNeighbor` (3) → **最终触发**
+   - 离开 armed → 计数复位
+
+4. **冷却限制**  
+   - 同一用户两次更新间隔 ≥ `seedUpdateCooldown` (0.75s) 才能再次触发
+
+**结果**：当 cellRisk 或 userRisk 在阈值附近波动时，滞回设计大幅降低了误触频率。
+
+---
+
+## 二、候选种子点如何生成（取样方法）
+
+**三向加权合成**（RiskDrivenSeedUpdater.ProposeSeed）：
+
+```
+proposedSeed = currentSeed + (trendDir·w₁ + neighborDir·w₂ + anchorDir·w₃) · step
+```
+
+其中三个方向是：
+
+| 方向 | 来源 | 权重 | 作用 |
+|------|------|------|------|
+| **trendDirection** | predictedCenter - currentUserPosition | 0.55 | 跟随占用带预测中心 |
+| **neighborDirection** | Σ(repulsion from high-risk neighbors) | 0.35 | 邻域排斥（基于 pairwiseRisk）|
+| **anchorDirection** | currentUserPosition - currentSeed | 0.10 | 回归锚点，防长期漂移 |
+
+**步长动态选择**（RiskDrivenSeedUpdater.cs）：
+
+```csharp
+severity = Max(metrics.CellBoundaryRisk, metrics.UserRisk)
+if severity >= 0.85 → step = seedStepHigh
+else if severity >= 0.70 → step = seedStepMedium
+else → step = seedStepLow
+```
+
+**最终约束**：
+- `maxSeedShiftPerUpdate` 限制单帧最大移动距离
+- `maxSeedOffsetFromUser` 限制种子与用户位置的最大偏移
+- 室内边界约束（留 0.1m 安全距离）
+
+---
+
+## 三、根据什么选择种子点
+
+种子点是**通过上述加权方向和risk-driven步长直接生成的**，不是从候选池中"选择"的，而是**单次参数化生成**：
+
+```
+选择过程 = 综合评分 + 方向合成 + 步长自适应
+```
+
+关键参数：
+- **需要改进的risk类型**（cell 还是 neighbor）决定方向权重偏好
+- **风险严重程度**决定移动步长
+- **邻居冲突强度**（高 pairwiseRisk）自动加重排斥方向
+
+---
+
+## 四、触发时是否只动当前用户、其他用户固定？
+
+**是的，严格的单用户更新**。
+
+PartitionUpdateCoordinator.cs 的流程：
+
+```csharp
+1. 保存原始全局 seeds
+2. For each triggered user:
+     _voronoiPartitioner.SetSeedPoint(context.UserId, proposedSeed)
+     // 只改变这个用户的种子，其他保持原值
+3. candidatePartition = Rebuild(所有种子)
+   // 重新计算Voronoi，但其他用户种子不变
+4. Evaluate candidate risk
+5. Accept / Rollback
+```
+
+关键代码PartitionUpdateCoordinator.cs：
+
+```csharp
+_voronoiPartitioner.SetSeedPoints(transaction.OriginalSeeds);  // 重置到全部原点
+for (int i = 0; i < contexts.Count; i++)
+{
+    PartitionUpdateAttemptContext context = contexts[i];
+    _voronoiPartitioner.SetSeedPoint(context.UserId, context.ProposedSeed);  // 只改当前用户
+}
+```
+
+**影响范围**：
+- 该用户的 cell 重新计算（独立变化）
+- 邻近用户的 cell 边界可能变化，但**邻近用户的种子不动**
+- 若candidate被接受，只有该用户的种子入库；若被拒绝，全局状态回滚到 transaction 快照
+
+这确保了**原子性**：事件要么成功全部提交，要么完全回滚。

@@ -31,13 +31,13 @@ namespace _GCM
 
         private float ResolveDefaultRadius(float horizon)
         {
-            if (horizon <= 0.3f) return 0.18f;
-            if (horizon <= 0.5f) return 0.24f;
-            if (horizon <= 1.0f) return 0.36f;
-            if (horizon <= 1.5f) return 0.50f;
+            if (horizon <= 0.3f) return 0.3f;
+            if (horizon <= 0.5f) return 0.5f;
+            if (horizon <= 1.0f) return 1.0f;
+            if (horizon <= 1.5f) return 1.5f;
 
             // Keep uncertainty monotonic with horizon and cap for stability.
-            return Mathf.Min(2.0f, 0.50f + (horizon - 1.5f) * 0.25f);
+            return Mathf.Min(2.0f, 1.5f + (horizon - 1.5f) * 0.25f);
         }
     }
 

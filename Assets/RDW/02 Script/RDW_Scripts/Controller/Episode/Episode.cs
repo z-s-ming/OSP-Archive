@@ -117,14 +117,35 @@ public class Episode
 
     protected void InstaniateTarget()
     {
-        targetObject = GameObject.Instantiate(targetPrefab, Vector3.zero, Quaternion.identity, GameObject.Find("Virtual Space").transform);
-        targetObject.transform.localPosition = Utility.CastVector2Dto3D(currentTargetPosition.Value) + new Vector3(0, 1.35f, 0);
+        EnsureTargetObject(currentTargetPosition.Value);
     }
 
     protected void InstaniateTarget(Vector2 manualTargetPosition)
     {
-        targetObject = GameObject.Instantiate(targetPrefab, Vector3.zero, Quaternion.identity, GameObject.Find("Virtual Space").transform);
-        targetObject.transform.localPosition = Utility.CastVector2Dto3D(manualTargetPosition) + new Vector3(0, 1.35f, 0);
+        EnsureTargetObject(manualTargetPosition);
+    }
+
+    private void EnsureTargetObject(Vector2 targetPosition)
+    {
+        if (targetPrefab == null)
+            return;
+
+        if (targetObject == null)
+        {
+            Transform parent = GetVirtualSpaceTransform();
+            targetObject = parent != null
+                ? GameObject.Instantiate(targetPrefab, Vector3.zero, Quaternion.identity, parent)
+                : GameObject.Instantiate(targetPrefab, Vector3.zero, Quaternion.identity);
+        }
+
+        targetObject.SetActive(true);
+        targetObject.transform.localPosition = Utility.CastVector2Dto3D(targetPosition) + new Vector3(0, 1.35f, 0);
+    }
+
+    private Transform GetVirtualSpaceTransform()
+    {
+        GameObject virtualSpaceObject = GameObject.Find("Virtual Space");
+        return virtualSpaceObject != null ? virtualSpaceObject.transform : null;
     }
 
     public bool IsNotEnd()
@@ -137,14 +158,16 @@ public class Episode
 
     public void DeleteTarget()
     {
-        GameObject.Destroy(targetObject);
+        if (targetObject != null)
+            targetObject.SetActive(false);
         currentEpisodeIndex += 1;
         currentTargetPosition = null;
     }
 
     public void ReLocateTarget()
     {
-        GameObject.Destroy(targetObject);
+        if (targetObject != null)
+            targetObject.SetActive(false);
         currentTargetPosition = null;
     }
 

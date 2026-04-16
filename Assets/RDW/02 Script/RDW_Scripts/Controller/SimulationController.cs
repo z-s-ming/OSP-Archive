@@ -298,6 +298,33 @@ public class SimulationController
                 }
                 else if (remainTransTime < maxTransTime)
                 {
+                    if (episode is _GCM.NaturalTouringEpisode)
+                    {
+                        Vector2 nextVirtualPosition = virtualUserTransform.localPosition + (virtualUserTransform.forward * translationSpeed * Time.fixedDeltaTime);
+                        bool tooCloseToObstacle = false;
+                        for (int oi = 0; oi < virtualSpace.obstacles.Count; oi++)
+                        {
+                            Object2D obstacle = virtualSpace.obstacles[oi];
+                            Vector2 localNextPosition = virtualSpace.spaceObject.transform2D.TransformPointToOtherLocal(nextVirtualPosition, obstacle.transform2D);
+                            if (obstacle.IsInside(localNextPosition, Space.Self, -0.51f))
+                            {
+                                tooCloseToObstacle = true;
+                                break;
+                            }
+                        }
+
+                        // Stop-and-retarget when next step would get too close to obstacle.
+                        if (tooCloseToObstacle)
+                        {
+                            episode.ReLocateTarget();
+                            isFirst = true;
+                            isFirst2 = true;
+                            isFirst3 = true;
+                            UpdateCurrentState(virtualUserTransform);
+                            return GetDelta(virtualUserTransform.forward);
+                        }
+                    }
+
                     if(remainTransTime > 0.64)
                     {
                         ;

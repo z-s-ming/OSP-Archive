@@ -28,6 +28,16 @@ public class RDWSimulationManager : MonoBehaviour
     public float userResetTotalCount = 0;
 
     public float simulspeed = 30.0f;
+    [Header("Space Visualization")]
+    [SerializeField] private bool autoSeparateVirtualSpaceFromRealSpace = true;
+    [SerializeField] private Vector2 virtualSpaceSeparationOffset = new Vector2(100f, 0f);
+    [Header("Virtual Trail Visualization")]
+    [SerializeField] private bool keepOnlyOneVirtualTrail = true;
+    [SerializeField] private int preservedVirtualTrailUnitIndex = 0;
+    [SerializeField] private bool useUnlimitedVirtualTrailLength = false;
+    [SerializeField] private float virtualTrailMaxLengthMeters = 210f;
+    [SerializeField] private float virtualTrailReferenceSpeedMps = 1f;
+    [SerializeField] private float virtualTrailUnlimitedTimeSeconds = 100000f;
 
     public void GenerateUnitObjects()
     {
@@ -88,7 +98,14 @@ public class RDWSimulationManager : MonoBehaviour
 
         //InitObstacleInfo();
 
-        if (!simulationSetting.realSpaceSetting.usePredefinedSpace)
+        bool hasRealMesh = realSpace.spaceObject != null
+                           && realSpace.spaceObject.gameObject != null
+                           && realSpace.spaceObject.gameObject.GetComponent<MeshFilter>() != null;
+
+        // Generate procedural mesh when needed:
+        // 1) classic procedural mode, or
+        // 2) predefined-composite mode where root has no mesh and geometry is built from settings.
+        if (!simulationSetting.realSpaceSetting.usePredefinedSpace || !hasRealMesh)
             realSpace.GenerateSpace(simulationSetting.prefabSetting.realMaterial, simulationSetting.prefabSetting.obstacleMaterial, 3, 2);
     }
     public void UpdateObstacleVertexInfo(ref List<Vector2> vertices, Transform parent, int index)
@@ -144,9 +161,28 @@ public class RDWSimulationManager : MonoBehaviour
         virtualSpace = simulationSetting.virtualSpaceSetting.GetSpace();
         virtualSpace.spaceObject.transform2D.parent = this.transform;
 
-        if (!simulationSetting.virtualSpaceSetting.usePredefinedSpace)
+        bool hasVirtualMesh = virtualSpace.spaceObject != null
+                              && virtualSpace.spaceObject.gameObject != null
+                              && virtualSpace.spaceObject.gameObject.GetComponent<MeshFilter>() != null;
+
+        // Generate procedural mesh when needed:
+        // 1) classic procedural mode, or
+        // 2) predefined-composite mode where root has no mesh and geometry is built from colliders/settings.
+        if (!simulationSetting.virtualSpaceSetting.usePredefinedSpace || !hasVirtualMesh)
         {
             virtualSpace.GenerateSpace(simulationSetting.prefabSetting.virtualMaterial, simulationSetting.prefabSetting.obstacleMaterial, 3, 2);
+        }
+
+        if (autoSeparateVirtualSpaceFromRealSpace && realSpace != null && realSpace.spaceObject != null)
+        {
+            Vector2 realCenter = realSpace.spaceObject.transform2D.localPosition;
+            Vector2 virtualCenter = virtualSpace.spaceObject.transform2D.localPosition;
+
+            // If centers overlap (or nearly overlap), offset virtual space for clear visualization.
+            if (Vector2.Distance(realCenter, virtualCenter) < 1.0f)
+            {
+                virtualSpace.spaceObject.transform2D.localPosition += virtualSpaceSeparationOffset;
+            }
         }
 
         if (!initializedForObstaclePosition)
@@ -221,6 +257,7 @@ public class RDWSimulationManager : MonoBehaviour
         }
         GenerateUnitObjects();
         AssignUnitObjects();
+        ConfigureVirtualTrailRendering();
     }
 
     public void ReassignUnits()
@@ -247,6 +284,58 @@ public class RDWSimulationManager : MonoBehaviour
             redirectedUnits[i].GetEpisode().SetVirtualAgentInitialPosition(simulationSetting.unitSettings[i].virtualStartPosition);
         }
         AssignUnitObjects();
+        ConfigureVirtualTrailRendering();
+    }
+
+    private void ConfigureVirtualTrailRendering()
+    {
+        if (redirectedUnits == null || redirectedUnits.Length == 0)
+            return;
+
+        int preservedIndex = Mathf.Clamp(preservedVirtualTrailUnitIndex, 0, redirectedUnits.Length - 1);
+
+        for (int i = 0; i < redirectedUnits.Length; i++)
+        {
+            Object2D virtualUser = redirectedUnits[i].GetVirtualUser();
+            if (virtualUser == null || virtualUser.gameObject == null)
+                continue;
+
+            bool enableTrail = !keepOnlyOneVirtualTrail || (i == preservedIndex);
+            TrailRenderer[] trails = virtualUser.gameObject.GetComponentsInChildren<TrailRenderer>(true);
+
+            if (enableTrail && trails.Length == 0)
+            {
+                TrailRenderer autoTrail = virtualUser.gameObject.AddComponent<TrailRenderer>();
+                autoTrail.time = GetConfiguredVirtualTrailTimeSeconds();
+                autoTrail.startWidth = 0.08f;
+                autoTrail.endWidth = 0.03f;
+                autoTrail.minVertexDistance = 0.05f;
+                autoTrail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                autoTrail.receiveShadows = false;
+                autoTrail.material = new Material(Shader.Find("Sprites/Default"));
+                autoTrail.startColor = new Color(0f, 0.9f, 1f, 0.9f);
+                autoTrail.endColor = new Color(0f, 0.9f, 1f, 0.1f);
+                trails = virtualUser.gameObject.GetComponentsInChildren<TrailRenderer>(true);
+            }
+
+            for (int t = 0; t < trails.Length; t++)
+            {
+                trails[t].enabled = enableTrail;
+                trails[t].time = GetConfiguredVirtualTrailTimeSeconds();
+                if (!enableTrail)
+                    trails[t].Clear();
+            }
+        }
+    }
+
+    private float GetConfiguredVirtualTrailTimeSeconds()
+    {
+        if (useUnlimitedVirtualTrailLength)
+            return Mathf.Max(1f, virtualTrailUnlimitedTimeSeconds);
+
+        float speed = Mathf.Max(0.01f, virtualTrailReferenceSpeedMps);
+        float length = Mathf.Max(1f, virtualTrailMaxLengthMeters);
+        return length / speed;
     }
 
     public void DeleteResetLocators()

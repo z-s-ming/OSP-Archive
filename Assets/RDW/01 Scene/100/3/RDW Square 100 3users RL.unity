@@ -769,6 +769,12 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 8d7d80fd881fa9c4cbb8fd4d8c986877, type: 3}
+--- !u!1 &1493082356 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 104890988087408712, guid: 8d7d80fd881fa9c4cbb8fd4d8c986877,
+    type: 3}
+  m_PrefabInstance: {fileID: 1318800348}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1618102556
 GameObject:
   m_ObjectHideFlags: 0
@@ -992,7 +998,7 @@ MonoBehaviour:
     virtualSpaceSetting:
       usePredefinedSpace: 0
       name: Virtual Space
-      predefinedSpace: {fileID: 0}
+      predefinedSpace: {fileID: 1493082356}
       position: {x: 0, y: 0}
       rotation: 0
       spaceObjectSetting:
@@ -1014,7 +1020,7 @@ MonoBehaviour:
         p2: {x: 0, y: 0}
       obstacleObjectSettings: []
     unitSettings:
-    - redirectType: 6
+    - redirectType: 8
       resetType: 5
       episodeType: 5
       episodeLength: 99999
@@ -1030,7 +1036,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
+    - redirectType: 8
       resetType: 5
       episodeType: 5
       episodeLength: 99999
@@ -1046,7 +1052,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
+    - redirectType: 8
       resetType: 5
       episodeType: 5
       episodeLength: 99999
@@ -1062,7 +1068,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
+    - redirectType: 8
       resetType: 5
       episodeType: 5
       episodeLength: 99999
@@ -1083,7 +1089,7 @@ MonoBehaviour:
     showResetLocator: 1
     showRealWall: 0
   userResetTotalCount: 0
-  simulspeed: 5
+  simulspeed: 1
 --- !u!4 &1807211603
 Transform:
   m_ObjectHideFlags: 0
@@ -1273,13 +1279,13 @@ MonoBehaviour:
   - 0.5
   - 1
   - 1.5
-  bEnablePredictiveOccupancy: 0
+  bEnablePredictiveOccupancy: 1
   predictiveOccupancyHorizons:
   - 0.3
   - 0.5
   - 1
   - 1.5
-  bEnablePredictiveOccupancyGizmos: 0
+  bEnablePredictiveOccupancyGizmos: 1
   predictiveOccupancyGizmoHeight: 0.03
   trustedHorizonMeanErrorThreshold: 0.6
   trustedHorizonStdErrorThreshold: 0.45
@@ -1321,9 +1327,9 @@ MonoBehaviour:
   partitionMaxAllowedCellRiskWorsen: 0.02
   partitionMaxAllowedNeighborRiskWorsen: 0.02
   bEnablePartitionUpdateVisualization: 0
-  enableLocalSafeTargetSelection: 0
-  enableLocalSafeTargetVisualization: 0
-  enableLocalSafeTargetLogging: 0
+  enableLocalSafeTargetSelection: 1
+  enableLocalSafeTargetVisualization: 1
+  enableLocalSafeTargetLogging: 1
   localTargetFanHalfAngleDeg: 55
   localTargetSearchRadiusMin: 1.5
   localTargetSearchRadiusMax: 2

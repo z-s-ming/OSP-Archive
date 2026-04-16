@@ -269,3 +269,168 @@ ProcessStep
 
 状态：Phase 5 已集成并可运行。  
 文档更新时间：2026-04-12
+
+
+搜索与 `**/Assets/RDW/**/LocalSafeTarget/*.cs` 匹配的文件，4 匹配项
+
+搜索匹配 `**/Assets/RDW/**/LocalSafeTargetSelector.cs` 的文件，1 个匹配项
+
+读取 [](file:///d%3A/27340/Git/OSP-Archive/Assets/RDW/02%20Script/GlobalCoordination/LocalSafeTarget/LocalSafeTargetSelector.cs#1-1)，行 1 到 300
+
+读取 [](file:///d%3A/27340/Git/OSP-Archive/Assets/RDW/02%20Script/GlobalCoordination/LocalSafeTarget/LocalSafeTargetTypes.cs)
+
+读取 [](file:///d%3A/27340/Git/OSP-Archive/Assets/RDW/02%20Script/GlobalCoordination/LocalSafeTarget/LocalSafeTargetSelector.cs#300-300)，行 300 到 512
+
+现在查看了完整的脚本实现。以下是目标点选取的具体过程：
+
+## 选点流程概览
+
+**四个阶段：建立候选区 → 采样 → 评分 → 选优**
+
+---
+
+## 1. 候选区域构建
+
+LocalSafeTargetSelector.cs：
+- **当前实现简化**：直接使用整个 Voronoi cell 作为候选区域
+- 注：设计中应该还要叠加"前向扇形"和"内缩缓冲"约束，但脚本中将这些约束移到了单点验证阶段
+
+---
+
+## 2. 网格采样方法
+
+LocalSafeTargetSelector.cs
+
+**密度公式：**
+$$n = \text{clamp}(\rho \cdot A,\ n_{\min},\ n_{\max})$$
+
+| 参数 | 值 | 含义 |
+|------|-----|------|
+| $\rho$ | 55 pts/m² | 采样密度 |
+| $A$ | candidateRegion面积 | 区域面积 |
+| $n_{\min}$ | 24 | 最少采样点 |
+| $n_{\max}$ | 120 | 最多采样点 |
+
+**网格步长计算：**
+$$\Delta = \sqrt{\frac{A}{n}} \in [0.15, 0.25]$$
+
+**采样方式**：
+- 计算候选区域的 AABB 包围盒
+- 以步长 $\Delta$ 生成规则网格点
+- 所有网格点都存入 `cachedCandidateSamples`（初步采样）
+
+---
+
+## 3. 候选点有效性过滤
+
+[IsValidCandidateSample](Assets/RDW/02%20Script/GlobalCoordination/LocalSafeTarget/LocalSafeTargetSelector.cs#L311)
+
+点 `q` 只有同时满足以下条件才被保留：
+
+| 约束 | 条件 |
+|------|------|
+| **在cell内** | `IsPointInPolygon(q, cellBoundary)` |
+| **距用户距离** | `SearchRadiusMin ≤ ‖q - pᵢ‖ ≤ SearchRadiusMax` (1.5 ~ 2.0m) |
+| **前向扇形** | `IsPointInForwardFan(q, pᵢ, heading, 110°, 2.0m)` |
+| **边界内缩** | `dist(q, ∂Cᵢ) ≥ BoundaryBufferMin` (0.3m) |
+
+被过滤后的点进入评分。
+
+---
+
+## 4. 目标点评分（核心）
+
+[ScoreSample](Assets/RDW/02%20Script/GlobalCoordination/LocalSafeTarget/LocalSafeTargetSelector.cs#L355)
+
+**完整公式：**
+$$\text{Score}(q) = \eta_1 \cdot d_{\text{boundary}}(q) + \eta_2 \cdot d_{\text{occ}}(q) - \eta_3 \cdot d_{\text{user}}(q)$$
+
+### 第一项：边界距离（正向加分）
+$$d_{\text{boundary}}(q) = \min_{e \in \partial C_i} \text{dist}(q, e)$$
+- 计算点 `q` 到 cell 所有边的最小距离
+- **权重 $\eta_1 = 1.0$**：促进选择远离边界的点（安全性）
+
+实现LocalSafeTargetSelector.cs：
+```csharp
+for each edge (a, b) in cellBoundary:
+    dist = ComputePointToSegmentDistance(q, a, b)  // 点到线段最短距离
+    minDistance = min(minDistance, dist)
+```
+
+### 第二项：占据带距离（正向加分）
+$$d_{\text{occ}}(q) = \min_{j \neq i} \text{dist}(q, O_j)$$
+- 计算点 `q` 到所有**其他用户占据带**的最小距离
+- **权重 $\eta_2 = 1.5$**：最强加权，避免冲突
+
+实现LocalSafeTargetSelector.cs（胶囊模型修正）：
+```csharp
+for each occupancyBand (j ≠ i):
+    for each segment in occupancyBand.Segments:
+        dist = ComputePointToSegmentDistance(q, segStart, segEnd)
+        // 减去占据带半径（胶囊半径平均值）
+        avgRadius = (segment.StartRadius + segment.EndRadius) * 0.5
+        dist = max(0, dist - avgRadius)
+        minDistance = min(minDistance, dist)
+```
+
+### 第三项：用户距离（负向扣分，促进局部探索）
+$$d_{\text{user}}(q) = \|q - p_i\|$$
+- 计算点到用户当前位置的距离
+- **权重 $\eta_3 = 0.4$**（负）：点离用户越远，扣分越多
+- 目的：避免总是选择靠近用户的无聊目标
+
+---
+
+## 5. 最终选优与回退
+
+LocalSafeTargetSelector.cs
+
+```csharp
+// 遍历所有候选点，选最高分
+bestIndex = argmax(cachedSampleScores)
+
+if bestIndex ≥ 0:
+    targetPoint = cachedCandidateSamples[bestIndex]
+    totalScore = cachedSampleScores[bestIndex]
+else:
+    // 回退：投影到前向1.0m处
+    fallbackUsed = true
+    targetPoint = userPosition + userHeading * 1.0
+```
+
+---
+
+## 完整数据流图
+
+```
+Input: userPosition, userHeading, cellVertices, occupancyBands
+  ↓
+① 检查cell有效性（≥3顶点）
+  ↓
+② 计算cell面积 A
+  ↓
+③ 计算采样数 n = clamp(55·A, 24, 120)
+  ↓
+④ 生成网格 Δ = √(A/n), sample bbox on Δ spacing
+  ↓
+⑤ 过滤有效点（5项约束）→ N个有效候选点
+  ↓
+⑥ 对每个点评分：score = 1.0·d_boundary + 1.5·d_occ - 0.4·d_user
+  ↓
+⑦ 选最高分点作为targetPoint
+  ↓
+Output: targetPoint, totalScore, sampleCount, fallbackUsed
+```
+
+---
+
+## 配置参数默认值
+
+| 参数 | 值 | 含义 |
+|------|-----|------|
+| FanHalfAngleDegrees | 55° | 扇形半角（总110°） |
+| SearchRadiusMin/Max | 1.5/2.0 m | 采样半径范围 |
+| BoundaryBufferMin/Max | 0.3/0.5 m | 边界内缩距离 |
+| WeightBoundaryDist ($\eta_1$) | 1.0 | 边界安全度 |
+| WeightOccupancyDist ($\eta_2$) | 1.5 | 用户冲突避免（最强） |
+| WeightDistancePenalty ($\eta_3$) | 0.4 | 局部探索偏好 |

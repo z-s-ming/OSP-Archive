@@ -225,3 +225,75 @@
 1. 符合预期：风险随场景变化方向正确，且和原始几何量趋势一致。
 2. 可疑异常：风险曲线与几何量趋势长期背离（例如净空变小但 risk 不升）。
 3. 明显异常：风险长期固定在接近 0 或接近 1，且与行为状态不匹配。
+
+
+## Risk值的归一化实现
+
+**核心方法：** PartitionRiskEvaluator.cs 和 PartitionRiskEvaluator.cs
+
+**归一化公式：**
+```
+Risk = Clamp01( (SafeThreshold - ActualValue) / SafeThreshold )
+```
+
+**工作原理：**
+- 当 `ActualValue >= SafeThreshold` 时，分子为负或零 → Risk = 0（安全）
+- 当 `ActualValue = 0` 时，分子最大 → Risk 接近 1（危险）
+- 当 `ActualValue` 在 0 到 SafeThreshold 之间时，Risk 线性插值
+- `Clamp01()` 确保最终结果始终在 [0, 1]
+
+**具体应用：**
+
+| 风险类型 | 调用点 | 参数 |
+|---------|------|------|
+| **CellBoundaryRisk** | PartitionRiskEvaluator.cs | `MinCellClearance`, `CellBoundarySafeClearance` (0.35) |
+| **PhysicalBoundaryRisk** | PartitionRiskEvaluator.cs | `MinPhysicalClearance`, `PhysicalBoundarySafeClearance` (0.50) |
+| **UserRisk** | PartitionRiskEvaluator.cs | 取所有用户间分离度的平均 |
+| **SmoothRisk** | PartitionRiskEvaluator.cs | `SeedMotionPenalty` = Clamp01(SeedDelta / SeedDeltaReference) |
+
+---
+
+## 主导风险类型（DominantRiskType）的变化逻辑
+
+**实现方法：** PartitionRiskEvaluator.cs
+
+**枚举类型（5种）：**
+- `None` - 所有风险都很低
+- `Wall` - 接近 cell 或物理边界
+- `User` - 用户间冲突
+- `Smooth` - 种子点抖动异常
+- `Mixed` - 多个风险同时升高
+
+**变化判断流程：**
+
+```csharp
+1. 找最大风险值
+   maxValue = Max(wallRisk, userRisk, smoothRisk)
+   
+2. 若最大值 < DominantRiskNoneThreshold (0.10)
+   → 返回 None
+   
+3. 找第二大风险值
+   
+4. 若 (maxValue - secondValue) <= DominantRiskMixedGap (0.08)
+   → 返回 Mixed
+   
+5. 否则返回最大值对应的类型
+```
+
+**变化时机：**
+
+| 情景 | 变化 |
+|------|------|
+| 所有风险都 < 0.10 | → **None** |
+| wallRisk 最高且领先 > 0.08 | → **Wall** |
+| userRisk 最高且领先 > 0.08 | → **User** |
+| smoothRisk 最高且领先 > 0.08 | → **Smooth** |
+| 两个或多个风险值接近（差距 ≤ 0.08） | → **Mixed** |
+
+**实例：**
+- 用户离 cell 边界还有 0.2m，但离其他用户只有 0.1m：userRisk 通常更高 → **User**
+- 用户同时接近边界（risk 0.6）且有用户冲突（risk 0.55）：差距只有 0.05 < 0.08 → **Mixed**
+- 用户走得很平稳，所有风险都 < 0.08 → **None**
+
+这个设计让系统能**动态识别当前主要问题**，供后续决策使用。
