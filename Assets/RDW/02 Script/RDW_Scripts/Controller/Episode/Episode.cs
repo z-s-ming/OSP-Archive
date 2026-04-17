@@ -182,5 +182,19 @@ public class Episode
         return currentTargetPosition.Value;
     }
 
+    protected bool IsValidTargetCandidate(
+        Space2D virtualSpace,
+        Vector2 userPosition,
+        Vector2 candidatePosition,
+        float insideBound = 0.5f)
+    {
+        if (virtualSpace == null)
+            return false;
+
+        // Target must be inside navigable space and directly reachable by a straight segment.
+        return virtualSpace.IsInside(candidatePosition, Space.Self, insideBound).Item1
+            && virtualSpace.IsPossiblePath(candidatePosition, userPosition, Space.Self);
+    }
+
     protected virtual void GenerateEpisode(Transform2D virtualUserTransform, Space2D virtualSpace, Object2D virtualUser) { }
 }

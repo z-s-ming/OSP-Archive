@@ -121,7 +121,10 @@ public class WanderingEpisodeForAnyReset : Episode
             
             if(true || predefinedMode)
             {
-                samplingPosition = targetPositionList[currentEpisodeIndex];
+                Vector2 candidate = targetPositionList[currentEpisodeIndex];
+                samplingPosition = IsValidTargetCandidate(virtualSpace, userPosition, candidate, 0.5f)
+                    ? candidate
+                    : userPosition;
                 // if (currentEpisodeIndex == 287)
                 // {
                 //     Debug.Log("episodeLength: "+episodeLength);

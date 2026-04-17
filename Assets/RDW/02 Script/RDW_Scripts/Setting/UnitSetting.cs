@@ -2,10 +2,10 @@
 using UnityEngine;
 
 public enum RedirectType { Null, Default, S2C, APF, Space, Arrangement,
-    APF_OSP, ARC, LocalSafeCurvature
+    APF_OSP, ARC, ARC_OSP, LocalSafeCurvature
 }
 public enum ResetType { Default, TwoOneTurn, APF_R_Turn, FreezeTurn, CenterTurn,
-    APF_R_Turn_OSP, ARC_Turn
+    APF_R_Turn_OSP, ARC_Turn, ARC_Turn_OSP
 }
 public enum EpisodeType { LongWalk, Random, PreDefined, WanderingEpisodeForFixedReset, WanderingEpisodeForAnyReset, NaturalTouring };
 
@@ -121,6 +121,9 @@ public class UnitSetting
             case RedirectType.ARC:
                 redirector = new ARCRedirector();
                 break;
+            case RedirectType.ARC_OSP:
+                redirector = new ARCRedirector_OSP();
+                break;
             case RedirectType.LocalSafeCurvature:
                 redirector = new LocalSafeCurvatureRedirector();
                 break;
@@ -158,6 +161,9 @@ public class UnitSetting
                 break;
             case ResetType.ARC_Turn:
                 resetter = new ARC_Resetter(translationSpeed, rotationSpeed);
+                break;
+            case ResetType.ARC_Turn_OSP:
+                resetter = new ARC_Resetter_OSP(translationSpeed, rotationSpeed);
                 break;
             default:
                 resetter = new Resetter(translationSpeed, rotationSpeed);

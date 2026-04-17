@@ -99,7 +99,7 @@ namespace _GCM
                 retryCount++;
 
                 // 检查点是否在房间内 (使用 0.5f 的边缘缓冲)
-                validPointFound = virtualSpace.IsInside(samplingPosition, Space.Self, 0.5f).Item1;
+                validPointFound = IsValidTargetCandidate(virtualSpace, userPosition, samplingPosition, 0.5f);
 
             } while (!validPointFound);
 

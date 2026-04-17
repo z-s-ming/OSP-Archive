@@ -435,13 +435,13 @@ Transform:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 963194225}
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1000, z: 0}
+  m_LocalRotation: {x: 0.7071068, y: 0, z: 0, w: 0.7071068}
+  m_LocalPosition: {x: 30, y: 30, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
   m_RootOrder: 0
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 90, y: 0, z: 0}
 --- !u!1 &1172250591
 GameObject:
   m_ObjectHideFlags: 0
@@ -769,12 +769,6 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 8d7d80fd881fa9c4cbb8fd4d8c986877, type: 3}
---- !u!1 &1493082356 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 104890988087408712, guid: 8d7d80fd881fa9c4cbb8fd4d8c986877,
-    type: 3}
-  m_PrefabInstance: {fileID: 1318800348}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1618102556
 GameObject:
   m_ObjectHideFlags: 0
@@ -996,9 +990,10 @@ MonoBehaviour:
         p1: {x: 0, y: 0}
         p2: {x: 0, y: 0}
     virtualSpaceSetting:
-      usePredefinedSpace: 0
+      usePredefinedSpace: 1
       name: Virtual Space
-      predefinedSpace: {fileID: 1493082356}
+      predefinedSpace: {fileID: 2071965449690850924, guid: 7a172b7aa293c9b47b36adb5df263359,
+        type: 3}
       position: {x: 0, y: 0}
       rotation: 0
       spaceObjectSetting:
@@ -1020,8 +1015,8 @@ MonoBehaviour:
         p2: {x: 0, y: 0}
       obstacleObjectSettings: []
     unitSettings:
-    - redirectType: 8
-      resetType: 5
+    - redirectType: 7
+      resetType: 6
       episodeType: 5
       episodeLength: 99999
       episodeFileName: 
@@ -1036,8 +1031,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 8
-      resetType: 5
+    - redirectType: 7
+      resetType: 6
       episodeType: 5
       episodeLength: 99999
       episodeFileName: 
@@ -1052,8 +1047,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 8
-      resetType: 5
+    - redirectType: 7
+      resetType: 7
       episodeType: 5
       episodeLength: 99999
       episodeFileName: 
@@ -1068,8 +1063,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 8
-      resetType: 5
+    - redirectType: 7
+      resetType: 6
       episodeType: 5
       episodeLength: 99999
       episodeFileName: 
@@ -1086,10 +1081,18 @@ MonoBehaviour:
       rotationSpeed: 90
     bAllowUserReset: 1
     showTarget: 1
-    showResetLocator: 1
+    showResetLocator: 0
     showRealWall: 0
   userResetTotalCount: 0
-  simulspeed: 1
+  simulspeed: 50
+  autoSeparateVirtualSpaceFromRealSpace: 1
+  virtualSpaceSeparationOffset: {x: 50, y: 0}
+  keepOnlyOneVirtualTrail: 1
+  preservedVirtualTrailUnitIndex: 0
+  useUnlimitedVirtualTrailLength: 0
+  virtualTrailMaxLengthMeters: 210
+  virtualTrailReferenceSpeedMps: 1
+  virtualTrailUnlimitedTimeSeconds: 100000
 --- !u!4 &1807211603
 Transform:
   m_ObjectHideFlags: 0
@@ -1244,7 +1247,7 @@ MonoBehaviour:
   shutterWidth: 0.5
   SimulationCount_max: 100
   TargetDistancePerUser: 200
-  bMixedExploration: 1
+  bMixedExploration: 0
   bUseCompareExperiment: 1
   bEnable_InitPhyUserPosUni: 0
   prefab_VoronoiVertex: {fileID: 5505899062355568956, guid: 096dad0eb818a6446a18d03f44a52724,
@@ -1285,7 +1288,7 @@ MonoBehaviour:
   - 0.5
   - 1
   - 1.5
-  bEnablePredictiveOccupancyGizmos: 1
+  bEnablePredictiveOccupancyGizmos: 0
   predictiveOccupancyGizmoHeight: 0.03
   trustedHorizonMeanErrorThreshold: 0.6
   trustedHorizonStdErrorThreshold: 0.45
@@ -1328,8 +1331,8 @@ MonoBehaviour:
   partitionMaxAllowedNeighborRiskWorsen: 0.02
   bEnablePartitionUpdateVisualization: 0
   enableLocalSafeTargetSelection: 1
-  enableLocalSafeTargetVisualization: 1
-  enableLocalSafeTargetLogging: 1
+  enableLocalSafeTargetVisualization: 0
+  enableLocalSafeTargetLogging: 0
   localTargetFanHalfAngleDeg: 55
   localTargetSearchRadiusMin: 1.5
   localTargetSearchRadiusMax: 2

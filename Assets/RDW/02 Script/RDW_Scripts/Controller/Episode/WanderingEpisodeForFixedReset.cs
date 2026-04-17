@@ -639,7 +639,7 @@ public class WanderingEpisodeForFixedReset : Episode
                 sampleForward = Utility.RotateVector2(virtualUserTransform.forward, angle);
                 samplingPosition = userPosition + sampleForward * distance; // local 좌표계에서 절대 위치 기준
 
-            } while (!virtualSpace.IsInside(samplingPosition, Space.Self, 0.5f).Item1); // !virtualSpace.IsPossiblePath(samplingPosition, userPosition, Space.Self, 0.2f)
+            } while (!IsValidTargetCandidate(virtualSpace, userPosition, samplingPosition, 0.5f));
         }
 
         if (emergencyExit)

@@ -31,6 +31,11 @@ public class PreDefinedEpisode : Episode
 
     protected override void GenerateEpisode(Transform2D virtualUserTransform, Space2D virtualSpace, Object2D virtualUser)
     {
-        currentTargetPosition = targetPositionList[currentEpisodeIndex];
+        Vector2 userPosition = virtualUserTransform.localPosition;
+        Vector2 candidate = targetPositionList[currentEpisodeIndex];
+
+        currentTargetPosition = IsValidTargetCandidate(virtualSpace, userPosition, candidate, 0.5f)
+            ? candidate
+            : userPosition;
     }
 }
