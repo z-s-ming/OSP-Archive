@@ -1013,10 +1013,22 @@ MonoBehaviour:
         radius: 0
         p1: {x: 0, y: 0}
         p2: {x: 0, y: 0}
-      obstacleObjectSettings: []
+      obstacleObjectSettings:
+      - type: 0
+        name: 
+        prefab: {fileID: 0}
+        position: {x: 0, y: 0}
+        rotation: 0
+        useRegularPolygon: 0
+        count: 0
+        size: 0
+        vertices: []
+        radius: 0
+        p1: {x: 0, y: 0}
+        p2: {x: 0, y: 0}
     unitSettings:
-    - redirectType: 7
-      resetType: 6
+    - redirectType: 6
+      resetType: 5
       episodeType: 5
       episodeLength: 99999
       episodeFileName: 
@@ -1031,8 +1043,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 7
-      resetType: 6
+    - redirectType: 6
+      resetType: 5
       episodeType: 5
       episodeLength: 99999
       episodeFileName: 
@@ -1047,8 +1059,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 7
-      resetType: 7
+    - redirectType: 6
+      resetType: 5
       episodeType: 5
       episodeLength: 99999
       episodeFileName: 
@@ -1063,8 +1075,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 7
-      resetType: 6
+    - redirectType: 6
+      resetType: 5
       episodeType: 5
       episodeLength: 99999
       episodeFileName: 

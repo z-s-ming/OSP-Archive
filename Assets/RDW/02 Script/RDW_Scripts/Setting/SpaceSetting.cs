@@ -100,7 +100,7 @@ public class SpaceSetting
 
             if (obstacles.Count == 0)
             {
-                Debug.LogWarning("[SpaceSetting] Composite predefined space parsed with 0 obstacle colliders (Panels/Exhibits).");
+                Debug.LogWarning("[SpaceSetting] Composite predefined space parsed with 0 obstacle colliders (Panels/Exhibits/Partitions).");
             }
 
             return new Space2DBuilder()
@@ -144,17 +144,18 @@ public class SpaceSetting
         if (obstacles.Count > 0)
             return obstacles;
 
-        // Fallback: auto parse Panels/Exhibits colliders from predefined hierarchy.
+        // Fallback: auto parse Panels/Exhibits/Partitions colliders from predefined hierarchy.
         List<BoxCollider> obstacleColliders = new List<BoxCollider>();
         obstacleColliders.AddRange(GetGroupColliders(root, "Panels"));
         obstacleColliders.AddRange(GetGroupColliders(root, "Exhibits"));
+        obstacleColliders.AddRange(GetGroupColliders(root, "Partitions"));
 
         if (obstacleColliders.Count == 0)
         {
             foreach (var c in tempRoot.GetComponentsInChildren<BoxCollider>(true))
             {
                 string n = c.transform.name.ToLowerInvariant();
-                if (n.Contains("panel") || n.Contains("exhibit"))
+                if (n.Contains("panel") || n.Contains("exhibit") || n.Contains("partition"))
                 {
                     obstacleColliders.Add(c);
                 }
