@@ -18,7 +18,7 @@ namespace _GCM
     [Serializable]
     public class VelocityModuleConfig
     {
-        public bool UseVelocityOffset = true;
+        public bool UseVelocityOffset = false;
         public float AlphaMax = 0.15f;
         public float VMax = 0.6f;
         public float VelocityToOffsetFactor = 0.3f;
@@ -39,9 +39,9 @@ namespace _GCM
     [Serializable]
     public class PredictiveOccupancyModuleConfig
     {
-        public bool Enable = true;
+        public bool Enable = false;
         public List<float> Horizons = new List<float> { 0.3f, 0.5f, 1.0f, 1.5f };
-        public bool EnableGizmos = true;
+        public bool EnableGizmos = false;
         public float GizmoHeight = 0.03f;
 
         public float TrustedHorizonMeanErrorThreshold = 0.60f;
@@ -52,9 +52,9 @@ namespace _GCM
     [Serializable]
     public class PartitionRiskModuleConfig
     {
-        public bool EnableEvaluation = true;
-        public bool EnableLogging = true;
-        public bool EnableVisualization = true;
+        public bool EnableEvaluation = false;
+        public bool EnableLogging = false;
+        public bool EnableVisualization = false;
         public int OutputEveryNFrames = 10;
 
         public float CellBoundarySafeClearance = 0.35f;
@@ -74,7 +74,7 @@ namespace _GCM
     [Serializable]
     public class PartitionUpdateModuleConfig
     {
-        public bool EnableRiskDrivenUpdate = true;
+        public bool EnableRiskDrivenUpdate = false;
         public float TauCellRiskEnter = 0.60f;
         public float TauCellRiskExit = 0.50f;
         public float TauNeighborRiskEnter = 0.60f;
@@ -96,30 +96,33 @@ namespace _GCM
         public float PartitionNeighborRiskWeight = 0.5f;
         public float PartitionMaxAllowedCellRiskWorsen = 0.02f;
         public float PartitionMaxAllowedNeighborRiskWorsen = 0.02f;
-        public bool EnableVisualization = true;
+        public bool EnableVisualization = false;
     }
 
     [Serializable]
     public class LocalSafeTargetModuleConfig
     {
-        public bool EnableSelection = true;
-        public bool EnableVisualization = true;
+        public bool EnableSelection = false;
+        public bool EnableVisualization = false;
         public bool EnableLogging = false;
 
         public float FanHalfAngleDeg = 55f;
         public float SearchRadiusMin = 1.5f;
         public float SearchRadiusMax = 2.0f;
         public float BoundaryBufferMin = 0.3f;
-        public float BoundaryBufferMax = 0.5f;
-        public float GridResolutionMin = 0.15f;
-        public float GridResolutionMax = 0.25f;
 
-        public float WeightBoundary = 1.0f;
-        public float WeightOccupancy = 1.5f;
-        public float WeightDistance = 0.4f;
+        // Polar sampling: K = angleCount * radiusCount (default 11 * 3 = 33).
+        public int AngleSamples = 11;
+        public int RadiusSamples = 3;
 
-        public float SampleDensityPerM2 = 55f;
-        public int MinSamples = 24;
-        public int MaxSamples = 120;
+        // Four-term score weights.
+        public float WeightSelfOpen = 1.0f;
+        public float WeightFrontMargin = 0.8f;
+        public float WeightNeighborImpact = 1.2f;
+        public float WeightHeadingDeviation = 0.6f;
+
+        // Neighbor-impact denominator guard: ||p_j - p_i|| - rho_s.
+        public float NeighborSafetyBuffer = 0.35f;
     }
 }
+

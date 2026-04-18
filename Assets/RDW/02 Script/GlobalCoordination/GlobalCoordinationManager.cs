@@ -1,4 +1,4 @@
-﻿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System;
 using System.IO;
@@ -57,7 +57,7 @@ namespace _GCM
         public bool bMixedExploration = true;
 
         [Header("=== Experiment Mode ===")]
-        [Tooltip("启用后使用固定种子文件进行对比实验；关闭后使用随机实验")]
+        [Tooltip("Use fixed seed file for comparison experiments when enabled; use random experiments when disabled.")]
         [SerializeField]
         private bool bUseCompareExperiment = true;
 
@@ -454,15 +454,13 @@ namespace _GCM
                 SearchRadiusMin = moduleConfig.LocalSafeTarget.SearchRadiusMin,
                 SearchRadiusMax = moduleConfig.LocalSafeTarget.SearchRadiusMax,
                 BoundaryBufferMin = moduleConfig.LocalSafeTarget.BoundaryBufferMin,
-                BoundaryBufferMax = moduleConfig.LocalSafeTarget.BoundaryBufferMax,
-                GridResolutionMin = moduleConfig.LocalSafeTarget.GridResolutionMin,
-                GridResolutionMax = moduleConfig.LocalSafeTarget.GridResolutionMax,
-                WeightBoundaryDist = moduleConfig.LocalSafeTarget.WeightBoundary,
-                WeightOccupancyDist = moduleConfig.LocalSafeTarget.WeightOccupancy,
-                WeightDistancePenalty = moduleConfig.LocalSafeTarget.WeightDistance,
-                SampleDensityPerM2 = moduleConfig.LocalSafeTarget.SampleDensityPerM2,
-                MinSamplesPerUser = moduleConfig.LocalSafeTarget.MinSamples,
-                MaxSamplesPerUser = moduleConfig.LocalSafeTarget.MaxSamples
+                AngleSampleCount = moduleConfig.LocalSafeTarget.AngleSamples,
+                RadiusSampleCount = moduleConfig.LocalSafeTarget.RadiusSamples,
+                WeightSelfOpen = moduleConfig.LocalSafeTarget.WeightSelfOpen,
+                WeightFrontMargin = moduleConfig.LocalSafeTarget.WeightFrontMargin,
+                WeightNeighborImpact = moduleConfig.LocalSafeTarget.WeightNeighborImpact,
+                WeightHeadingDeviation = moduleConfig.LocalSafeTarget.WeightHeadingDeviation,
+                NeighborSafetyBuffer = moduleConfig.LocalSafeTarget.NeighborSafetyBuffer
             };
 
             localSafeTargetSelector = new LocalSafeTargetSelector(config);
@@ -826,6 +824,13 @@ namespace _GCM
                     continue;
 
                 // Run selector
+                IReadOnlyCollection<int> neighborUserIds = null;
+                if (partitionResult.CellAdjacency != null &&
+                    partitionResult.CellAdjacency.TryGetValue(userId, out HashSet<int> adjacencySet))
+                {
+                    neighborUserIds = adjacencySet;
+                }
+
                 var result = localSafeTargetSelector.SelectTargetForUser(
                     userId,
                     runtimeState.PhysicalPosition,
@@ -833,6 +838,7 @@ namespace _GCM
                     runtimeState.CellVertices,
                     runtimeState.CellCentroid,
                     allUserPositions,
+                    neighborUserIds,
                     occupancyBands,
                     riskFrame);
 
@@ -889,9 +895,23 @@ namespace _GCM
                 else if (redirector is LocalSafeCurvatureRedirector localSafeCurvatureRedirector)
                 {
                     if (targetResult.HasValidTarget)
+                    {
                         localSafeCurvatureRedirector.SetExternalSafeTarget(targetResult.TargetPosition);
+                        if (targetResult.hasSteeringDirection)
+                            localSafeCurvatureRedirector.SetExternalSteeringDirection(targetResult.steeringDirection);
+                        else
+                            localSafeCurvatureRedirector.ClearExternalSteeringDirection();
+                        if (targetResult.useBoundaryEscapeMaxCurvature)
+                            localSafeCurvatureRedirector.SetBoundaryEscapeMaxCurvature(targetResult.boundaryEscapeDirection);
+                        else
+                            localSafeCurvatureRedirector.ClearBoundaryEscapeMaxCurvature();
+                    }
                     else
+                    {
                         localSafeCurvatureRedirector.ClearExternalSafeTarget();
+                        localSafeCurvatureRedirector.ClearExternalSteeringDirection();
+                        localSafeCurvatureRedirector.ClearBoundaryEscapeMaxCurvature();
+                    }
                 }
                 // Note: APFRedirector already uses cell vertices, doesn't need explicit target
             }
@@ -1161,3 +1181,5 @@ namespace _GCM
 
     }
 }
+
+

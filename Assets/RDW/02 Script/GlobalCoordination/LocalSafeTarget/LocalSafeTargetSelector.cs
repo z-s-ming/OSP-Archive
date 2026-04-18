@@ -1,18 +1,20 @@
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 using _GCM;
 
 namespace RDW.Coordination.LocalSafeTarget
 {
     /// <summary>
-    /// Selects local safe target points within a Voronoi partition cell
-    /// Uses adaptive grid sampling and multi-term scoring formula
+    /// Selects local safe target points within a Voronoi partition cell.
+    /// Uses polar sampling and a multi-term cost-inspired score.
     /// </summary>
     public class LocalSafeTargetSelector
     {
+        private const float Epsilon = 1e-5f;
+
         private LocalSafeTargetConfig config;
-        private List<Vector2> cachedCandidateSamples = new List<Vector2>();
-        private List<float> cachedSampleScores = new List<float>();
+        private readonly List<Vector2> cachedCandidateSamples = new List<Vector2>();
+        private readonly List<float> cachedSampleScores = new List<float>();
 
         public LocalSafeTargetSelector(LocalSafeTargetConfig cfg)
         {
@@ -34,6 +36,7 @@ namespace RDW.Coordination.LocalSafeTarget
             List<Vector2> cellVertices,
             Vector2 cellCentroid,
             List<Vector2> allUserPositions,
+            IReadOnlyCollection<int> neighborUserIds,
             List<PredictedOccupancyBand> occupancyBands,
             PartitionRiskFrame riskFrame)
         {
@@ -68,22 +71,28 @@ namespace RDW.Coordination.LocalSafeTarget
                 cellVertices,
                 userRiskMetrics,
                 null,
-                occupancyByUserId);
+                occupancyByUserId,
+                allUserPositions,
+                neighborUserIds);
 
             return new LocalTargetResult
             {
                 userId = userId,
                 targetPoint = selected.targetPoint,
+                hasSteeringDirection = selected.hasSteeringDirection,
+                steeringDirection = selected.steeringDirection,
                 totalScore = selected.totalScore,
                 sampleCount = selected.sampleCount,
                 fallbackUsed = selected.fallbackUsed,
+                useBoundaryEscapeMaxCurvature = selected.useBoundaryEscapeMaxCurvature,
+                boundaryEscapeDirection = selected.boundaryEscapeDirection,
                 frameIndex = 0,
                 timestamp = 0f
             };
         }
 
         /// <summary>
-        /// Main entry point: select best safe target for a user within their Voronoi cell
+        /// Main entry point: select best safe target for a user within their Voronoi cell.
         /// </summary>
         public LocalSafeTargetResult SelectTarget(
             int userId,
@@ -92,249 +101,195 @@ namespace RDW.Coordination.LocalSafeTarget
             List<Vector2> cellVertices,
             UserRiskMetrics userRiskMetrics,
             PredictedOccupancyFrame occupancyFrame,
-            Dictionary<int, PredictedOccupancyBand> allOccupancyByUserId)
+            Dictionary<int, PredictedOccupancyBand> allOccupancyByUserId,
+            List<Vector2> allUserPositions,
+            IReadOnlyCollection<int> neighborUserIds)
         {
             var result = new LocalSafeTargetResult
             {
                 targetPoint = userPosition,
+                hasSteeringDirection = false,
+                steeringDirection = Vector2.zero,
                 totalScore = float.MinValue,
-                boundaryDistanceComponent = 0f,
-                occupancyDistanceComponent = 0f,
-                userDistanceComponent = 0f,
+                selfOpenComponent = 0f,
+                frontMarginComponent = 0f,
+                neighborImpactComponent = 0f,
+                headingDevComponent = 0f,
                 sampleCount = 0,
-                fallbackUsed = false
+                fallbackUsed = false,
+                useBoundaryEscapeMaxCurvature = false,
+                boundaryEscapeDirection = Vector2.zero
             };
 
-            // Validate cell geometry
             if (cellVertices == null || cellVertices.Count < 3)
             {
                 result.fallbackUsed = true;
                 result.targetPoint = ComputeFallbackTarget(userPosition, userHeading);
+                result.hasSteeringDirection = true;
+                result.steeringDirection = userHeading.sqrMagnitude > Epsilon ? userHeading.normalized : Vector2.up;
+                result.totalScore = 0f;
                 return result;
             }
 
-            // Step 1: Compute candidate region (cell ∩ forwardFan ∩ buffer inset)
-            var candidateRegion = ComputeCandidateRegion(cellVertices, userPosition, userHeading);
-            if (candidateRegion == null || candidateRegion.Count < 3)
-            {
-                result.fallbackUsed = true;
-                result.targetPoint = ComputeFallbackTarget(userPosition, userHeading);
-                return result;
-            }
-
-            // Step 2: Generate adaptive grid samples
-            float regionArea = ComputePolygonArea(candidateRegion);
-            GenerateAdaptiveSamples(candidateRegion, regionArea, userPosition, userHeading, cellVertices);
+            GeneratePolarSamples(userPosition, userHeading, cellVertices);
             result.sampleCount = cachedCandidateSamples.Count;
 
             if (cachedCandidateSamples.Count == 0)
             {
                 result.fallbackUsed = true;
-                result.targetPoint = ComputeFallbackTarget(userPosition, userHeading);
+                result.targetPoint = ComputeFallbackTargetByBoundaryGradient(
+                    userId,
+                    userPosition,
+                    userHeading,
+                    cellVertices,
+                    allUserPositions,
+                    allOccupancyByUserId,
+                    out bool useBoundaryEscapeMaxCurvature,
+                    out Vector2 boundaryEscapeDirection);
+                result.useBoundaryEscapeMaxCurvature = useBoundaryEscapeMaxCurvature;
+                result.boundaryEscapeDirection = boundaryEscapeDirection;
+                result.hasSteeringDirection = boundaryEscapeDirection.sqrMagnitude > Epsilon;
+                result.steeringDirection = result.hasSteeringDirection
+                    ? boundaryEscapeDirection.normalized
+                    : (userHeading.sqrMagnitude > Epsilon ? userHeading.normalized : Vector2.up);
+                result.totalScore = 0f;
                 return result;
             }
 
-            // Step 3: Score all samples and select best
             cachedSampleScores.Clear();
+
+            int bestIndex = -1;
+            float bestScore = float.MinValue;
+            float bestSelfOpen = 0f;
+            float bestFrontMargin = 0f;
+            float bestNeighborImpact = 0f;
+            float bestHeadingDev = 0f;
+
             for (int i = 0; i < cachedCandidateSamples.Count; i++)
             {
                 Vector2 sample = cachedCandidateSamples[i];
+                float selfOpen;
+                float frontMargin;
+                float neighborImpact;
+                float headingDev;
+
                 float score = ScoreSample(
                     sample,
                     cellVertices,
                     userPosition,
+                    userHeading,
                     userId,
-                    allOccupancyByUserId);
-                cachedSampleScores.Add(score);
-            }
+                    allUserPositions,
+                    neighborUserIds,
+                    allOccupancyByUserId,
+                    out selfOpen,
+                    out frontMargin,
+                    out neighborImpact,
+                    out headingDev);
 
-            // Step 4: Find best sample
-            int bestIndex = -1;
-            float bestScore = float.MinValue;
-            for (int i = 0; i < cachedSampleScores.Count; i++)
-            {
-                if (cachedSampleScores[i] > bestScore)
+                cachedSampleScores.Add(score);
+
+                if (score > bestScore)
                 {
-                    bestScore = cachedSampleScores[i];
+                    bestScore = score;
                     bestIndex = i;
+                    bestSelfOpen = selfOpen;
+                    bestFrontMargin = frontMargin;
+                    bestNeighborImpact = neighborImpact;
+                    bestHeadingDev = headingDev;
                 }
             }
 
             if (bestIndex >= 0)
             {
                 result.targetPoint = cachedCandidateSamples[bestIndex];
+                Vector2 bestDir = result.targetPoint - userPosition;
+                if (bestDir.sqrMagnitude > Epsilon)
+                {
+                    result.hasSteeringDirection = true;
+                    result.steeringDirection = bestDir.normalized;
+                }
+                else
+                {
+                    result.hasSteeringDirection = true;
+                    result.steeringDirection = userHeading.sqrMagnitude > Epsilon ? userHeading.normalized : Vector2.up;
+                }
                 result.totalScore = bestScore;
-                // TODO: Store component breakdowns for analysis
+                result.selfOpenComponent = bestSelfOpen;
+                result.frontMarginComponent = bestFrontMargin;
+                result.neighborImpactComponent = bestNeighborImpact;
+                result.headingDevComponent = bestHeadingDev;
+                result.useBoundaryEscapeMaxCurvature = false;
+                result.boundaryEscapeDirection = Vector2.zero;
             }
             else
             {
                 result.fallbackUsed = true;
-                result.targetPoint = ComputeFallbackTarget(userPosition, userHeading);
+                result.targetPoint = ComputeFallbackTargetByBoundaryGradient(
+                    userId,
+                    userPosition,
+                    userHeading,
+                    cellVertices,
+                    allUserPositions,
+                    allOccupancyByUserId,
+                    out bool useBoundaryEscapeMaxCurvature,
+                    out Vector2 boundaryEscapeDirection);
+                result.useBoundaryEscapeMaxCurvature = useBoundaryEscapeMaxCurvature;
+                result.boundaryEscapeDirection = boundaryEscapeDirection;
+                result.hasSteeringDirection = boundaryEscapeDirection.sqrMagnitude > Epsilon;
+                result.steeringDirection = result.hasSteeringDirection
+                    ? boundaryEscapeDirection.normalized
+                    : (userHeading.sqrMagnitude > Epsilon ? userHeading.normalized : Vector2.up);
+                result.totalScore = 0f;
             }
 
             return result;
         }
 
         /// <summary>
-        /// Compute candidate region: cell ∩ forwardFan ∩ buffer inset
+        /// Polar sampling around user heading: K = angleCount * radiusCount (default 11 * 3 = 33).
+        /// g(r,phi) = p_i + r * [cos(theta_i+phi), sin(theta_i+phi)]
         /// </summary>
-        private List<Vector2> ComputeCandidateRegion(List<Vector2> cellVertices, Vector2 userPos, Vector2 userHeading)
-        {
-            // Keep the candidate polygon identical to the Voronoi cell; geometric constraints
-            // are enforced per-sample to avoid malformed inset geometry pushing points outside.
-            if (cellVertices == null || cellVertices.Count < 3)
-                return null;
-
-            return cellVertices;
-        }
-
-        /// <summary>
-        /// Inset polygon boundary by a given distance (move inward)
-        /// Simple version: offset all edges inward
-        /// </summary>
-        private List<Vector2> InsetPolygon(List<Vector2> vertices, float insetDistance)
-        {
-            if (vertices == null || vertices.Count < 3)
-                return null;
-
-            var insetVertices = new List<Vector2>();
-            int n = vertices.Count;
-
-            for (int i = 0; i < n; i++)
-            {
-                Vector2 prev = vertices[(i - 1 + n) % n];
-                Vector2 curr = vertices[i];
-                Vector2 next = vertices[(i + 1) % n];
-
-                // Compute inward normal at current vertex
-                Vector2 edge1 = (curr - prev).normalized;
-                Vector2 edge2 = (next - curr).normalized;
-
-                // Rotate 90° counterclockwise to get inward normal
-                Vector2 normal1 = new Vector2(-edge1.y, edge1.x);
-                Vector2 normal2 = new Vector2(-edge2.y, edge2.x);
-
-                // Average normals and normalize
-                Vector2 avgNormal = (normal1 + normal2).normalized;
-
-                // Offset vertex inward
-                insetVertices.Add(curr + avgNormal * insetDistance);
-            }
-
-            return insetVertices;
-        }
-
-        /// <summary>
-        /// Create forward fan geometry (cone in direction of userHeading)
-        /// Returns list of vertices representing the fan
-        /// </summary>
-        private List<Vector2> CreateForwardFan(Vector2 center, Vector2 heading, float angleDegrees, float radius)
-        {
-            var fan = new List<Vector2> { center };
-
-            float halfAngleDeg = angleDegrees / 2f;
-            float halfAngleRad = halfAngleDeg * Mathf.Deg2Rad;
-            float headingAngleRad = Mathf.Atan2(heading.y, heading.x);
-
-            // Left arc
-            float leftAngleRad = headingAngleRad + halfAngleRad;
-            for (int i = 0; i <= 16; i++)  // 16 points on arc
-            {
-                float angle = leftAngleRad - (halfAngleRad * 2f * i / 16f);
-                fan.Add(center + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * radius);
-            }
-
-            // Right arc
-            float rightAngleRad = headingAngleRad - halfAngleRad;
-            fan.Add(center + new Vector2(Mathf.Cos(rightAngleRad), Mathf.Sin(rightAngleRad)) * radius);
-
-            return fan;
-        }
-
-        /// <summary>
-        /// Check if point is within forward fan cone
-        /// </summary>
-        private bool IsPointInForwardFan(Vector2 point, Vector2 center, Vector2 heading, float angleDegrees, float radius)
-        {
-            // Distance check
-            float distToCenter = Vector2.Distance(point, center);
-            if (distToCenter > radius)
-                return false;
-
-            // Angle check
-            float halfAngleDeg = angleDegrees / 2f;
-            Vector2 toPoint = (point - center).normalized;
-            float angleToPoint = Vector2.Angle(heading, toPoint);
-
-            return angleToPoint <= halfAngleDeg;
-        }
-
-        /// <summary>
-        /// Generate adaptive grid of candidate points
-        /// Density: n = clamp(ρ * A_eff, n_min, n_max)
-        /// </summary>
-        private void GenerateAdaptiveSamples(
-            List<Vector2> candidateRegion,
-            float regionArea,
+        private void GeneratePolarSamples(
             Vector2 userPosition,
             Vector2 userHeading,
             List<Vector2> cellBoundary)
         {
             cachedCandidateSamples.Clear();
 
-            // Compute adaptive grid density
-            float pointCount = config.SampleDensityPerM2 * regionArea;
-            int n = Mathf.Clamp((int)pointCount, config.MinSamplesPerUser, config.MaxSamplesPerUser);
+            int angleCount = Mathf.Max(1, config.AngleSampleCount);
+            int radiusCount = Mathf.Max(1, config.RadiusSampleCount);
 
-            // For now, use simple regular grid within bounding box
-            // TODO: More sophisticated grid that respects polygon boundary
-            if (candidateRegion.Count < 3)
-                return;
+            Vector2 heading = userHeading.sqrMagnitude > Epsilon ? userHeading.normalized : Vector2.up;
+            float theta = Mathf.Atan2(heading.y, heading.x);
+            float halfFanRad = Mathf.Max(0f, config.FanHalfAngleDegrees) * Mathf.Deg2Rad;
 
-            // Compute bounding box
-            Vector2 minCorner = candidateRegion[0];
-            Vector2 maxCorner = candidateRegion[0];
-            foreach (var v in candidateRegion)
+            for (int rIndex = 0; rIndex < radiusCount; rIndex++)
             {
-                minCorner = Vector2.Min(minCorner, v);
-                maxCorner = Vector2.Max(maxCorner, v);
-            }
+                float r = radiusCount == 1
+                    ? config.SearchRadiusMax
+                    : Mathf.Lerp(config.SearchRadiusMin, config.SearchRadiusMax, rIndex / (float)(radiusCount - 1));
 
-            float rawGridSpacing = Mathf.Sqrt(Mathf.Max(1e-4f, regionArea) / Mathf.Max(1, n));
-            float gridSpacing = Mathf.Clamp(rawGridSpacing, config.GridResolutionMin, config.GridResolutionMax);
-
-            for (float x = minCorner.x; x <= maxCorner.x; x += gridSpacing)
-            {
-                for (float y = minCorner.y; y <= maxCorner.y; y += gridSpacing)
+                for (int aIndex = 0; aIndex < angleCount; aIndex++)
                 {
-                    Vector2 point = new Vector2(x, y);
+                    float phi = angleCount == 1
+                        ? 0f
+                        : Mathf.Lerp(-halfFanRad, halfFanRad, aIndex / (float)(angleCount - 1));
 
-                    // A sample is valid only if it respects both geometry and safety constraints.
-                    if (IsValidCandidateSample(point, candidateRegion, cellBoundary, userPosition, userHeading))
+                    float angle = theta + phi;
+                    Vector2 sample = userPosition + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * r;
+
+                    if (IsValidCandidateSample(sample, cellBoundary))
                     {
-                        cachedCandidateSamples.Add(point);
+                        cachedCandidateSamples.Add(sample);
                     }
                 }
             }
         }
 
-        private bool IsValidCandidateSample(
-            Vector2 point,
-            List<Vector2> candidateRegion,
-            List<Vector2> cellBoundary,
-            Vector2 userPosition,
-            Vector2 userHeading)
+        private bool IsValidCandidateSample(Vector2 point, List<Vector2> cellBoundary)
         {
-            if (!IsPointInPolygon(point, candidateRegion))
-                return false;
-
-            Vector2 heading = userHeading.sqrMagnitude > 1e-6f ? userHeading.normalized : Vector2.up;
-
-            float distToUser = Vector2.Distance(point, userPosition);
-            if (distToUser < config.SearchRadiusMin || distToUser > config.SearchRadiusMax)
-                return false;
-
-            if (!IsPointInForwardFan(point, userPosition, heading, config.FanHalfAngleDegrees * 2f, config.SearchRadiusMax))
+            if (!IsPointInPolygon(point, cellBoundary))
                 return false;
 
             float boundaryClearance = ComputeDistanceToPolygonBoundary(point, cellBoundary);
@@ -345,52 +300,175 @@ namespace RDW.Coordination.LocalSafeTarget
         }
 
         /// <summary>
-        /// Score a candidate point using multi-term formula:
-        /// LocalScore(q) = η₁·dist(q,∂Cᵢ) + η₂·min_j≠ᵢ dist(q,Oⱼ) - η₃·‖q-pᵢ‖
+        /// Score follows four terms proposed by design:
+        /// 1) self-open      (prefer larger obstacle clearance)
+        /// 2) front-margin   (prefer larger forward clearance)
+        /// 3) neighbor-impact(prefer less compression on neighbors)
+        /// 4) heading-dev    (prefer smaller heading deviation)
+        ///
+        /// We maximize utility form:
+        /// score = w_open*d_obs + w_front*m_front - w_neighbor*impact - w_heading*|delta_phi|
         /// </summary>
         private float ScoreSample(
             Vector2 sample,
             List<Vector2> cellBoundary,
             Vector2 userPosition,
+            Vector2 userHeading,
+            int userId,
+            List<Vector2> allUserPositions,
+            IReadOnlyCollection<int> neighborUserIds,
+            Dictionary<int, PredictedOccupancyBand> occupancyByUserId,
+            out float selfOpen,
+            out float frontMargin,
+            out float neighborImpact,
+            out float headingDev)
+        {
+            // Raw terms (with physical units)
+            float rawSelfOpen = ComputeDistanceToObstacle(sample, cellBoundary, userId, occupancyByUserId);
+
+            Vector2 direction = sample - userPosition;
+            if (direction.sqrMagnitude > Epsilon)
+            {
+                direction.Normalize();
+            }
+            else
+            {
+                direction = userHeading.sqrMagnitude > Epsilon ? userHeading.normalized : Vector2.up;
+            }
+
+            float rawFrontMargin = ComputeForwardMargin(sample, direction, cellBoundary, userId, occupancyByUserId);
+
+            float rawNeighborImpact = ComputeNeighborImpact(sample, userPosition, userId, allUserPositions, neighborUserIds);
+
+            Vector2 heading = userHeading.sqrMagnitude > Epsilon ? userHeading.normalized : Vector2.up;
+            float signedAngleDeg = Vector2.SignedAngle(heading, direction);
+            float rawHeadingDev = Mathf.Abs(signedAngleDeg) * Mathf.Deg2Rad;
+
+            // Dimensionless normalization
+            float distanceScale = Mathf.Max(0.10f, config.SearchRadiusMax);
+            int neighborCount = Mathf.Max(1, neighborUserIds != null ? neighborUserIds.Count : 0);
+            float headingScale = Mathf.Max(5f * Mathf.Deg2Rad, config.FanHalfAngleDegrees * Mathf.Deg2Rad);
+
+            selfOpen = NormalizePositive(rawSelfOpen, distanceScale);
+            frontMargin = NormalizePositive(rawFrontMargin, distanceScale);
+            neighborImpact = NormalizeNeighborImpact(rawNeighborImpact, distanceScale, neighborCount);
+            headingDev = NormalizePositive(rawHeadingDev, headingScale);
+
+            return
+                config.WeightSelfOpen * selfOpen +
+                config.WeightFrontMargin * frontMargin -
+                config.WeightNeighborImpact * neighborImpact -
+                config.WeightHeadingDeviation * headingDev;
+        }
+
+        private static float NormalizePositive(float value, float scale)
+        {
+            if (scale <= Epsilon)
+                return 0f;
+
+            return Mathf.Clamp01(Mathf.Max(0f, value) / scale);
+        }
+
+        private static float NormalizeNeighborImpact(float impact, float distanceScale, int neighborCount)
+        {
+            if (neighborCount <= 0 || distanceScale <= Epsilon)
+                return 0f;
+
+            // raw impact has unit 1/m; multiply by m to make it dimensionless,
+            // and average by neighbor count to keep multi-user scale stable.
+            float normalized = impact * distanceScale / neighborCount;
+            return Mathf.Clamp01(Mathf.Max(0f, normalized));
+        }
+
+        private float ComputeDistanceToObstacle(
+            Vector2 point,
+            List<Vector2> cellBoundary,
             int userId,
             Dictionary<int, PredictedOccupancyBand> occupancyByUserId)
         {
-            // Term 1: Distance to nearest cell boundary (inward distance)
-            float boundaryDistance = ComputeDistanceToPolygonBoundary(sample, cellBoundary);
+            float minDistance = ComputeDistanceToPolygonBoundary(point, cellBoundary);
 
-            // Term 2: Distance to nearest other user's occupancy band
-            float occupancyDistance = 0f;
-            if (occupancyByUserId != null && occupancyByUserId.Count > 0)
+            if (occupancyByUserId != null)
             {
-                occupancyDistance = float.MaxValue;
                 foreach (var kvp in occupancyByUserId)
                 {
                     if (kvp.Key == userId)
                         continue;
 
-                    float distToOccupancy = ComputeDistanceToOccupancyBand(sample, kvp.Value);
-                    occupancyDistance = Mathf.Min(occupancyDistance, distToOccupancy);
+                    float distToOccupancy = ComputeDistanceToOccupancyBand(point, kvp.Value);
+                    if (distToOccupancy < minDistance)
+                        minDistance = distToOccupancy;
                 }
-
-                if (occupancyDistance == float.MaxValue)
-                    occupancyDistance = 0f;
             }
 
-            // Term 3: Distance to user position (negative weight: prefer points far from user)
-            float userDistance = Vector2.Distance(sample, userPosition);
-
-            // Combine with weights
-            float score = 
-                config.WeightBoundaryDist * boundaryDistance +
-                config.WeightOccupancyDist * occupancyDistance -
-                config.WeightDistancePenalty * userDistance;
-
-            return score;
+            return Mathf.Max(0f, minDistance);
         }
 
-        /// <summary>
-        /// Compute distance from point to nearest polygon boundary
-        /// </summary>
+        private float ComputeForwardMargin(
+            Vector2 origin,
+            Vector2 direction,
+            List<Vector2> cellBoundary,
+            int userId,
+            Dictionary<int, PredictedOccupancyBand> occupancyByUserId)
+        {
+            float margin = RaycastToPolygonBoundary(origin, direction, cellBoundary);
+
+            // Optional dynamic obstacle handling: approximate nearest hit along ray to occupancy bands.
+            if (occupancyByUserId != null)
+            {
+                foreach (var kvp in occupancyByUserId)
+                {
+                    if (kvp.Key == userId)
+                        continue;
+
+                    float occupancyHit = ApproximateRaycastToOccupancyBand(origin, direction, kvp.Value, margin);
+                    if (occupancyHit < margin)
+                        margin = occupancyHit;
+                }
+            }
+
+            return Mathf.Max(0f, margin);
+        }
+
+        private float ComputeNeighborImpact(
+            Vector2 sample,
+            Vector2 selfPosition,
+            int userId,
+            List<Vector2> allUserPositions,
+            IReadOnlyCollection<int> neighborUserIds)
+        {
+            if (allUserPositions == null || allUserPositions.Count == 0 || neighborUserIds == null || neighborUserIds.Count == 0)
+                return 0f;
+
+            Vector2 moveDir = sample - selfPosition;
+            if (moveDir.sqrMagnitude <= Epsilon)
+                return 0f;
+
+            moveDir.Normalize();
+            float impact = 0f;
+
+            foreach (int j in neighborUserIds)
+            {
+                if (j == userId)
+                    continue;
+                if (j < 0 || j >= allUserPositions.Count)
+                    continue;
+
+                Vector2 toNeighbor = allUserPositions[j] - selfPosition;
+                float distance = toNeighbor.magnitude;
+                if (distance <= Epsilon)
+                    continue;
+
+                Vector2 eij = toNeighbor / distance;
+                float cij = Mathf.Max(0f, Vector2.Dot(moveDir, eij));
+
+                float denom = Mathf.Max(Epsilon, distance - config.NeighborSafetyBuffer);
+                impact += cij / denom;
+            }
+
+            return impact;
+        }
+
         private float ComputeDistanceToPolygonBoundary(Vector2 point, List<Vector2> polygon)
         {
             float minDistance = float.MaxValue;
@@ -407,16 +485,82 @@ namespace RDW.Coordination.LocalSafeTarget
             return minDistance < float.MaxValue ? minDistance : 0f;
         }
 
-        /// <summary>
-        /// Compute distance from point to line segment
-        /// </summary>
+        private float RaycastToPolygonBoundary(Vector2 origin, Vector2 dir, List<Vector2> polygon)
+        {
+            float minT = float.MaxValue;
+            int n = polygon.Count;
+
+            for (int i = 0; i < n; i++)
+            {
+                Vector2 a = polygon[i];
+                Vector2 b = polygon[(i + 1) % n];
+
+                if (TryRaySegmentIntersection(origin, dir, a, b, out float t) && t >= 0f)
+                {
+                    if (t < minT)
+                        minT = t;
+                }
+            }
+
+            if (minT == float.MaxValue)
+                return 0f;
+
+            return minT;
+        }
+
+        private bool TryRaySegmentIntersection(Vector2 p, Vector2 r, Vector2 a, Vector2 b, out float t)
+        {
+            t = 0f;
+            Vector2 s = b - a;
+            float rxs = Cross(r, s);
+            if (Mathf.Abs(rxs) < Epsilon)
+                return false;
+
+            Vector2 ap = a - p;
+            float tRay = Cross(ap, s) / rxs;
+            float uSeg = Cross(ap, r) / rxs;
+
+            if (tRay < 0f)
+                return false;
+            if (uSeg < 0f || uSeg > 1f)
+                return false;
+
+            t = tRay;
+            return true;
+        }
+
+        private float ApproximateRaycastToOccupancyBand(
+            Vector2 origin,
+            Vector2 dir,
+            PredictedOccupancyBand band,
+            float maxDistance)
+        {
+            if (band == null || band.Segments == null || band.Segments.Count == 0 || maxDistance <= 0f)
+                return float.MaxValue;
+
+            const float step = 0.05f;
+            float t = 0f;
+
+            while (t <= maxDistance)
+            {
+                Vector2 probe = origin + dir * t;
+                float dist = ComputeDistanceToOccupancyBand(probe, band);
+                if (dist <= 0.01f)
+                    return t;
+
+                t += step;
+            }
+
+            return float.MaxValue;
+        }
+
         private float ComputePointToSegmentDistance(Vector2 point, Vector2 segmentStart, Vector2 segmentEnd)
         {
             Vector2 pa = point - segmentStart;
             Vector2 ba = segmentEnd - segmentStart;
             float baSqr = Vector2.Dot(ba, ba);
 
-            if (baSqr == 0f)
+            if (baSqr <= Epsilon)
                 return Vector2.Distance(point, segmentStart);
 
             float t = Vector2.Dot(pa, ba) / baSqr;
@@ -426,10 +570,6 @@ namespace RDW.Coordination.LocalSafeTarget
             return Vector2.Distance(point, closest);
         }
 
-        /// <summary>
-        /// Compute distance from point to occupancy band
-        /// Band consists of line segments with uncertainty radius
-        /// </summary>
         private float ComputeDistanceToOccupancyBand(Vector2 point, PredictedOccupancyBand band)
         {
             if (band == null || band.Segments == null || band.Segments.Count == 0)
@@ -439,26 +579,19 @@ namespace RDW.Coordination.LocalSafeTarget
 
             foreach (var segment in band.Segments)
             {
-                // Convert 3D segment to 2D
                 Vector2 segStart = new Vector2(segment.StartCenter.x, segment.StartCenter.z);
                 Vector2 segEnd = new Vector2(segment.EndCenter.x, segment.EndCenter.z);
-                
-                // Compute distance to segment (line)
+
                 float dist = ComputePointToSegmentDistance(point, segStart, segEnd);
-                
-                // Subtract average radius to account for capsule volume
                 float avgRadius = (segment.StartRadius + segment.EndRadius) * 0.5f;
                 dist = Mathf.Max(0f, dist - avgRadius);
-                
+
                 minDistance = Mathf.Min(minDistance, dist);
             }
 
             return minDistance < float.MaxValue ? minDistance : 0f;
         }
 
-        /// <summary>
-        /// Check if point is inside polygon using ray casting
-        /// </summary>
         private bool IsPointInPolygon(Vector2 point, List<Vector2> polygon)
         {
             bool inside = false;
@@ -479,33 +612,101 @@ namespace RDW.Coordination.LocalSafeTarget
             return inside;
         }
 
-        /// <summary>
-        /// Compute area of polygon using shoelace formula
-        /// </summary>
-        private float ComputePolygonArea(List<Vector2> polygon)
+        private static float Cross(Vector2 a, Vector2 b)
         {
-            if (polygon == null || polygon.Count < 3)
-                return 0f;
-
-            float area = 0f;
-            int n = polygon.Count;
-
-            for (int i = 0; i < n; i++)
-            {
-                Vector2 current = polygon[i];
-                Vector2 next = polygon[(i + 1) % n];
-                area += current.x * next.y - next.x * current.y;
-            }
-
-            return Mathf.Abs(area) * 0.5f;
+            return a.x * b.y - a.y * b.x;
         }
 
         /// <summary>
-        /// Fallback target: project user position forward along heading
+        /// Fallback for constrained situations:
+        /// output boundary-escape direction marker for redirector max-curvature mode.
         /// </summary>
+        private Vector2 ComputeFallbackTargetByBoundaryGradient(
+            int userId,
+            Vector2 userPosition,
+            Vector2 userHeading,
+            List<Vector2> cellBoundary,
+            List<Vector2> allUserPositions,
+            Dictionary<int, PredictedOccupancyBand> occupancyByUserId,
+            out bool useBoundaryEscapeMaxCurvature,
+            out Vector2 boundaryEscapeDirection)
+        {
+            useBoundaryEscapeMaxCurvature = false;
+            boundaryEscapeDirection = Vector2.zero;
+
+            if (cellBoundary == null || cellBoundary.Count < 3)
+                return ComputeFallbackTarget(userPosition, userHeading);
+
+            if (!TryComputeNearestBoundaryGradient(userPosition, cellBoundary, out Vector2 boundaryGradient, out float boundaryClearance))
+                return ComputeFallbackTarget(userPosition, userHeading);
+
+            if (boundaryGradient.sqrMagnitude <= Epsilon)
+                return ComputeFallbackTarget(userPosition, userHeading);
+
+            boundaryGradient.Normalize();
+            useBoundaryEscapeMaxCurvature = true;
+            boundaryEscapeDirection = boundaryGradient;
+
+            float step = Mathf.Clamp(boundaryClearance * 0.5f, 0.1f, 0.35f);
+            Vector2 target = userPosition + boundaryGradient * step;
+            if (!IsPointInPolygon(target, cellBoundary))
+                target = userPosition + boundaryGradient * 0.1f;
+
+            return target;
+        }
+
+        private bool TryComputeNearestBoundaryGradient(
+            Vector2 point,
+            List<Vector2> polygon,
+            out Vector2 gradient,
+            out float minDistance)
+        {
+            gradient = Vector2.zero;
+            minDistance = float.MaxValue;
+
+            if (polygon == null || polygon.Count < 2)
+                return false;
+
+            int n = polygon.Count;
+            for (int i = 0; i < n; i++)
+            {
+                Vector2 a = polygon[i];
+                Vector2 b = polygon[(i + 1) % n];
+                Vector2 closest = ClosestPointOnSegment(point, a, b);
+                Vector2 away = point - closest;
+                float dist = away.magnitude;
+                if (dist < minDistance)
+                {
+                    minDistance = dist;
+                    gradient = dist > Epsilon ? away / dist : away;
+                }
+            }
+
+            if (minDistance == float.MaxValue)
+            {
+                gradient = Vector2.zero;
+                minDistance = 0f;
+                return false;
+            }
+
+            return true;
+        }
+
+        private static Vector2 ClosestPointOnSegment(Vector2 point, Vector2 a, Vector2 b)
+        {
+            Vector2 ab = b - a;
+            float denom = Vector2.Dot(ab, ab);
+            if (denom <= Epsilon)
+                return a;
+
+            float t = Mathf.Clamp01(Vector2.Dot(point - a, ab) / denom);
+            return a + t * ab;
+        }
+
         private Vector2 ComputeFallbackTarget(Vector2 userPosition, Vector2 userHeading)
         {
-            return userPosition;
+            Vector2 heading = userHeading.sqrMagnitude > Epsilon ? userHeading.normalized : Vector2.up;
+            return userPosition + heading * config.SearchRadiusMin;
         }
     }
 }

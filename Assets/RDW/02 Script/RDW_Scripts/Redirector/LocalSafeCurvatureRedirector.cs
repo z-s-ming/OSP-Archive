@@ -14,6 +14,9 @@ public class LocalSafeCurvatureRedirector : SteerToTargetRedirector
     private const float FALLBACK_TARGET_DISTANCE = 2f;
 
     private Vector2? externalSafeTarget = null;
+    private Vector2? externalSteeringDirection = null;
+    private bool boundaryEscapeMaxCurvatureEnabled = false;
+    private Vector2 boundaryEscapeDirection = Vector2.zero;
     private float previousCurvatureGain = 0f;
     private float previousRotationGain = NEUTRAL_ROTATION_GAIN;
 
@@ -39,6 +42,36 @@ public class LocalSafeCurvatureRedirector : SteerToTargetRedirector
         externalSafeTarget = null;
     }
 
+    public void SetExternalSteeringDirection(Vector2 direction)
+    {
+        if (direction.sqrMagnitude <= LOCAL_COORDINATE_EPSILON)
+        {
+            externalSteeringDirection = null;
+            return;
+        }
+
+        externalSteeringDirection = direction.normalized;
+    }
+
+    public void ClearExternalSteeringDirection()
+    {
+        externalSteeringDirection = null;
+    }
+
+    public void SetBoundaryEscapeMaxCurvature(Vector2 awayFromBoundaryDirection)
+    {
+        boundaryEscapeMaxCurvatureEnabled = awayFromBoundaryDirection.sqrMagnitude > LOCAL_COORDINATE_EPSILON;
+        boundaryEscapeDirection = boundaryEscapeMaxCurvatureEnabled
+            ? awayFromBoundaryDirection.normalized
+            : Vector2.zero;
+    }
+
+    public void ClearBoundaryEscapeMaxCurvature()
+    {
+        boundaryEscapeMaxCurvatureEnabled = false;
+        boundaryEscapeDirection = Vector2.zero;
+    }
+
     public override (GainType, float) ApplyRedirection(RedirectedUnit unit, Vector2 deltaPosition, float deltaRotation)
     {
         if (deltaPosition == Vector2.zero && Mathf.Abs(deltaRotation) <= 0f)
@@ -50,10 +83,16 @@ public class LocalSafeCurvatureRedirector : SteerToTargetRedirector
         PickSteeringTarget();
 
         Vector2 userToTarget = targetPosition - userPosition;
-        float signedAngleToTarget = Vector2.SignedAngle(userDirection, userToTarget);
+        Vector2 steeringDirection = ResolveSteeringDirection(userDirection, userToTarget);
+        float signedAngleToTarget = Vector2.SignedAngle(userDirection, steeringDirection);
 
         translationGain = STABLE_TRANSLATION_GAIN;
-        curvatureGain = ComputeCurvatureGainFromLocalTarget(userToTarget, userDirection);
+        if (boundaryEscapeMaxCurvatureEnabled)
+            curvatureGain = ComputeBoundaryEscapeMaxCurvatureGain(userDirection, boundaryEscapeDirection);
+        else if (externalSteeringDirection.HasValue)
+            curvatureGain = ComputeCurvatureGainFromSteeringDirection(userDirection, externalSteeringDirection.Value);
+        else
+            curvatureGain = ComputeCurvatureGainFromLocalTarget(userToTarget, userDirection);
         rotationGain = ComputeRotationGainFromAngle(signedAngleToTarget, deltaRotation);
 
         float curvatureMagnitude = 0f;
@@ -88,6 +127,54 @@ public class LocalSafeCurvatureRedirector : SteerToTargetRedirector
             return (GainType.Translation, deltaPosition.magnitude);
 
         return (GainType.Undefined, 0f);
+    }
+
+    private Vector2 ResolveSteeringDirection(Vector2 forward, Vector2 userToTarget)
+    {
+        if (externalSteeringDirection.HasValue && externalSteeringDirection.Value.sqrMagnitude > LOCAL_COORDINATE_EPSILON)
+            return externalSteeringDirection.Value.normalized;
+
+        if (userToTarget.sqrMagnitude > LOCAL_COORDINATE_EPSILON)
+            return userToTarget.normalized;
+
+        return forward.sqrMagnitude > LOCAL_COORDINATE_EPSILON ? forward.normalized : Vector2.up;
+    }
+
+    private float ComputeCurvatureGainFromSteeringDirection(Vector2 forward, Vector2 steeringDir)
+    {
+        Vector2 normalizedForward = forward.sqrMagnitude > LOCAL_COORDINATE_EPSILON ? forward.normalized : Vector2.up;
+        Vector2 normalizedSteering = steeringDir.sqrMagnitude > LOCAL_COORDINATE_EPSILON ? steeringDir.normalized : normalizedForward;
+        Vector2 left = new Vector2(-normalizedForward.y, normalizedForward.x);
+
+        float side = Vector2.Dot(normalizedSteering, left); // [-1,1], left positive
+        float magnitude = Mathf.Abs(side) * HODGSON_MAX_CURVATURE_GAIN;
+        float gain = -Mathf.Sign(side) * magnitude; // keep existing sign convention
+        previousCurvatureGain = gain;
+        return Mathf.Clamp(gain, HODGSON_MIN_CURVATURE_GAIN, HODGSON_MAX_CURVATURE_GAIN);
+    }
+
+    private float ComputeBoundaryEscapeMaxCurvatureGain(Vector2 forward, Vector2 awayDirection)
+    {
+        Vector2 normalizedForward = forward.sqrMagnitude > LOCAL_COORDINATE_EPSILON ? forward.normalized : Vector2.up;
+        if (awayDirection.sqrMagnitude <= LOCAL_COORDINATE_EPSILON)
+            return 0f;
+
+        Vector2 normalizedAway = awayDirection.normalized;
+        Vector2 left = new Vector2(-normalizedForward.y, normalizedForward.x);
+
+        float side = Vector2.Dot(normalizedAway, left);
+        if (Mathf.Abs(side) < 1e-3f)
+        {
+            side = Mathf.Sign(Vector2.SignedAngle(normalizedForward, normalizedAway));
+            if (Mathf.Abs(side) < 1e-3f)
+                side = 1f;
+        }
+
+        // Keep sign convention aligned with ComputeCurvatureGainFromLocalTarget:
+        // target/escape direction on left => negative curvature gain.
+        float forcedGain = -Mathf.Sign(side) * HODGSON_MAX_CURVATURE_GAIN;
+        previousCurvatureGain = forcedGain;
+        return Mathf.Clamp(forcedGain, HODGSON_MIN_CURVATURE_GAIN, HODGSON_MAX_CURVATURE_GAIN);
     }
 
     private float ComputeCurvatureGainFromLocalTarget(Vector2 userToTarget, Vector2 forward)

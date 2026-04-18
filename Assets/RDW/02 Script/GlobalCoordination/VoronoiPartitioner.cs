@@ -149,6 +149,7 @@ namespace _GCM
         {
             PartitionResult result = new PartitionResult();
             EnsureRegionKeys(result.RegionVertices);
+            EnsureAdjacencyKeys(result.CellAdjacency);
 
             if (frameState == null || frameState.PhysicalUsers == null || frameState.PhysicalUsers.Count < _totalUserCount)
                 return result;
@@ -209,6 +210,20 @@ namespace _GCM
 
                 result.EdgeVertices.Add(new Vector3(edge.ClippedEnds[LR.LEFT].x, 0f, edge.ClippedEnds[LR.LEFT].y));
                 result.EdgeVertices.Add(new Vector3(edge.ClippedEnds[LR.RIGHT].x, 0f, edge.ClippedEnds[LR.RIGHT].y));
+
+                if (edge.LeftSite == null || edge.RightSite == null)
+                    continue;
+
+                if (!TryResolveUserIdBySiteCoord(edge.LeftSite.Coord, out int leftUserId))
+                    continue;
+                if (!TryResolveUserIdBySiteCoord(edge.RightSite.Coord, out int rightUserId))
+                    continue;
+
+                if (leftUserId == rightUserId)
+                    continue;
+
+                result.CellAdjacency[leftUserId].Add(rightUserId);
+                result.CellAdjacency[rightUserId].Add(leftUserId);
             }
 
             if (_totalUserCount > 2)
@@ -365,6 +380,47 @@ namespace _GCM
                     regionVertices.Add(i, new List<Vector2>());
                 }
             }
+        }
+
+        private void EnsureAdjacencyKeys(Dictionary<int, HashSet<int>> adjacency)
+        {
+            for (int i = 0; i < _totalUserCount; i++)
+            {
+                if (!adjacency.ContainsKey(i))
+                {
+                    adjacency.Add(i, new HashSet<int>());
+                }
+                else
+                {
+                    adjacency[i].Clear();
+                }
+            }
+        }
+
+        private bool TryResolveUserIdBySiteCoord(Vector2f siteCoord, out int userId)
+        {
+            userId = -1;
+            float bestDistSq = float.MaxValue;
+            float tolerance = Mathf.Max(_eps, 1e-4f);
+            float toleranceSq = tolerance * tolerance;
+
+            for (int i = 0; i < _seedPoints.Count; i++)
+            {
+                Vector2f seed = _seedPoints[i];
+                float dx = seed.x - siteCoord.x;
+                float dy = seed.y - siteCoord.y;
+                float distSq = dx * dx + dy * dy;
+                if (distSq < bestDistSq)
+                {
+                    bestDistSq = distSq;
+                    userId = i;
+                }
+            }
+
+            if (userId < 0)
+                return false;
+
+            return bestDistSq <= toleranceSq;
         }
     }
 }
