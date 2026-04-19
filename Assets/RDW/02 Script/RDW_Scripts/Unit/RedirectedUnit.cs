@@ -33,6 +33,9 @@ public class RedirectedUnit
 
 
     int truc;
+    private Vector2 cachedUserResetDirection = Vector2.zero;
+    private bool hasCachedUserResetDirection = false;
+    private Vector2 lastMovementDirection = Vector2.zero;
 
     private bool isResetting = false;
     public bool IsResetting { get { return isResetting; } }
@@ -61,6 +64,7 @@ public class RedirectedUnit
         this.realUser = realUser;
         this.virtualUser = virtualUser;
         this.status = "IDLE";
+        this.lastMovementDirection = realUser != null ? realUser.transform2D.forward : Vector2.zero;
 
         resetLocObjects = new List<GameObject>();
         realWallObjects = new List<GameObject>();
@@ -164,6 +168,7 @@ public class RedirectedUnit
             if (previousStatus == "USER_RESET_DONE")
             {
                 status = "IDLE";
+                hasCachedUserResetDirection = false;
                 //previousStatus = "IDLE";
             }
 
@@ -198,6 +203,7 @@ public class RedirectedUnit
                 
                 status = "USER_RESET";
                 resultData.AddUserReset();
+                hasCachedUserResetDirection = false;
                 //Debug.Log(realUser.gameObject.tag.ToString() + " AddUserReset");
 
             }
@@ -248,8 +254,19 @@ public class RedirectedUnit
 
     public string ApplyUserReset(Object2D otherUser, ref int truc)
     {
-        Vector2 resetDirection = (realUser.transform2D.localPosition - otherUser.transform2D.localPosition).normalized;
-        return resetter.ApplyUserReset(realUser, resetDirection, ref truc); // 필요하면 User Reset과 Wall Reset의 방법을 다르게 만들 수 있도록 이런 식으로 구현
+        if (!hasCachedUserResetDirection)
+        {
+            cachedUserResetDirection = UserResetDirectionResolver.ResolveDirection(this, otherUser);
+            hasCachedUserResetDirection = true;
+        }
+
+        string result = resetter.ApplyUserReset(realUser, cachedUserResetDirection, ref truc); // 필요하면 User Reset과 Wall Reset의 방법을 다르게 만들 수 있도록 이런 식으로 구현
+        if (result == "USER_RESET_DONE")
+        {
+            hasCachedUserResetDirection = false;
+        }
+
+        return result;
     }
 
     public string ApplyWallReset()
@@ -294,7 +311,12 @@ public class RedirectedUnit
             resultData.AddElapsedTime(Time.fixedDeltaTime);
         }
 
-     
+        if (realUser != null && realUser.transform2D.forward.sqrMagnitude > Mathf.Epsilon)
+        {
+            lastMovementDirection = realUser.transform2D.forward.normalized;
+        }
+
+      
     }
 
     public void DebugDraws(Color userColor)
@@ -341,6 +363,17 @@ public class RedirectedUnit
     public Object2D GetRealUser()
     {
         return realUser;
+    }
+
+    public Vector2 GetLastMovementDirection()
+    {
+        if (lastMovementDirection.sqrMagnitude > Mathf.Epsilon)
+            return lastMovementDirection.normalized;
+
+        if (realUser != null && realUser.transform2D.forward.sqrMagnitude > Mathf.Epsilon)
+            return realUser.transform2D.forward.normalized;
+
+        return Vector2.up;
     }
 
     public Object2D GetVirtualUser()

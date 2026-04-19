@@ -14,6 +14,7 @@ public class SimulationSetting
     public SpaceSetting virtualSpaceSetting; // 기존 세팅과 동일하고자 할 때 적용.
     public UnitSetting[] unitSettings;
     public bool bAllowUserReset;
+    public bool useHybridApfUserResetDirection;
     public bool showTarget;
     public bool showResetLocator;
     public bool showRealWall;

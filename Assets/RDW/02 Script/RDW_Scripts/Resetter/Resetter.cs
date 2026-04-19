@@ -43,7 +43,7 @@ public class Resetter
         return "WALL_RESET_DONE";
     }
 
-    public string ApplyUserReset(Object2D realUser, Vector2 resetDirection, ref int truc)
+    public virtual string ApplyUserReset(Object2D realUser, Vector2 resetDirection, ref int truc)
     {
         float rotationSpeed = 60.0f;
 
@@ -86,7 +86,7 @@ public class Resetter
         //return !realSpace.IsInside(realUser, 0);
     }
 
-    public bool NeedUserReset(Object2D realUser, List<Object2D> otherUsers, out Object2D intersectedUser, out int truc)
+    public virtual bool NeedUserReset(Object2D realUser, List<Object2D> otherUsers, out Object2D intersectedUser, out int truc)
     {
         bool flag = false;
         float translationSpeed = 4;
@@ -132,5 +132,15 @@ public class Resetter
 
         intersectedUser = targetUser;
         return resetflag;
+    }
+
+    public float GetTranslationSpeed()
+    {
+        return translationSpeed;
+    }
+
+    public float GetRotationSpeed()
+    {
+        return rotationSpeed;
     }
 }

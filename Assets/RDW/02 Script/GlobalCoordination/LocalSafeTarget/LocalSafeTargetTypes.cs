@@ -9,13 +9,9 @@ namespace RDW.Coordination.LocalSafeTarget
     {
         public int userId;
         public Vector2 targetPoint;
-        public bool hasSteeringDirection;
-        public Vector2 steeringDirection;
         public float totalScore;
         public int sampleCount;
         public bool fallbackUsed;
-        public bool useBoundaryEscapeMaxCurvature;
-        public Vector2 boundaryEscapeDirection;
         public int frameIndex;
         public float timestamp;
 
@@ -31,21 +27,16 @@ namespace RDW.Coordination.LocalSafeTarget
     public struct LocalSafeTargetResult
     {
         public Vector2 targetPoint;
-        public bool hasSteeringDirection;
-        public Vector2 steeringDirection;
         public float totalScore;
-
+        
         // Score contribution breakdown
-        public float selfOpenComponent;
-        public float frontMarginComponent;
-        public float neighborImpactComponent;
-        public float headingDevComponent;
-
+        public float boundaryDistanceComponent;
+        public float occupancyDistanceComponent;
+        public float userDistanceComponent;
+        
         // Metadata
         public int sampleCount;
         public bool fallbackUsed;
-        public bool useBoundaryEscapeMaxCurvature;
-        public Vector2 boundaryEscapeDirection;
     }
 
     /// <summary>
@@ -53,22 +44,24 @@ namespace RDW.Coordination.LocalSafeTarget
     /// </summary>
     public struct LocalSafeTargetConfig
     {
-        // Sampling geometry
+        // Geometry parameters
         public float FanHalfAngleDegrees;
         public float SearchRadiusMin;
         public float SearchRadiusMax;
         public float BoundaryBufferMin;
-        public int AngleSampleCount;
-        public int RadiusSampleCount;
+        public float BoundaryBufferMax;
+        public float GridResolutionMin;
+        public float GridResolutionMax;
 
         // Scoring weights
-        public float WeightSelfOpen;
-        public float WeightFrontMargin;
-        public float WeightNeighborImpact;
-        public float WeightHeadingDeviation;
+        public float WeightBoundaryDist;
+        public float WeightOccupancyDist;
+        public float WeightDistancePenalty;
 
-        // Neighbor interaction
-        public float NeighborSafetyBuffer;
+        // Adaptive sampling
+        public float SampleDensityPerM2;      // ρ=55 pts/m²
+        public int MinSamplesPerUser;         // n_min=24
+        public int MaxSamplesPerUser;         // n_max=120
 
         public static LocalSafeTargetConfig GetDefaults()
         {
@@ -77,14 +70,16 @@ namespace RDW.Coordination.LocalSafeTarget
                 FanHalfAngleDegrees = 55f,
                 SearchRadiusMin = 1.5f,
                 SearchRadiusMax = 2.0f,
-                BoundaryBufferMin = 0.30f,
-                AngleSampleCount = 11,
-                RadiusSampleCount = 3,
-                WeightSelfOpen = 1.0f,
-                WeightFrontMargin = 0.8f,
-                WeightNeighborImpact = 1.2f,
-                WeightHeadingDeviation = 0.6f,
-                NeighborSafetyBuffer = 0.35f
+                BoundaryBufferMin = 0.3f,
+                BoundaryBufferMax = 0.5f,
+                GridResolutionMin = 0.15f,
+                GridResolutionMax = 0.25f,
+                WeightBoundaryDist = 1.0f,
+                WeightOccupancyDist = 1.5f,
+                WeightDistancePenalty = 0.4f,
+                SampleDensityPerM2 = 55f,
+                MinSamplesPerUser = 24,
+                MaxSamplesPerUser = 120
             };
         }
     }

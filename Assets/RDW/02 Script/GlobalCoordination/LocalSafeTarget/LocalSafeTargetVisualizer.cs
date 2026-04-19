@@ -19,7 +19,6 @@ namespace RDW.Coordination.Visualization
         [SerializeField] private float gizmoHeight = 0.05f;
         [SerializeField] private float targetPointSize = 0.25f;
         [SerializeField] private float userPointSize = 0.15f;
-        [SerializeField] private float steeringArrowLength = 1.0f;
 
         private Dictionary<int, LocalTargetResult> latestTargets = new Dictionary<int, LocalTargetResult>();
         private Dictionary<int, List<Vector2>> cachedCellVertices = new Dictionary<int, List<Vector2>>();
@@ -76,11 +75,6 @@ namespace RDW.Coordination.Visualization
 
                 // Draw target point (gold sphere)
                 Vector3 targetPos = new Vector3(targetResult.TargetPosition.x, gizmoHeight, targetResult.TargetPosition.y);
-                if (targetResult.hasSteeringDirection && targetResult.steeringDirection.sqrMagnitude > 1e-6f)
-                {
-                    Vector2 dir = targetResult.steeringDirection.normalized;
-                    targetPos = userPos + new Vector3(dir.x, 0f, dir.y) * steeringArrowLength;
-                }
                 Gizmos.color = targetPointColor;
                 Gizmos.DrawWireSphere(targetPos, targetPointSize);
 

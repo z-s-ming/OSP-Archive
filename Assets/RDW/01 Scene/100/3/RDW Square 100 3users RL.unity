@@ -990,7 +990,7 @@ MonoBehaviour:
         p1: {x: 0, y: 0}
         p2: {x: 0, y: 0}
     virtualSpaceSetting:
-      usePredefinedSpace: 1
+      usePredefinedSpace: 0
       name: Virtual Space
       predefinedSpace: {fileID: 0}
       position: {x: 0, y: 0}
@@ -1014,7 +1014,7 @@ MonoBehaviour:
         p2: {x: 0, y: 0}
       obstacleObjectSettings: []
     unitSettings:
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 5
       episodeLength: 99999
@@ -1030,7 +1030,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 5
       episodeLength: 99999
@@ -1046,7 +1046,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 5
       episodeLength: 99999
@@ -1062,7 +1062,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 5
       episodeLength: 99999
@@ -1079,6 +1079,7 @@ MonoBehaviour:
       translationSpeed: 1
       rotationSpeed: 90
     bAllowUserReset: 1
+    useHybridApfUserResetDirection: 1
     showTarget: 1
     showResetLocator: 0
     showRealWall: 0
@@ -1319,8 +1320,8 @@ MonoBehaviour:
       PartitionMaxAllowedNeighborRiskWorsen: 0.02
       EnableVisualization: 1
     LocalSafeTarget:
-      EnableSelection: 1
-      EnableVisualization: 1
+      EnableSelection: 0
+      EnableVisualization: 0
       EnableLogging: 0
       FanHalfAngleDeg: 55
       SearchRadiusMin: 1.5

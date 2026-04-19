@@ -200,14 +200,7 @@ namespace _GCM
                                     switch (curren_EX_Type)
                                     {
                                         case Experiment_Type.VS_Line:
-                                            str_DataCategory = "Date,Timestamp,"
-                                                + "Event_Log,"
-                                                + "Event_Log_Num,"
-                                                + "resetWallCountperEpisode,"
-                                                + "resetTotalCountperEpisode,"
-                                                + "reset00CountperEpisode,"
-                                                + "reset01CountperEpisode,"
-                                                + "resetbetCountperEpisode";
+                                            str_DataCategory = BuildDataCategory();
 
 
                                             break;
@@ -235,6 +228,30 @@ namespace _GCM
             }
 
             return tempb;
+        }
+
+        private string BuildDataCategory()
+        {
+            StringBuilder sb = new StringBuilder();
+            sb.Append("Date,Timestamp,");
+            sb.Append("totalResetCountPerEpisode,");
+            sb.Append("userResetCountVariancePerEpisode,");
+            sb.Append("userInterResetBothCountPerEpisode");
+
+            int userCount = 0;
+            if (RDWSimulationManager.instance != null &&
+                RDWSimulationManager.instance.simulationSetting != null &&
+                RDWSimulationManager.instance.simulationSetting.unitSettings != null)
+            {
+                userCount = RDWSimulationManager.instance.simulationSetting.unitSettings.Length;
+            }
+
+            for (int i = 0; i < userCount; i++)
+            {
+                sb.Append(",user").Append(i.ToString("D2")).Append("ResetCountPerEpisode");
+            }
+
+            return sb.ToString();
         }
 
 

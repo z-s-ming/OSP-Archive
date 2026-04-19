@@ -9,10 +9,6 @@ namespace _GCM
     public class EpisodeService
     {
         private readonly int _totalUserCount;
-        private readonly List<int> _usersTotalResetPerEpisode = new List<int>();
-        private readonly List<int> _userbetResetPerEpisode = new List<int>();
-        private readonly List<int> _usersShutterResetPerEpisode = new List<int>();
-        private readonly List<float> _mdbrPerEpisode = new List<float>();
         private readonly Text _textCurrentEpisode;
 
         public EpisodeService(int totalUserCount, int simulationCountMax, float targetDistancePerUser, Text textCurrentEpisode)
@@ -26,6 +22,7 @@ namespace _GCM
         public int SimulationCountMax { get; set; }
         public float TargetDistancePerUser { get; set; }
         public int CurrentSimulationCount { get; private set; }
+        public bool IsExperimentCompleted { get; private set; }
 
         public void BeginEpisode(StateCollector stateCollector)
         {
@@ -51,61 +48,42 @@ namespace _GCM
 
         public void FinalizeEpisode(StateCollector stateCollector)
         {
-            if (stateCollector == null)
+            if (stateCollector == null || IsExperimentCompleted)
                 return;
 
             var units = RDWSimulationManager.instance.GetRedirectedUnits;
 
-            List<int> userWallReset = new List<int>();
+            StringBuilder sb = new StringBuilder();
+            int totalResetCount = 0;
+            int doubleUserResetCount = RDWSimulationManager.instance.Calc_DoubleUserResetCount();
+            List<int> userResetCounts = new List<int>();
+
             for (int i = 0; i < _totalUserCount; i++)
             {
                 if (units != null && i < units.Length && units[i] != null)
-                    userWallReset.Add((int)(units[i].resultData.getWallReset()));
+                {
+                    int resetCount = (int)units[i].resultData.getTotalReset();
+                    totalResetCount += resetCount;
+                    userResetCounts.Add(resetCount);
+                }
+                else
+                {
+                    userResetCounts.Add(0);
+                }
             }
-            int wallResetSum = userWallReset.Sum();
 
-            List<int> userShutterReset = new List<int>();
+            float userResetVariance = CalculateVariance(userResetCounts);
+
+            sb.Append(totalResetCount).Append(',');
+            sb.Append(userResetVariance.ToString("F4")).Append(',');
+            sb.Append(doubleUserResetCount);
+
             for (int i = 0; i < _totalUserCount; i++)
             {
-                userShutterReset.Add((int)(RDWSimulationManager.instance.GetRedirectedUnits[i].resultData.getShutterReset()));
-            }
-            int shutterResetSum = userShutterReset.Sum();
-
-            int userbet = RDWSimulationManager.instance.Calc_UserResetFilter();
-            int totalResets = wallResetSum + userbet + shutterResetSum;
-
-            _usersTotalResetPerEpisode.Add(totalResets);
-            _usersShutterResetPerEpisode.Add(shutterResetSum);
-            _userbetResetPerEpisode.Add(userbet);
-
-            float mdbrAvg;
-            if (totalResets > 0)
-            {
-                mdbrAvg = stateCollector.UsersCumulativeDist.Sum() / totalResets;
-            }
-            else
-            {
-                mdbrAvg = stateCollector.UsersCumulativeDist.Sum();
+                sb.Append(',').Append(userResetCounts[i]);
             }
 
-            Debug.Log(string.Format("walllreset {0} / userreset {1} /shutterreset {2} / MDbR AVg. {3}", wallResetSum, userbet, shutterResetSum, mdbrAvg));
-            Debug.LogWarning(string.Format("walllreset {0} / userreset {1} /shutterreset {2} / MDbR AVg. {3}", wallResetSum, userbet, shutterResetSum, mdbrAvg));
-
-            _mdbrPerEpisode.Add(mdbrAvg);
-
-            StringBuilder sb = new StringBuilder();
-            sb.Append(',');
-            sb.Append(',');
-            sb.Append(wallResetSum).Append(',');
-            sb.Append(wallResetSum + shutterResetSum + userbet).Append(',');
-            sb.Append(userbet).Append(',');
-            sb.Append(shutterResetSum).Append(',');
-            sb.Append(mdbrAvg).Append(',');
-
-            if (sb.Length > 0 && sb[sb.Length - 1] == ',')
-            {
-                sb.Remove(sb.Length - 1, 1);
-            }
+            Debug.Log("Per-user reset counts: " + sb);
 
             if (GM_DataRecord.instance != null)
             {
@@ -115,58 +93,32 @@ namespace _GCM
             CurrentSimulationCount++;
             if (_textCurrentEpisode != null)
             {
-                _textCurrentEpisode.text = "Current Episode : " + (CurrentSimulationCount + 1);
+                int nextEpisodeDisplay = Mathf.Min(CurrentSimulationCount + 1, SimulationCountMax);
+                _textCurrentEpisode.text = "Current Episode : " + nextEpisodeDisplay;
             }
 
-            if (CurrentSimulationCount == SimulationCountMax)
+            if (CurrentSimulationCount >= SimulationCountMax)
             {
-                CurrentSimulationCount = 0;
-                FlushBatchToRecord();
-                _usersTotalResetPerEpisode.Clear();
-                _userbetResetPerEpisode.Clear();
-                _usersShutterResetPerEpisode.Clear();
-                _mdbrPerEpisode.Clear();
+                IsExperimentCompleted = true;
+                GM_DataRecord.instance?.Save_SteamingData_Batch();
             }
         }
 
-        private void FlushBatchToRecord()
+        private float CalculateVariance(List<int> values)
         {
-            if (GM_DataRecord.instance == null)
-                return;
+            if (values == null || values.Count == 0)
+                return 0f;
 
-            GM_DataRecord.instance.Write_Warning(GM_DataRecord.Warning_Type.TotalResetMean, _usersTotalResetPerEpisode.Average().ToString("F3"));
-            GM_DataRecord.instance.Write_Warning(GM_DataRecord.Warning_Type.TotalResetMean, GetStandardDeviation(_usersTotalResetPerEpisode).ToString("F3"));
-            GM_DataRecord.instance.Write_Warning(GM_DataRecord.Warning_Type.UserbetResetMean, _userbetResetPerEpisode.Average().ToString("F3"));
-            GM_DataRecord.instance.Write_Warning(GM_DataRecord.Warning_Type.UserbetResetMean, GetStandardDeviation(_userbetResetPerEpisode).ToString("F3"));
-            GM_DataRecord.instance.Write_Warning(GM_DataRecord.Warning_Type.UsershutterResetMean, _usersShutterResetPerEpisode.Average().ToString("F3"));
-            GM_DataRecord.instance.Write_Warning(GM_DataRecord.Warning_Type.UsershutterResetMean, GetStandardDeviation(_usersShutterResetPerEpisode).ToString("F3"));
-            GM_DataRecord.instance.Write_Warning(GM_DataRecord.Warning_Type.MeanDistBetResets, _mdbrPerEpisode.Average().ToString("F3"));
-            GM_DataRecord.instance.Write_Warning(GM_DataRecord.Warning_Type.MeanDistBetResets, GetStandardDeviation(_mdbrPerEpisode).ToString("F3"));
-            GM_DataRecord.instance.Save_SteamingData_Batch();
-        }
+            float mean = (float)values.Average();
+            float squaredDeviationSum = 0f;
 
-        private float GetStandardDeviation(List<float> values)
-        {
-            float average = values.Average();
-            float sumOfDerivation = 0;
-            foreach (float value in values)
+            for (int i = 0; i < values.Count; i++)
             {
-                sumOfDerivation += value * value;
+                float deviation = values[i] - mean;
+                squaredDeviationSum += deviation * deviation;
             }
-            float sumOfDerivationAverage = sumOfDerivation / values.Count;
-            return Mathf.Sqrt(sumOfDerivationAverage - (average * average));
-        }
 
-        private double GetStandardDeviation(List<int> values)
-        {
-            double average = values.Average();
-            int sumOfDerivation = 0;
-            foreach (int value in values)
-            {
-                sumOfDerivation += value * value;
-            }
-            int sumOfDerivationAverage = sumOfDerivation / values.Count;
-            return Mathf.Sqrt((float)(sumOfDerivationAverage - (average * average)));
+            return squaredDeviationSum / values.Count;
         }
     }
 }

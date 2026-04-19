@@ -12,6 +12,9 @@ public class APFRedirector_OSP : GainRedirector
     private const float ANGLE_THRESHOLD_FOR_DAMPENING = 1f; // Angle threshold to apply dampening (degrees)
     private const float DISTANCE_THRESHOLD_FOR_DAMPENING = 1.25f; // Distance threshold to apply dampening (meters)
     private const float SMOOTHING_FACTOR = 0.125f; // Smoothing factor for redirection rotations
+    private const float DEBUG_ARROW_LENGTH = 2.0f;
+    private const float DEBUG_ARROW_HEAD_LENGTH = 0.35f;
+    private const float DEBUG_ARROW_HEAD_ANGLE = 25f;
 
     private float previousMagnitude = 0f;
 
@@ -49,10 +52,8 @@ public class APFRedirector_OSP : GainRedirector
         (Vector2 w, float t) = GetWandT(unit, realSpace);
         Vector2 userToTarget = 10000 * w;//targetPosition - userPosition;
 
-        ///Debug line W
-        Vector3 temp = new Vector3(userToTarget.x, 0.0f, userToTarget.y);
-        Debug.DrawLine(realUserTransform.transform.position, realUserTransform.transform.position + temp, Color.yellow);
-        //Debug.Log(userToTarget);
+        DrawDebugArrow(realUserTransform.transform.position, w, Color.yellow);
+
         float angleToTarget = Vector2.Angle(userDirection, userToTarget);
         float distanceToTarget = userToTarget.magnitude;
 
@@ -140,6 +141,25 @@ public class APFRedirector_OSP : GainRedirector
 
 
 
+    }
+
+    private void DrawDebugArrow(Vector3 start, Vector2 direction2D, Color color)
+    {
+        if (direction2D.sqrMagnitude <= Mathf.Epsilon)
+        {
+            return;
+        }
+
+        Vector3 direction = new Vector3(direction2D.x, 0.0f, direction2D.y).normalized;
+        Vector3 end = start + direction * DEBUG_ARROW_LENGTH;
+        Debug.DrawLine(start, end, color);
+
+        Vector3 headBaseDirection = -direction;
+        Vector3 leftHead = Quaternion.AngleAxis(DEBUG_ARROW_HEAD_ANGLE, Vector3.up) * headBaseDirection;
+        Vector3 rightHead = Quaternion.AngleAxis(-DEBUG_ARROW_HEAD_ANGLE, Vector3.up) * headBaseDirection;
+
+        Debug.DrawLine(end, end + leftHead * DEBUG_ARROW_HEAD_LENGTH, color);
+        Debug.DrawLine(end, end + rightHead * DEBUG_ARROW_HEAD_LENGTH, color);
     }
 
     // private void PickSteeringTargetForAPF(Vector2 userPosition, Vector2 wDirection)

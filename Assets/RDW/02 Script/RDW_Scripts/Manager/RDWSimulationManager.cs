@@ -581,4 +581,39 @@ public class RDWSimulationManager : MonoBehaviour
         return totalresetcount;
     }
 
+    public int Calc_DoubleUserResetCount()
+    {
+        if (queue_userresetinfo.Count == 0)
+            return 0;
+
+        List<DateTime> resetTimes = new List<DateTime>(queue_userresetinfo);
+        queue_userresetinfo.Clear();
+
+        int doubleResetCount = 0;
+        DateTime groupStart = resetTimes[0];
+        int groupSize = 1;
+
+        for (int i = 1; i < resetTimes.Count; i++)
+        {
+            TimeSpan delta = resetTimes[i] - groupStart;
+            if (delta.TotalMilliseconds <= 150)
+            {
+                groupSize++;
+            }
+            else
+            {
+                if (groupSize >= 2)
+                    doubleResetCount++;
+
+                groupStart = resetTimes[i];
+                groupSize = 1;
+            }
+        }
+
+        if (groupSize >= 2)
+            doubleResetCount++;
+
+        return doubleResetCount;
+    }
+
 }

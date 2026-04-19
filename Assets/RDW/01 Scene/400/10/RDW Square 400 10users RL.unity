@@ -1686,7 +1686,7 @@ MonoBehaviour:
         p2: {x: 0, y: 0}
       obstacleObjectSettings: []
     unitSettings:
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 1
       episodeLength: 99999
@@ -1702,7 +1702,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 1
       episodeLength: 99999
@@ -1718,7 +1718,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 1
       episodeLength: 99999
@@ -1734,7 +1734,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 1
       episodeLength: 99999
@@ -1750,7 +1750,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 1
       episodeLength: 99999
@@ -1766,7 +1766,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 1
       episodeLength: 99999
@@ -1782,7 +1782,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 1
       episodeLength: 99999
@@ -1798,7 +1798,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 1
       episodeLength: 99999
@@ -1814,7 +1814,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 1
       episodeLength: 99999
@@ -1830,7 +1830,7 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 9
+    - redirectType: 6
       resetType: 5
       episodeType: 1
       episodeLength: 99999
@@ -1854,7 +1854,7 @@ MonoBehaviour:
   simulspeed: 50
   autoSeparateVirtualSpaceFromRealSpace: 1
   virtualSpaceSeparationOffset: {x: 100, y: 0}
-  keepOnlyOneVirtualTrail: 1
+  keepOnlyOneVirtualTrail: 0
   preservedVirtualTrailUnitIndex: 0
   useUnlimitedVirtualTrailLength: 0
   virtualTrailMaxLengthMeters: 210
@@ -2087,9 +2087,9 @@ MonoBehaviour:
       PartitionMaxAllowedNeighborRiskWorsen: 0.02
       EnableVisualization: 0
     LocalSafeTarget:
-      EnableSelection: 1
+      EnableSelection: 0
       EnableVisualization: 0
-      EnableLogging: 1
+      EnableLogging: 0
       FanHalfAngleDeg: 55
       SearchRadiusMin: 1.5
       SearchRadiusMax: 2
