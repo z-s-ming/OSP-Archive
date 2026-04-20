@@ -1,11 +1,18 @@
 using System.Collections.Generic;
 using UnityEngine;
 using csDelaunay;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 
 namespace _GCM
 {
     public class PartitionVisualizer
     {
+        private const float GizmoHeight = 0.02f;
+        private const float OutlineHeightOffset = 0.005f;
+        private const float FillAlpha = 0.24f;
+
         private readonly int _totalUserCount;
         private readonly GameObject _voronoiVertexPrefab;
         private readonly GameObject _seedPointPrefab;
@@ -78,6 +85,58 @@ namespace _GCM
             DestroyAll(_centerPointers);
             DestroyAll(_seedPointVisuals);
             DestroyAll(_voronoiVertexMarkers);
+        }
+
+        public static void DrawPartitionAreaGizmos(Dictionary<int, List<Vector2>> areaSegmentsVertex, List<Material> partitionedSpaceMaterials)
+        {
+            if (areaSegmentsVertex == null || areaSegmentsVertex.Count == 0)
+                return;
+
+            foreach (var kv in areaSegmentsVertex)
+            {
+                int userIndex = kv.Key;
+                List<Vector2> vertices2D = kv.Value;
+                if (vertices2D == null || vertices2D.Count < 3)
+                    continue;
+
+                Color baseColor = ResolvePartitionColor(userIndex, partitionedSpaceMaterials);
+                Vector3[] points = new Vector3[vertices2D.Count];
+
+                for (int i = 0; i < vertices2D.Count; i++)
+                {
+                    points[i] = new Vector3(vertices2D[i].x, GizmoHeight, vertices2D[i].y);
+                }
+
+#if UNITY_EDITOR
+                Color fillColor = baseColor;
+                fillColor.a = FillAlpha;
+                Handles.color = fillColor;
+                Handles.DrawAAConvexPolygon(points);
+#endif
+
+                Color outlineColor = baseColor;
+                outlineColor.a = 0.95f;
+                Gizmos.color = outlineColor;
+
+                for (int i = 0; i < points.Length; i++)
+                {
+                    Vector3 a = points[i] + Vector3.up * OutlineHeightOffset;
+                    Vector3 b = points[(i + 1) % points.Length] + Vector3.up * OutlineHeightOffset;
+                    Gizmos.DrawLine(a, b);
+                }
+            }
+        }
+
+        public static Color ResolvePartitionColor(int userIndex, List<Material> partitionedSpaceMaterials)
+        {
+            if (partitionedSpaceMaterials != null && userIndex >= 0 && userIndex < partitionedSpaceMaterials.Count)
+            {
+                Material mat = partitionedSpaceMaterials[userIndex];
+                if (mat != null)
+                    return mat.color;
+            }
+
+            return Color.HSVToRGB(Mathf.Repeat(userIndex * 0.173f, 1f), 0.75f, 1f);
         }
 
         private void UpdateSeedPointVisuals(IReadOnlyList<Vector2f> seedPoints)

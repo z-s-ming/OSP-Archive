@@ -7,10 +7,6 @@ using Random = UnityEngine.Random;
 using UnityEngine.UI;
 using _GCM.PartitionUpdate;
 using RDW.Coordination.LocalSafeTarget;
-#if UNITY_EDITOR
-using UnityEditor;
-#endif
-
 namespace _GCM
 {
     public class GlobalCoordinationManager : MonoBehaviour
@@ -144,95 +140,18 @@ namespace _GCM
         private PartitionVisualizer partitionVisualizer;
         #endregion
 
-        #region Velocity Tracker (OSP Dynamic Offset)
-        [Header("=== OSP Algorithm Settings ===")]
-        [Tooltip("是否启用基于速度的种子点偏移")]
-        public bool bUseVelocityOffset = true;
-
-        [Header("=== Velocity Settings ===")]
-        public float alphaMax = 0.15f;
-        public float vMax = 0.6f;
-        public float velocityToOffsetFactor = 0.3f;
-        public float maxVelocityOffsetDist = 0.5f; // Limit
-        public float stopThreshold = 0.05f;
-
+        #region Module Runtime
         private VelocityPredictor velocityPredictor;
-        #endregion
-
-        #region Prediction Evaluation
-        [Header("=== Prediction Evaluation ===")]
-        [SerializeField] private bool bEnablePredictionEvaluation = false;
-        [SerializeField] private bool bExportPredictionSamples = false;
-        [SerializeField] private int predictionSampleEveryNFrames = 10;
-        [SerializeField] private string trajectoryModeLabel = "DefaultMode";
-
-        [SerializeField] private List<float> predictionEvaluationHorizons = new List<float> { 0.3f, 0.5f, 1.0f, 1.5f };
-
         private PredictionEvaluator predictionEvaluator;
         private string predictionExperimentFolderPath = string.Empty;
         private int simulationFrameIndex = 0;
         private float simulationElapsedTime = 0f;
-
-        [Header("=== Predictive Occupancy ===")]
-        [SerializeField] private bool bEnablePredictiveOccupancy = true;
-        [SerializeField] private List<float> predictiveOccupancyHorizons = new List<float> { 0.3f, 0.5f, 1.0f, 1.5f };
-        [SerializeField] private bool bEnablePredictiveOccupancyGizmos = true;
-        [SerializeField] private float predictiveOccupancyGizmoHeight = 0.03f;
-
-        [Header("=== Horizon Selection (from Eval) ===")]
-        [SerializeField] private float trustedHorizonMeanErrorThreshold = 0.60f;
-        [SerializeField] private float trustedHorizonStdErrorThreshold = 0.45f;
-        [SerializeField] private int trustedHorizonMaxCensoredCount = 0;
 
         private PredictiveOccupancyBuilder predictiveOccupancyBuilder;
         private PredictionUncertaintyModel predictiveUncertaintyModel;
         private PredictedOccupancyFrame latestPredictedOccupancyFrame;
         private PredictionHorizonSelector horizonSelector;
         private PredictiveOccupancyVisualizer predictiveOccupancyVisualizer;
-
-        [Header("=== Partition Risk Evaluation (Read-Only) ===")]
-        [SerializeField] private bool bEnablePartitionRiskEvaluation = true;
-        [SerializeField] private bool bEnableRiskLogging = true;
-        [SerializeField] private bool bEnableRiskVisualization = true;
-        [SerializeField] private int riskOutputEveryNFrames = 10;
-
-        [SerializeField] private float riskCellBoundarySafeClearance = 0.35f;
-        [SerializeField] private float riskPhysicalBoundarySafeClearance = 0.50f;
-        [SerializeField] private float riskPairSafeSeparation = 0.40f;
-        [SerializeField] private float riskSeedDeltaReference = 0.25f;
-
-        [SerializeField] private float riskWeightCellBoundary = 0.40f;
-        [SerializeField] private float riskWeightUser = 0.40f;
-        [SerializeField] private float riskWeightSmooth = 0.20f;
-
-        [SerializeField] private float riskAdjacencyThreshold = 0.35f;
-        [SerializeField] private float riskDominantNoneThreshold = 0.10f;
-        [SerializeField] private float riskDominantMixedGap = 0.08f;
-
-        [Header("=== Phase 4 Risk-Driven Partition Update ===")]
-        [SerializeField] private bool enableRiskDrivenPartitionUpdate = true;
-        [SerializeField] private float tauCellRiskEnter = 0.60f;
-        [SerializeField] private float tauCellRiskExit = 0.50f;
-        [SerializeField] private float tauNeighborRiskEnter = 0.60f;
-        [SerializeField] private float tauNeighborRiskExit = 0.50f;
-        [SerializeField] private int persistFramesCell = 3;
-        [SerializeField] private int persistFramesNeighbor = 3;
-        [SerializeField] private float seedUpdateCooldown = 0.75f;
-        [SerializeField] private float seedTriggerMoveThreshold = 0.12f;
-        [SerializeField] private float seedTrendWeight = 0.55f;
-        [SerializeField] private float seedNeighborWeight = 0.35f;
-        [SerializeField] private float seedAnchorWeight = 0.10f;
-        [SerializeField] private float seedStepLow = 0.05f;
-        [SerializeField] private float seedStepMedium = 0.10f;
-        [SerializeField] private float seedStepHigh = 0.15f;
-        [SerializeField] private float maxSeedShiftPerUpdate = 0.20f;
-        [SerializeField] private float maxSeedOffsetFromUser = 0.60f;
-        [SerializeField] private float partitionAcceptEpsilon = 0.03f;
-        [SerializeField] private float partitionCellRiskWeight = 0.5f;
-        [SerializeField] private float partitionNeighborRiskWeight = 0.5f;
-        [SerializeField] private float partitionMaxAllowedCellRiskWorsen = 0.02f;
-        [SerializeField] private float partitionMaxAllowedNeighborRiskWorsen = 0.02f;
-        [SerializeField] private bool bEnablePartitionUpdateVisualization = true;
 
         private PartitionRiskEvaluator partitionRiskEvaluator;
         private PartitionRiskLogger partitionRiskLogger;
@@ -247,29 +166,6 @@ namespace _GCM
         private PartitionUpdateVisualizer partitionUpdateVisualizer;
         private RiskDrivenSeedUpdateState[] partitionUpdateStates;
         private readonly List<PartitionUpdateAttempt> latestPartitionUpdateAttempts = new List<PartitionUpdateAttempt>();
-        #endregion
-
-        #region Phase 5: Local Safe Target Selection
-        [Header("=== Phase 5: Local Safe Target Selection ===")]
-        [SerializeField] private bool enableLocalSafeTargetSelection = true;
-        [SerializeField] private bool enableLocalSafeTargetVisualization = true;
-        [SerializeField] private bool enableLocalSafeTargetLogging = false;
-
-        [SerializeField] private float localTargetFanHalfAngleDeg = 55f;
-        [SerializeField] private float localTargetSearchRadiusMin = 1.5f;
-        [SerializeField] private float localTargetSearchRadiusMax = 2.0f;
-        [SerializeField] private float localTargetBoundaryBufferMin = 0.3f;
-        [SerializeField] private float localTargetBoundaryBufferMax = 0.5f;
-        [SerializeField] private float localTargetGridResolutionMin = 0.15f;
-        [SerializeField] private float localTargetGridResolutionMax = 0.25f;
-
-        [SerializeField] private float localTargetWeightBoundary = 1.0f;
-        [SerializeField] private float localTargetWeightOccupancy = 1.5f;
-        [SerializeField] private float localTargetWeightDistance = 0.4f;
-
-        [SerializeField] private float localTargetSampleDensityPerM2 = 55f;
-        [SerializeField] private int localTargetMinSamples = 24;
-        [SerializeField] private int localTargetMaxSamples = 120;
 
         private LocalSafeTargetSelector localSafeTargetSelector;
         private Dictionary<int, LocalTargetResult> latestLocalTargets = new Dictionary<int, LocalTargetResult>();
@@ -288,8 +184,25 @@ namespace _GCM
 
         //------------------------
 
+        private void OnValidate()
+        {
+            EnsureModuleConfig();
+        }
+
+        private void EnsureModuleConfig()
+        {
+            if (moduleConfig == null) moduleConfig = new GlobalCoordinationModuleConfig();
+            if (moduleConfig.Velocity == null) moduleConfig.Velocity = new VelocityModuleConfig();
+            if (moduleConfig.Prediction == null) moduleConfig.Prediction = new PredictionModuleConfig();
+            if (moduleConfig.PredictiveOccupancy == null) moduleConfig.PredictiveOccupancy = new PredictiveOccupancyModuleConfig();
+            if (moduleConfig.PartitionRisk == null) moduleConfig.PartitionRisk = new PartitionRiskModuleConfig();
+            if (moduleConfig.PartitionUpdate == null) moduleConfig.PartitionUpdate = new PartitionUpdateModuleConfig();
+            if (moduleConfig.LocalSafeTarget == null) moduleConfig.LocalSafeTarget = new LocalSafeTargetModuleConfig();
+        }
+
         private void Awake()
         {
+            EnsureModuleConfig();
             instance = this;
 
             //Academy.Instance.AutomaticSteppingEnabled = false;
@@ -297,6 +210,8 @@ namespace _GCM
 
         private void Start()
         {
+            EnsureModuleConfig();
+
             if (GM_DataRecord.instance == null)
             {
                 Debug.LogError("GlobalCoordinationManager Start: GM_DataRecord.instance is NULL! Please ensure GM_DataRecord script is attached to an active GameObject in the scene.");
@@ -401,32 +316,34 @@ namespace _GCM
 
         private void InitializeVelocityTracker()
         {
+            VelocityModuleConfig velocityConfig = moduleConfig.Velocity;
             velocityPredictor = new VelocityPredictor(totalUserCount)
             {
-                AlphaMax = alphaMax,
-                VMax = vMax,
-                VelocityToOffsetFactor = velocityToOffsetFactor,
-                MaxVelocityOffsetDist = maxVelocityOffsetDist,
-                StopThreshold = stopThreshold
+                AlphaMax = velocityConfig.AlphaMax,
+                VMax = velocityConfig.VMax,
+                VelocityToOffsetFactor = velocityConfig.VelocityToOffsetFactor,
+                MaxVelocityOffsetDist = velocityConfig.MaxVelocityOffsetDist,
+                StopThreshold = velocityConfig.StopThreshold
             };
         }
 
         private void InitializePredictionEvaluator()
         {
+            PredictionModuleConfig predictionConfig = moduleConfig.Prediction;
             predictionEvaluator = new PredictionEvaluator
             {
-                EnableEvaluation = bEnablePredictionEvaluation,
-                ExportResolvedSamples = bExportPredictionSamples,
-                SampleEveryNFrames = predictionSampleEveryNFrames
+                EnableEvaluation = predictionConfig.EnableEvaluation,
+                ExportResolvedSamples = predictionConfig.ExportResolvedSamples,
+                SampleEveryNFrames = predictionConfig.SampleEveryNFrames
             };
 
             predictionEvaluator.Horizons.Clear();
-            if (predictionEvaluationHorizons != null)
+            if (predictionConfig.EvaluationHorizons != null)
             {
-                for (int i = 0; i < predictionEvaluationHorizons.Count; i++)
+                for (int i = 0; i < predictionConfig.EvaluationHorizons.Count; i++)
                 {
-                    if (predictionEvaluationHorizons[i] > 0f)
-                        predictionEvaluator.Horizons.Add(predictionEvaluationHorizons[i]);
+                    if (predictionConfig.EvaluationHorizons[i] > 0f)
+                        predictionEvaluator.Horizons.Add(predictionConfig.EvaluationHorizons[i]);
                 }
             }
 
@@ -435,24 +352,26 @@ namespace _GCM
 
         private void InitializePredictiveOccupancy()
         {
+            PredictiveOccupancyModuleConfig occupancyConfig = moduleConfig.PredictiveOccupancy;
             predictiveOccupancyBuilder = new PredictiveOccupancyBuilder();
             predictiveUncertaintyModel = new PredictionUncertaintyModel();
             latestPredictedOccupancyFrame = new PredictedOccupancyFrame();
 
             predictiveOccupancyVisualizer = new PredictiveOccupancyVisualizer();
-            predictiveOccupancyVisualizer.ColorResolver = ResolvePartitionColor;
+            predictiveOccupancyVisualizer.ColorResolver = userIndex =>
+                PartitionVisualizer.ResolvePartitionColor(userIndex, PartitionedSpaceMaterials);
 
             horizonSelector = new PredictionHorizonSelector
             {
-                MeanErrorThreshold = trustedHorizonMeanErrorThreshold,
-                StdErrorThreshold = trustedHorizonStdErrorThreshold,
-                MaxCensoredCount = trustedHorizonMaxCensoredCount
+                MeanErrorThreshold = occupancyConfig.TrustedHorizonMeanErrorThreshold,
+                StdErrorThreshold = occupancyConfig.TrustedHorizonStdErrorThreshold,
+                MaxCensoredCount = occupancyConfig.TrustedHorizonMaxCensoredCount
             };
         }
 
         private void InitializePredictionExportFolderForExperiment()
         {
-            if (!bEnablePredictionEvaluation || !bExportPredictionSamples)
+            if (!moduleConfig.Prediction.EnableEvaluation || !moduleConfig.Prediction.ExportResolvedSamples)
                 return;
 
             string predictionRoot = Path.Combine(Directory.GetCurrentDirectory(), "CGnA_DataLog", "predictionEvaluate");
@@ -476,21 +395,22 @@ namespace _GCM
 
         private void InitializePartitionRiskLayer()
         {
+            PartitionRiskModuleConfig riskConfig = moduleConfig.PartitionRisk;
             PartitionRiskConfig config = new PartitionRiskConfig
             {
-                OutputEveryNFrames = Mathf.Max(1, riskOutputEveryNFrames),
-                CellBoundarySafeClearance = riskCellBoundarySafeClearance,
-                PhysicalBoundarySafeClearance = riskPhysicalBoundarySafeClearance,
-                PairSafeSeparation = riskPairSafeSeparation,
-                SeedDeltaReference = riskSeedDeltaReference,
-                AdjacencyRiskThreshold = riskAdjacencyThreshold,
-                DominantRiskNoneThreshold = riskDominantNoneThreshold,
-                DominantRiskMixedGap = riskDominantMixedGap,
+                OutputEveryNFrames = Mathf.Max(1, riskConfig.OutputEveryNFrames),
+                CellBoundarySafeClearance = riskConfig.CellBoundarySafeClearance,
+                PhysicalBoundarySafeClearance = riskConfig.PhysicalBoundarySafeClearance,
+                PairSafeSeparation = riskConfig.PairSafeSeparation,
+                SeedDeltaReference = riskConfig.SeedDeltaReference,
+                AdjacencyRiskThreshold = riskConfig.AdjacencyThreshold,
+                DominantRiskNoneThreshold = riskConfig.DominantNoneThreshold,
+                DominantRiskMixedGap = riskConfig.DominantMixedGap,
                 Weights = new RiskWeights
                 {
-                    CellBoundaryWeight = riskWeightCellBoundary,
-                    UserWeight = riskWeightUser,
-                    SmoothWeight = riskWeightSmooth
+                    CellBoundaryWeight = riskConfig.WeightCellBoundary,
+                    UserWeight = riskConfig.WeightUser,
+                    SmoothWeight = riskConfig.WeightSmooth
                 }
             };
 
@@ -502,32 +422,33 @@ namespace _GCM
 
         private void InitializePartitionUpdateLayer()
         {
+            PartitionUpdateModuleConfig updateConfig = moduleConfig.PartitionUpdate;
             partitionUpdateTriggerEvaluator = new PartitionUpdateTriggerEvaluator(
-                tauCellRiskEnter,
-                tauCellRiskExit,
-                tauNeighborRiskEnter,
-                tauNeighborRiskExit,
-                persistFramesCell,
-                persistFramesNeighbor,
-                seedUpdateCooldown,
-                seedTriggerMoveThreshold);
+                updateConfig.TauCellRiskEnter,
+                updateConfig.TauCellRiskExit,
+                updateConfig.TauNeighborRiskEnter,
+                updateConfig.TauNeighborRiskExit,
+                updateConfig.PersistFramesCell,
+                updateConfig.PersistFramesNeighbor,
+                updateConfig.SeedUpdateCooldown,
+                updateConfig.SeedTriggerMoveThreshold);
 
             riskDrivenSeedUpdater = new RiskDrivenSeedUpdater(
-                seedTrendWeight,
-                seedNeighborWeight,
-                seedAnchorWeight,
-                seedStepLow,
-                seedStepMedium,
-                seedStepHigh,
-                maxSeedShiftPerUpdate,
-                maxSeedOffsetFromUser);
+                updateConfig.SeedTrendWeight,
+                updateConfig.SeedNeighborWeight,
+                updateConfig.SeedAnchorWeight,
+                updateConfig.SeedStepLow,
+                updateConfig.SeedStepMedium,
+                updateConfig.SeedStepHigh,
+                updateConfig.MaxSeedShiftPerUpdate,
+                updateConfig.MaxSeedOffsetFromUser);
 
             partitionUpdateAcceptancePolicy = new PartitionUpdateAcceptancePolicy(
-                partitionAcceptEpsilon,
-                partitionCellRiskWeight,
-                partitionNeighborRiskWeight,
-                partitionMaxAllowedCellRiskWorsen,
-                partitionMaxAllowedNeighborRiskWorsen);
+                updateConfig.PartitionAcceptEpsilon,
+                updateConfig.PartitionCellRiskWeight,
+                updateConfig.PartitionNeighborRiskWeight,
+                updateConfig.PartitionMaxAllowedCellRiskWorsen,
+                updateConfig.PartitionMaxAllowedNeighborRiskWorsen);
 
             partitionUpdateLogger = new PartitionUpdateLogger();
             partitionUpdateVisualizer = new PartitionUpdateVisualizer();
@@ -551,28 +472,29 @@ namespace _GCM
 
         private void InitializeLocalSafeTargetSelection()
         {
+            LocalSafeTargetModuleConfig localConfig = moduleConfig.LocalSafeTarget;
             var config = new LocalSafeTargetConfig
             {
-                FanHalfAngleDegrees = localTargetFanHalfAngleDeg,
-                SearchRadiusMin = localTargetSearchRadiusMin,
-                SearchRadiusMax = localTargetSearchRadiusMax,
-                BoundaryBufferMin = localTargetBoundaryBufferMin,
-                BoundaryBufferMax = localTargetBoundaryBufferMax,
-                GridResolutionMin = localTargetGridResolutionMin,
-                GridResolutionMax = localTargetGridResolutionMax,
-                WeightBoundaryDist = localTargetWeightBoundary,
-                WeightOccupancyDist = localTargetWeightOccupancy,
-                WeightDistancePenalty = localTargetWeightDistance,
-                SampleDensityPerM2 = localTargetSampleDensityPerM2,
-                MinSamplesPerUser = localTargetMinSamples,
-                MaxSamplesPerUser = localTargetMaxSamples,
-                AngleSampleCount = 11,
-                RadiusSampleCount = 3,
-                WeightSelfOpen = localTargetWeightBoundary,
-                WeightFrontMargin = localTargetWeightOccupancy,
-                WeightNeighborImpact = localTargetWeightDistance,
-                WeightHeadingDeviation = 0.6f,
-                NeighborSafetyBuffer = 0.35f
+                FanHalfAngleDegrees = localConfig.FanHalfAngleDeg,
+                SearchRadiusMin = localConfig.SearchRadiusMin,
+                SearchRadiusMax = localConfig.SearchRadiusMax,
+                BoundaryBufferMin = localConfig.BoundaryBufferMin,
+                BoundaryBufferMax = localConfig.BoundaryBufferMax,
+                GridResolutionMin = localConfig.GridResolutionMin,
+                GridResolutionMax = localConfig.GridResolutionMax,
+                WeightBoundaryDist = localConfig.WeightBoundaryDist,
+                WeightOccupancyDist = localConfig.WeightOccupancyDist,
+                WeightDistancePenalty = localConfig.WeightDistancePenalty,
+                SampleDensityPerM2 = localConfig.SampleDensityPerM2,
+                MinSamplesPerUser = localConfig.MinSamplesPerUser,
+                MaxSamplesPerUser = localConfig.MaxSamplesPerUser,
+                AngleSampleCount = localConfig.AngleSamples,
+                RadiusSampleCount = localConfig.RadiusSamples,
+                WeightSelfOpen = localConfig.WeightSelfOpen,
+                WeightFrontMargin = localConfig.WeightFrontMargin,
+                WeightNeighborImpact = localConfig.WeightNeighborImpact,
+                WeightHeadingDeviation = localConfig.WeightHeadingDeviation,
+                NeighborSafetyBuffer = localConfig.NeighborSafetyBuffer
             };
 
             localSafeTargetSelector = new LocalSafeTargetSelector(config);
@@ -647,162 +569,23 @@ namespace _GCM
                 return;
 
             FrameState frameState = stateCollector.CaptureFrameState(totalUserCount);
+            VelocityModuleConfig velocityConfig = moduleConfig.Velocity;
+            PredictionModuleConfig predictionConfig = moduleConfig.Prediction;
+            PredictiveOccupancyModuleConfig occupancyConfig = moduleConfig.PredictiveOccupancy;
+            PartitionRiskModuleConfig riskConfig = moduleConfig.PartitionRisk;
+            PartitionUpdateModuleConfig updateConfig = moduleConfig.PartitionUpdate;
+            LocalSafeTargetModuleConfig localSafeTargetConfig = moduleConfig.LocalSafeTarget;
 
-            simulationFrameIndex++;
-            simulationElapsedTime += Time.fixedDeltaTime;
+            AdvanceSimulationClock();
+            UpdateVelocityTracker(frameState, velocityConfig);
+            UpdatePredictiveOccupancy(frameState, occupancyConfig);
+            UpdatePredictionSampling(frameState, predictionConfig);
 
-            velocityPredictor.AlphaMax = alphaMax;
-            velocityPredictor.VMax = vMax;
-            velocityPredictor.VelocityToOffsetFactor = velocityToOffsetFactor;
-            velocityPredictor.MaxVelocityOffsetDist = maxVelocityOffsetDist;
-            velocityPredictor.StopThreshold = stopThreshold;
-            velocityPredictor.Update(frameState.PhysicalUsers, Time.fixedDeltaTime, bUseVelocityOffset);
-
-            if (bEnablePredictiveOccupancy && predictiveOccupancyBuilder != null)
-            {
-                latestPredictedOccupancyFrame = predictiveOccupancyBuilder.BuildFrame(
-                    frameState.PhysicalUsers,
-                    velocityPredictor,
-                    predictiveOccupancyHorizons,
-                    predictiveUncertaintyModel,
-                    simulationFrameIndex,
-                    simulationElapsedTime);
-            }
-
-            // 先注册当前帧预测
-            if (predictionEvaluator != null && predictionEvaluator.ShouldSample(simulationFrameIndex))
-            {
-                predictionEvaluator.RegisterPredictions(
-                    GetCurrentEpisodeId(),
-                    simulationFrameIndex,
-                    simulationElapsedTime,
-                    frameState.PhysicalUsers,
-                    velocityPredictor,
-                    trajectoryModeLabel
-                );
-            }
-
-            // 再尝试回填已到期的样本
-            if (predictionEvaluator != null)
-            {
-                predictionEvaluator.ResolveDuePredictions(simulationElapsedTime, frameState.PhysicalUsers);
-            }
-
-            episodeService.SimulationCountMax = SimulationCount_max;
-            episodeService.TargetDistancePerUser = TargetDistancePerUser;
-            episodeService.Tick(stateCollector);
-
-            /// Init Obstacle mesh info for next episode
-            if (episodeService.ShouldEndEpisode(stateCollector))
-            {
-                Debug.Log($"Episode Finished. Total Dist: {stateCollector.CurrentEpisodeTotalDistance}");
-
-                int endedEpisodeId = GetCurrentEpisodeId();
-                bool isLastEpisodeInExperiment = endedEpisodeId >= SimulationCount_max;
-
-                if (predictionEvaluator != null && bEnablePredictionEvaluation)
-                {
-                    List<EpisodePredictionSummary> episodeSummaries = predictionEvaluator.EndEpisode(true);
-                    Debug.Log("[PredictionEvaluator] " + predictionEvaluator.BuildReadableSummary(episodeSummaries));
-
-                    if (horizonSelector != null)
-                    {
-                        HorizonSelectionResult selection = horizonSelector.SelectTrustedHorizons(episodeSummaries, trajectoryModeLabel);
-                        Debug.Log($"[HorizonSelector] Trusted horizons: {string.Join(", ", selection.TrustedHorizons)} | Untrusted horizons: {string.Join(", ", selection.UntrustedHorizons)}");
-                    }
-
-                    if (bExportPredictionSamples)
-                    {
-                        if (string.IsNullOrEmpty(predictionExperimentFolderPath) || !Directory.Exists(predictionExperimentFolderPath))
-                        {
-                            InitializePredictionExportFolderForExperiment();
-                        }
-
-                        string episodeSamplePath = Path.Combine(
-                            predictionExperimentFolderPath,
-                            $"prediction_eval_episode_{endedEpisodeId:000}.csv");
-                        predictionEvaluator.ExportEpisodeSamplesCsv(episodeSamplePath);
-                    }
-
-                    predictionEvaluator.ClearEpisodeData();
-                }
-
-                episodeService.FinalizeEpisode(stateCollector);
-
-                if (predictionEvaluator != null && bEnablePredictionEvaluation && isLastEpisodeInExperiment)
-                {
-                    if (bExportPredictionSamples)
-                    {
-                        if (string.IsNullOrEmpty(predictionExperimentFolderPath) || !Directory.Exists(predictionExperimentFolderPath))
-                        {
-                            InitializePredictionExportFolderForExperiment();
-                        }
-
-                        string overallSummaryPath = Path.Combine(
-                            predictionExperimentFolderPath,
-                            "prediction_eval_overall_summary.csv");
-                        predictionEvaluator.ExportOverallSummaryCsv(overallSummaryPath);
-                    }
-
-                    predictionEvaluator.ClearAll();
-
-                    if (bExportPredictionSamples)
-                    {
-                        InitializePredictionExportFolderForExperiment();
-                    }
-                }
-
-                ResetEpisode();
+            if (TryEndEpisodeIfNeeded(predictionConfig))
                 return;
-            }
 
-            IReadOnlyList<Vector3> offsetResult = velocityPredictor.GetOffsets();
-            latestPartitionResult = voronoiPartitioner.Build(
-                frameState,
-                offsetResult,
-                Time.deltaTime,
-                bUseVelocityOffset,
-                physicalRoom_width_half,
-                physicalRoom_height_half);
-
-            ApplyPartitionResult(latestPartitionResult);
-
-            latestPartitionRiskFrame = null;
-            if (bEnablePartitionRiskEvaluation && partitionRiskEvaluator != null)
-            {
-                latestPartitionRiskFrame = partitionRiskEvaluator.Evaluate(
-                    simulationFrameIndex,
-                    simulationElapsedTime,
-                    latestPartitionResult,
-                    latestPredictedOccupancyFrame,
-                    frameState.PhysicalUsers,
-                    physicalRoom_width_half,
-                    physicalRoom_height_half);
-
-                if (enableRiskDrivenPartitionUpdate)
-                {
-                    TryApplyRiskDrivenPartitionUpdate(frameState, offsetResult);
-                }
-
-                if (bEnableRiskLogging && partitionRiskLogger != null)
-                {
-                    partitionRiskLogger.TryLogFrame(latestPartitionRiskFrame);
-                }
-            }
-
-            // Phase 5: Local Safe Target Selection
-            if (enableLocalSafeTargetSelection && localSafeTargetSelector != null && latestPartitionResult != null)
-            {
-                TrySelectLocalSafeTargets(frameState, latestPartitionResult, latestPartitionRiskFrame, latestPredictedOccupancyFrame);
-                ApplyLocalTargetsToRedirectors();
-                
-                // Update visualizer
-                if (enableLocalSafeTargetVisualization && localSafeTargetVisualizer != null)
-                {
-                    localSafeTargetVisualizer.UpdateTargets(latestLocalTargets);
-                    localSafeTargetVisualizer.UpdateCellVertices(dic_AreaSegmentsVertex);
-                }
-            }
+            EvaluatePartitionAndRisk(frameState, velocityConfig, riskConfig, updateConfig);
+            UpdateLocalSafeTargetModule(frameState, localSafeTargetConfig);
 
             // Removed bEnable_InitPhyUserPosUni one-frame lock logic
             // Removed bOneframetimerblockVoronoi logic
@@ -813,6 +596,181 @@ namespace _GCM
             RDWSimulationManager.instance.SimulateRDW();
 
             // AddRewards(); // Removed
+        }
+
+        private void AdvanceSimulationClock()
+        {
+            simulationFrameIndex++;
+            simulationElapsedTime += Time.fixedDeltaTime;
+        }
+
+        private void UpdateVelocityTracker(FrameState frameState, VelocityModuleConfig velocityConfig)
+        {
+            velocityPredictor.AlphaMax = velocityConfig.AlphaMax;
+            velocityPredictor.VMax = velocityConfig.VMax;
+            velocityPredictor.VelocityToOffsetFactor = velocityConfig.VelocityToOffsetFactor;
+            velocityPredictor.MaxVelocityOffsetDist = velocityConfig.MaxVelocityOffsetDist;
+            velocityPredictor.StopThreshold = velocityConfig.StopThreshold;
+            velocityPredictor.Update(frameState.PhysicalUsers, Time.fixedDeltaTime, velocityConfig.UseVelocityOffset);
+        }
+
+        private void UpdatePredictiveOccupancy(FrameState frameState, PredictiveOccupancyModuleConfig occupancyConfig)
+        {
+            if (!occupancyConfig.Enable || predictiveOccupancyBuilder == null)
+                return;
+
+            latestPredictedOccupancyFrame = predictiveOccupancyBuilder.BuildFrame(
+                frameState.PhysicalUsers,
+                velocityPredictor,
+                occupancyConfig.Horizons,
+                predictiveUncertaintyModel,
+                simulationFrameIndex,
+                simulationElapsedTime);
+        }
+
+        private void UpdatePredictionSampling(FrameState frameState, PredictionModuleConfig predictionConfig)
+        {
+            if (predictionEvaluator == null)
+                return;
+
+            if (predictionEvaluator.ShouldSample(simulationFrameIndex))
+            {
+                predictionEvaluator.RegisterPredictions(
+                    GetCurrentEpisodeId(),
+                    simulationFrameIndex,
+                    simulationElapsedTime,
+                    frameState.PhysicalUsers,
+                    velocityPredictor,
+                    predictionConfig.TrajectoryModeLabel);
+            }
+
+            predictionEvaluator.ResolveDuePredictions(simulationElapsedTime, frameState.PhysicalUsers);
+        }
+
+        private bool TryEndEpisodeIfNeeded(PredictionModuleConfig predictionConfig)
+        {
+            episodeService.SimulationCountMax = SimulationCount_max;
+            episodeService.TargetDistancePerUser = TargetDistancePerUser;
+            episodeService.Tick(stateCollector);
+
+            if (!episodeService.ShouldEndEpisode(stateCollector))
+                return false;
+
+            Debug.Log($"Episode Finished. Total Dist: {stateCollector.CurrentEpisodeTotalDistance}");
+
+            int endedEpisodeId = GetCurrentEpisodeId();
+            bool isLastEpisodeInExperiment = endedEpisodeId >= SimulationCount_max;
+
+            if (predictionEvaluator != null && predictionConfig.EnableEvaluation)
+            {
+                List<EpisodePredictionSummary> episodeSummaries = predictionEvaluator.EndEpisode(true);
+                Debug.Log("[PredictionEvaluator] " + predictionEvaluator.BuildReadableSummary(episodeSummaries));
+
+                if (horizonSelector != null)
+                {
+                    HorizonSelectionResult selection = horizonSelector.SelectTrustedHorizons(episodeSummaries, predictionConfig.TrajectoryModeLabel);
+                    Debug.Log($"[HorizonSelector] Trusted horizons: {string.Join(", ", selection.TrustedHorizons)} | Untrusted horizons: {string.Join(", ", selection.UntrustedHorizons)}");
+                }
+
+                if (predictionConfig.ExportResolvedSamples)
+                {
+                    if (string.IsNullOrEmpty(predictionExperimentFolderPath) || !Directory.Exists(predictionExperimentFolderPath))
+                    {
+                        InitializePredictionExportFolderForExperiment();
+                    }
+
+                    string episodeSamplePath = Path.Combine(
+                        predictionExperimentFolderPath,
+                        $"prediction_eval_episode_{endedEpisodeId:000}.csv");
+                    predictionEvaluator.ExportEpisodeSamplesCsv(episodeSamplePath);
+                }
+
+                predictionEvaluator.ClearEpisodeData();
+            }
+
+            episodeService.FinalizeEpisode(stateCollector);
+
+            if (predictionEvaluator != null && predictionConfig.EnableEvaluation && isLastEpisodeInExperiment)
+            {
+                if (predictionConfig.ExportResolvedSamples)
+                {
+                    if (string.IsNullOrEmpty(predictionExperimentFolderPath) || !Directory.Exists(predictionExperimentFolderPath))
+                    {
+                        InitializePredictionExportFolderForExperiment();
+                    }
+
+                    string overallSummaryPath = Path.Combine(
+                        predictionExperimentFolderPath,
+                        "prediction_eval_overall_summary.csv");
+                    predictionEvaluator.ExportOverallSummaryCsv(overallSummaryPath);
+                }
+
+                predictionEvaluator.ClearAll();
+
+                if (predictionConfig.ExportResolvedSamples)
+                {
+                    InitializePredictionExportFolderForExperiment();
+                }
+            }
+
+            ResetEpisode();
+            return true;
+        }
+
+        private void EvaluatePartitionAndRisk(
+            FrameState frameState,
+            VelocityModuleConfig velocityConfig,
+            PartitionRiskModuleConfig riskConfig,
+            PartitionUpdateModuleConfig updateConfig)
+        {
+            IReadOnlyList<Vector3> offsetResult = velocityPredictor.GetOffsets();
+            latestPartitionResult = voronoiPartitioner.Build(
+                frameState,
+                offsetResult,
+                Time.deltaTime,
+                velocityConfig.UseVelocityOffset,
+                physicalRoom_width_half,
+                physicalRoom_height_half);
+
+            ApplyPartitionResult(latestPartitionResult);
+
+            latestPartitionRiskFrame = null;
+            if (!riskConfig.EnableEvaluation || partitionRiskEvaluator == null)
+                return;
+
+            latestPartitionRiskFrame = partitionRiskEvaluator.Evaluate(
+                simulationFrameIndex,
+                simulationElapsedTime,
+                latestPartitionResult,
+                latestPredictedOccupancyFrame,
+                frameState.PhysicalUsers,
+                physicalRoom_width_half,
+                physicalRoom_height_half);
+
+            if (updateConfig.EnableRiskDrivenUpdate)
+            {
+                TryApplyRiskDrivenPartitionUpdate(frameState, offsetResult);
+            }
+
+            if (riskConfig.EnableLogging && partitionRiskLogger != null)
+            {
+                partitionRiskLogger.TryLogFrame(latestPartitionRiskFrame);
+            }
+        }
+
+        private void UpdateLocalSafeTargetModule(FrameState frameState, LocalSafeTargetModuleConfig localSafeTargetConfig)
+        {
+            if (!localSafeTargetConfig.EnableSelection || localSafeTargetSelector == null || latestPartitionResult == null)
+                return;
+
+            TrySelectLocalSafeTargets(frameState, latestPartitionResult, latestPartitionRiskFrame, latestPredictedOccupancyFrame);
+            ApplyLocalTargetsToRedirectors();
+
+            if (localSafeTargetConfig.EnableVisualization && localSafeTargetVisualizer != null)
+            {
+                localSafeTargetVisualizer.UpdateTargets(latestLocalTargets);
+                localSafeTargetVisualizer.UpdateCellVertices(dic_AreaSegmentsVertex);
+            }
         }
         private void ApplyPartitionResult(PartitionResult partitionResult)
         {
@@ -920,8 +878,10 @@ namespace _GCM
             if (partitionUpdateCoordinator == null)
                 return;
 
+            PartitionUpdateModuleConfig updateConfig = moduleConfig.PartitionUpdate;
+            VelocityModuleConfig velocityConfig = moduleConfig.Velocity;
             partitionUpdateCoordinator.Execute(
-                enableRiskDrivenPartitionUpdate,
+                updateConfig.EnableRiskDrivenUpdate,
                 frameState,
                 offsetResult,
                 velocityPredictor,
@@ -931,7 +891,7 @@ namespace _GCM
                 simulationFrameIndex,
                 simulationElapsedTime,
                 Time.deltaTime,
-                bUseVelocityOffset,
+                velocityConfig.UseVelocityOffset,
                 physicalRoom_width_half,
                 physicalRoom_height_half,
                 ref latestPartitionResult,
@@ -1044,81 +1004,24 @@ namespace _GCM
 
         private void OnDrawGizmos()
         {
-            if (bEnablePredictiveOccupancyGizmos && predictiveOccupancyVisualizer != null && latestPredictedOccupancyFrame != null)
+            EnsureModuleConfig();
+
+            if (moduleConfig.PredictiveOccupancy.EnableGizmos && predictiveOccupancyVisualizer != null && latestPredictedOccupancyFrame != null)
             {
-                predictiveOccupancyVisualizer.Draw(latestPredictedOccupancyFrame, predictiveOccupancyGizmoHeight);
+                predictiveOccupancyVisualizer.Draw(latestPredictedOccupancyFrame, moduleConfig.PredictiveOccupancy.GizmoHeight);
             }
 
-            if (bEnableRiskVisualization && partitionRiskVisualizer != null && latestPartitionRiskFrame != null && stateCollector != null)
+            if (moduleConfig.PartitionRisk.EnableVisualization && partitionRiskVisualizer != null && latestPartitionRiskFrame != null && stateCollector != null)
             {
                 partitionRiskVisualizer.Draw(latestPartitionRiskFrame, stateCollector.PhysicalUsers);
             }
 
-            if (bEnablePartitionUpdateVisualization && partitionUpdateVisualizer != null)
+            if (moduleConfig.PartitionUpdate.EnableVisualization && partitionUpdateVisualizer != null)
             {
                 partitionUpdateVisualizer.Draw(latestPartitionUpdateAttempts, latestPartitionResult);
             }
 
-            DrawPartitionAreaGizmos();
-        }
-
-
-
-        private void DrawPartitionAreaGizmos()
-        {
-            if (dic_AreaSegmentsVertex == null || dic_AreaSegmentsVertex.Count == 0)
-                return;
-
-            const float gizmoHeight = 0.02f;
-            const float outlineHeightOffset = 0.005f;
-            const float fillAlpha = 0.24f;
-
-            foreach (var kv in dic_AreaSegmentsVertex)
-            {
-                int userIndex = kv.Key;
-                List<Vector2> vertices2D = kv.Value;
-
-                if (vertices2D == null || vertices2D.Count < 3)
-                    continue;
-
-                Color baseColor = ResolvePartitionColor(userIndex);
-                Vector3[] points = new Vector3[vertices2D.Count];
-
-                for (int i = 0; i < vertices2D.Count; i++)
-                {
-                    points[i] = new Vector3(vertices2D[i].x, gizmoHeight, vertices2D[i].y);
-                }
-
-#if UNITY_EDITOR
-                Color fillColor = baseColor;
-                fillColor.a = fillAlpha;
-                Handles.color = fillColor;
-                Handles.DrawAAConvexPolygon(points);
-#endif
-
-                Color outlineColor = baseColor;
-                outlineColor.a = 0.95f;
-                Gizmos.color = outlineColor;
-
-                for (int i = 0; i < points.Length; i++)
-                {
-                    Vector3 a = points[i] + Vector3.up * outlineHeightOffset;
-                    Vector3 b = points[(i + 1) % points.Length] + Vector3.up * outlineHeightOffset;
-                    Gizmos.DrawLine(a, b);
-                }
-            }
-        }
-
-        private Color ResolvePartitionColor(int userIndex)
-        {
-            if (PartitionedSpaceMaterials != null && userIndex >= 0 && userIndex < PartitionedSpaceMaterials.Count)
-            {
-                Material mat = PartitionedSpaceMaterials[userIndex];
-                if (mat != null)
-                    return mat.color;
-            }
-
-            return Color.HSVToRGB(Mathf.Repeat(userIndex * 0.173f, 1f), 0.75f, 1f);
+            PartitionVisualizer.DrawPartitionAreaGizmos(dic_AreaSegmentsVertex, PartitionedSpaceMaterials);
         }
 
         // Heuristic removed

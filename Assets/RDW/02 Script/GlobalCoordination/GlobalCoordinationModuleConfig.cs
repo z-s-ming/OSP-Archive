@@ -110,6 +110,16 @@ namespace _GCM
         public float SearchRadiusMin = 1.5f;
         public float SearchRadiusMax = 2.0f;
         public float BoundaryBufferMin = 0.3f;
+        public float BoundaryBufferMax = 0.5f;
+        public float GridResolutionMin = 0.15f;
+        public float GridResolutionMax = 0.25f;
+
+        public float WeightBoundaryDist = 1.0f;
+        public float WeightOccupancyDist = 1.5f;
+        public float WeightDistancePenalty = 0.4f;
+        public float SampleDensityPerM2 = 55f;
+        public int MinSamplesPerUser = 24;
+        public int MaxSamplesPerUser = 120;
 
         // Polar sampling: K = angleCount * radiusCount (default 11 * 3 = 33).
         public int AngleSamples = 11;
