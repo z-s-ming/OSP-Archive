@@ -14,6 +14,7 @@ namespace _GCM
         private const float BI_RECOVERABILITY_PRECHECK_HORIZON_SECONDS = 1.5f;
         private const int BI_RECOVERABILITY_PRECHECK_SAMPLE_COUNT = 60;
         private const float BI_RECOVERABILITY_DIRECTION_EPSILON = 0.0001f;
+        private const float BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD = 0.05f;
 
         #region singleton pattern
         /// <summary>
@@ -551,6 +552,9 @@ namespace _GCM
                 partitionUpdateLogger.ResetSession();
             }
 
+            BidirectionalCollisionRecoverabilityEvaluator.ResetTemporalState();
+            BidirectionalCollisionRecoverabilityLogger.ResetSession();
+
             latestPartitionRiskFrame = null;
             latestPartitionUpdateAttempts.Clear();
         }
@@ -851,7 +855,11 @@ namespace _GCM
                         continue;
                     }
 
-                    if (Vector2.Dot(movementA.normalized, movementB.normalized) >= 0.0f)
+                    float speedA = Mathf.Max(unitA.GetResetter().GetTranslationSpeed(), 0.0f);
+                    float speedB = Mathf.Max(unitB.GetResetter().GetTranslationSpeed(), 0.0f);
+                    Vector2 offsetAB = unitB.GetRealUser().transform2D.localPosition - unitA.GetRealUser().transform2D.localPosition;
+                    float closingSpeed = ResolveClosingSpeedFromKinematics(offsetAB, movementA.normalized * speedA, movementB.normalized * speedB);
+                    if (closingSpeed <= BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD)
                         continue;
 
                     BidirectionalCollisionRecoverabilityEvaluator.Evaluate(
@@ -859,9 +867,20 @@ namespace _GCM
                         unitB,
                         BI_RECOVERABILITY_PRECHECK_HORIZON_SECONDS,
                         BI_RECOVERABILITY_PRECHECK_SAMPLE_COUNT,
-                        "precheck_candidate");
+                        "precheck_candidate",
+                        true);
                 }
             }
+        }
+
+        private static float ResolveClosingSpeedFromKinematics(Vector2 offsetAB, Vector2 velocityA, Vector2 velocityB)
+        {
+            if (offsetAB.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON)
+                return 0.0f;
+
+            Vector2 towardB = offsetAB.normalized;
+            Vector2 relativeVelocity = velocityB - velocityA;
+            return -Vector2.Dot(relativeVelocity, towardB);
         }
 
         private void SyncPartitionUpdateStatesWithCurrentSeeds()

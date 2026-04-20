@@ -55,10 +55,13 @@ public static class BidirectionalCollisionRecoverabilityLogger
         Vector2 movementB = NormalizeOrZero(unitB.GetLastMovementDirection());
         float forwardDot = Vector2.Dot(forwardA, forwardB);
         float movementDot = Vector2.Dot(movementA, movementB);
+        bool unitAUsedRotationGain = unitA.UsedRotationGainInLastMove();
+        bool unitBUsedRotationGain = unitB.UsedRotationGainInLastMove();
 
         float speedA = Mathf.Max(unitA.GetResetter().GetTranslationSpeed(), 0.0f);
         float speedB = Mathf.Max(unitB.GetResetter().GetTranslationSpeed(), 0.0f);
         float closingSpeed = ResolveClosingSpeed(offsetAB, movementA * speedA, movementB * speedB);
+        string collisionType = ResolveCollisionType(unitA.GetStatus(), unitB.GetStatus());
 
         int unitAId = unitA.GetID();
         int unitBId = unitB.GetID();
@@ -68,7 +71,7 @@ public static class BidirectionalCollisionRecoverabilityLogger
         StringBuilder sb = new StringBuilder();
         if (!headerWritten)
         {
-            sb.AppendLine("frame,time,pairMinId,pairMaxId,unitAId,unitBId,triggerTag,unitAStatus,unitBStatus,distanceNow,safeDistance,isIntersectNow,forwardDot,movementDot,closingSpeed,recoverable,maxSeparationMargin,marginLL,marginLR,marginRL,marginRR,bestSigmaA,bestSigmaB,worstTimeOnBestPair,horizonSeconds,sampleCount");
+            sb.AppendLine("frame,time,pairMinId,pairMaxId,unitAId,unitBId,triggerTag,unitAStatus,unitBStatus,collisionType,unitAUsedRotationGain,unitBUsedRotationGain,distanceNow,predictedMinDistance,currentDistance,safeDistance,isIntersectNow,forwardDot,movementDot,closingSpeed,closingSpeedNow,isAdjacentCellCandidate,isApproachingCandidate,irrecoverableStreak,persistentStreak,isIrrecoverable,isApproaching,isPersistent,riskConfirmed,recoverable,maxSeparationMargin,marginLL,marginLR,marginRL,marginRR,bestSigmaA,bestSigmaB,worstTimeOnBestPair,horizonSeconds,sampleCount");
             headerWritten = true;
         }
 
@@ -81,12 +84,26 @@ public static class BidirectionalCollisionRecoverabilityLogger
         sb.Append(SanitizeCsv(triggerTag)).Append(',');
         sb.Append(SanitizeCsv(unitA.GetStatus())).Append(',');
         sb.Append(SanitizeCsv(unitB.GetStatus())).Append(',');
+        sb.Append(SanitizeCsv(collisionType)).Append(',');
+        sb.Append(unitAUsedRotationGain ? 1 : 0).Append(',');
+        sb.Append(unitBUsedRotationGain ? 1 : 0).Append(',');
         sb.Append(ToInvariant(distanceNow)).Append(',');
+        sb.Append(ToInvariant(assessment.PredictedMinDistance)).Append(',');
+        sb.Append(ToInvariant(assessment.CurrentDistance)).Append(',');
         sb.Append(ToInvariant(safeDistance)).Append(',');
         sb.Append(isIntersectNow ? 1 : 0).Append(',');
         sb.Append(ToInvariant(forwardDot)).Append(',');
         sb.Append(ToInvariant(movementDot)).Append(',');
         sb.Append(ToInvariant(closingSpeed)).Append(',');
+        sb.Append(ToInvariant(assessment.ClosingSpeedNow)).Append(',');
+        sb.Append(assessment.IsAdjacentCellCandidate ? 1 : 0).Append(',');
+        sb.Append(assessment.IsApproachingCandidate ? 1 : 0).Append(',');
+        sb.Append(assessment.IrrecoverableStreak).Append(',');
+        sb.Append(assessment.PersistentStreak).Append(',');
+        sb.Append(assessment.IsIrrecoverable ? 1 : 0).Append(',');
+        sb.Append(assessment.IsApproaching ? 1 : 0).Append(',');
+        sb.Append(assessment.IsPersistent ? 1 : 0).Append(',');
+        sb.Append(assessment.RiskConfirmed ? 1 : 0).Append(',');
         sb.Append(assessment.Recoverable ? 1 : 0).Append(',');
         sb.Append(ToInvariant(assessment.MaxSeparationMargin)).Append(',');
         sb.Append(ToInvariant(assessment.MarginLL)).Append(',');
@@ -165,5 +182,22 @@ public static class BidirectionalCollisionRecoverabilityLogger
             return string.Empty;
 
         return value.Replace(",", "_");
+    }
+
+    private static string ResolveCollisionType(string unitAStatus, string unitBStatus)
+    {
+        bool aWall = string.Equals(unitAStatus, "WALL_RESET", StringComparison.Ordinal);
+        bool bWall = string.Equals(unitBStatus, "WALL_RESET", StringComparison.Ordinal);
+        if (aWall || bWall)
+            return "BoundaryCollision";
+
+        bool aUser = string.Equals(unitAStatus, "USER_RESET", StringComparison.Ordinal);
+        bool bUser = string.Equals(unitBStatus, "USER_RESET", StringComparison.Ordinal);
+        if (aUser && bUser)
+            return "UserCollisionDoubleReset";
+        if (aUser || bUser)
+            return "UserCollisionSingleReset";
+
+        return "None";
     }
 }

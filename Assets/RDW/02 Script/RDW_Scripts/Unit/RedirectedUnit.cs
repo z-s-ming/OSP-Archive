@@ -36,6 +36,7 @@ public class RedirectedUnit
     private Vector2 cachedUserResetDirection = Vector2.zero;
     private bool hasCachedUserResetDirection = false;
     private Vector2 lastMovementDirection = Vector2.zero;
+    private bool usedRotationGainInLastMove = false;
 
     private bool isResetting = false;
     public bool IsResetting { get { return isResetting; } }
@@ -277,6 +278,7 @@ public class RedirectedUnit
     private int i = 0;
     public void Move()
     {
+        usedRotationGainInLastMove = false;
         Vector2 deltaPosition = new Vector2(0,0);
         float deltaRotation = 0f;
         if(virtualSpace.tileMode)
@@ -292,16 +294,19 @@ public class RedirectedUnit
         {
             (GainType type, List<float> degree) = ((ARCRedirector)redirector).ApplyRedirection_ARC(this, deltaPosition, deltaRotation);
             controller.RealMove(realUser, type, degree); // 실제 유저를 이동
+            usedRotationGainInLastMove = (type == GainType.Rotation);
         }
         else if (redirector is ARCRedirector_OSP)
         {
             (GainType type, List<float> degree) = ((ARCRedirector_OSP)redirector).ApplyRedirection_ARC_OSP(this, deltaPosition, deltaRotation);
             controller.RealMove(realUser, type, degree); // 실제 유저를 이동
+            usedRotationGainInLastMove = (type == GainType.Rotation);
         }
         else
         {
             (GainType type, float degree) = redirector.ApplyRedirection(this, deltaPosition, deltaRotation); // 왜곡시킬 값을 계산
             controller.RealMove(realUser, type, degree); // 실제 유저를 이동
+            usedRotationGainInLastMove = (type == GainType.Rotation);
 
             if (redirector is GainRedirector)
             {
@@ -374,6 +379,11 @@ public class RedirectedUnit
             return realUser.transform2D.forward.normalized;
 
         return Vector2.up;
+    }
+
+    public bool UsedRotationGainInLastMove()
+    {
+        return usedRotationGainInLastMove;
     }
 
     public Object2D GetVirtualUser()

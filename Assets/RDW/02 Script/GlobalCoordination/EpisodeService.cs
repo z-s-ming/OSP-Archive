@@ -56,6 +56,8 @@ namespace _GCM
             StringBuilder sb = new StringBuilder();
             int totalResetCount = 0;
             int doubleUserResetCount = RDWSimulationManager.instance.Calc_DoubleUserResetCount();
+            int boundaryCollisionCount = 0;
+            int totalUserResetCount = 0;
             List<int> userResetCounts = new List<int>();
 
             for (int i = 0; i < _totalUserCount; i++)
@@ -63,7 +65,12 @@ namespace _GCM
                 if (units != null && i < units.Length && units[i] != null)
                 {
                     int resetCount = (int)units[i].resultData.getTotalReset();
+                    int wallResetCount = (int)units[i].resultData.getWallReset();
+                    int shutterResetCount = (int)units[i].resultData.getShutterReset();
+                    int userResetCount = (int)units[i].resultData.getUserReset();
                     totalResetCount += resetCount;
+                    boundaryCollisionCount += wallResetCount + shutterResetCount;
+                    totalUserResetCount += userResetCount;
                     userResetCounts.Add(resetCount);
                 }
                 else
@@ -72,10 +79,13 @@ namespace _GCM
                 }
             }
 
+            int singleUserResetCollisionCount = Mathf.Max(0, totalUserResetCount - (doubleUserResetCount * 2));
             float userResetVariance = CalculateVariance(userResetCounts);
 
             sb.Append(totalResetCount).Append(',');
             sb.Append(userResetVariance.ToString("F4")).Append(',');
+            sb.Append(boundaryCollisionCount).Append(',');
+            sb.Append(singleUserResetCollisionCount).Append(',');
             sb.Append(doubleUserResetCount);
 
             for (int i = 0; i < _totalUserCount; i++)

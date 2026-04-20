@@ -1,9 +1,19 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public static class BidirectionalCollisionRecoverabilityEvaluator
 {
     private const float EPSILON = 0.0001f;
     private const float DEFAULT_SAFE_BUFFER = 0.1f;
+    private const float CLOSING_SPEED_THRESHOLD = 0.05f;
+    private const float APPROACHING_DISTANCE_MARGIN = 0.01f;
+    private const int CONTINUOUS_FRAMES_THRESHOLD = 10;
+
+    private struct PairTemporalState
+    {
+        public int IrrecoverableConsecutiveFrames;
+        public int PersistentConsecutiveFrames;
+    }
 
     private struct PairEvaluation
     {
@@ -13,20 +23,27 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
         public int SigmaB;
     }
 
+    private static readonly Dictionary<long, PairTemporalState> temporalStates = new Dictionary<long, PairTemporalState>();
+
     public static BidirectionalCollisionRecoverabilityAssessment Evaluate(
         RedirectedUnit unitA,
         RedirectedUnit unitB,
         float horizonSeconds,
         int sampleCount,
-        string triggerTag = "default")
+        string triggerTag = "default",
+        bool isAdjacentCellCandidate = false)
     {
         Object2D userA = unitA.GetRealUser();
         Object2D userB = unitB.GetRealUser();
+        int unitAId = unitA.GetID();
+        int unitBId = unitB.GetID();
+        long pairKey = BuildPairKey(unitAId, unitBId);
 
         BidirectionalCollisionRecoverabilityAssessment assessment = new BidirectionalCollisionRecoverabilityAssessment
         {
             PositionA = userA.transform2D.localPosition,
-            PositionB = userB.transform2D.localPosition
+            PositionB = userB.transform2D.localPosition,
+            IsAdjacentCellCandidate = isAdjacentCellCandidate
         };
 
         float speedA = Mathf.Max(unitA.GetResetter().GetTranslationSpeed(), EPSILON);
@@ -57,6 +74,31 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
         if (rl.Margin > best.Margin) best = rl;
         if (rr.Margin > best.Margin) best = rr;
 
+        Vector2 movementA = NormalizeOrZero(unitA.GetLastMovementDirection());
+        Vector2 movementB = NormalizeOrZero(unitB.GetLastMovementDirection());
+        Vector2 velocityA = movementA * speedA;
+        Vector2 velocityB = movementB * speedB;
+        Vector2 offsetAB = userB.transform2D.localPosition - userA.transform2D.localPosition;
+        float currentDistance = offsetAB.magnitude;
+        float predictedMinDistance = best.Margin + safeDistance;
+        float closingSpeedNow = ResolveClosingSpeed(offsetAB, velocityA, velocityB);
+        bool approachingNow = closingSpeedNow > CLOSING_SPEED_THRESHOLD &&
+                              predictedMinDistance < currentDistance - APPROACHING_DISTANCE_MARGIN;
+        bool irrecoverableNow = best.Margin < 0.0f;
+
+        PairTemporalState temporalState = GetTemporalState(pairKey);
+        if (irrecoverableNow)
+            temporalState.IrrecoverableConsecutiveFrames++;
+        else
+            temporalState.IrrecoverableConsecutiveFrames = 0;
+
+        if (irrecoverableNow && approachingNow)
+            temporalState.PersistentConsecutiveFrames++;
+        else
+            temporalState.PersistentConsecutiveFrames = 0;
+
+        temporalStates[pairKey] = temporalState;
+
         assessment.MarginLL = ll.Margin;
         assessment.MarginLR = lr.Margin;
         assessment.MarginRL = rl.Margin;
@@ -66,6 +108,19 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
         assessment.BestSigmaB = best.SigmaB;
         assessment.WorstTimeOnBestPair = best.WorstTime;
         assessment.Recoverable = best.Margin >= 0.0f;
+        assessment.CurrentDistance = currentDistance;
+        assessment.PredictedMinDistance = predictedMinDistance;
+        assessment.ClosingSpeedNow = closingSpeedNow;
+        assessment.IsApproachingCandidate = approachingNow;
+        assessment.IrrecoverableStreak = temporalState.IrrecoverableConsecutiveFrames;
+        assessment.PersistentStreak = temporalState.PersistentConsecutiveFrames;
+        assessment.IsIrrecoverable = temporalState.IrrecoverableConsecutiveFrames >= CONTINUOUS_FRAMES_THRESHOLD;
+        assessment.IsApproaching = approachingNow;
+        assessment.IsPersistent = temporalState.PersistentConsecutiveFrames >= CONTINUOUS_FRAMES_THRESHOLD;
+        assessment.RiskConfirmed = assessment.IsAdjacentCellCandidate &&
+                                   assessment.IsIrrecoverable &&
+                                   assessment.IsApproaching &&
+                                   assessment.IsPersistent;
 
         BidirectionalCollisionRecoverabilityLogger.TryLog(
             unitA,
@@ -77,6 +132,11 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
             assessment);
 
         return assessment;
+    }
+
+    public static void ResetTemporalState()
+    {
+        temporalStates.Clear();
     }
 
     private static PairEvaluation EvaluatePair(
@@ -165,5 +225,38 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
             return ((Circle2D)user).GetRadius();
 
         return 0.5f;
+    }
+
+    private static long BuildPairKey(int unitAId, int unitBId)
+    {
+        int minId = Mathf.Min(unitAId, unitBId);
+        int maxId = Mathf.Max(unitAId, unitBId);
+        return ((long)(uint)minId << 32) | (uint)maxId;
+    }
+
+    private static PairTemporalState GetTemporalState(long pairKey)
+    {
+        if (temporalStates.TryGetValue(pairKey, out PairTemporalState state))
+            return state;
+
+        return new PairTemporalState();
+    }
+
+    private static float ResolveClosingSpeed(Vector2 offsetAB, Vector2 velocityA, Vector2 velocityB)
+    {
+        if (offsetAB.sqrMagnitude <= EPSILON)
+            return 0.0f;
+
+        Vector2 towardB = offsetAB.normalized;
+        Vector2 relativeVelocity = velocityB - velocityA;
+        return -Vector2.Dot(relativeVelocity, towardB);
+    }
+
+    private static Vector2 NormalizeOrZero(Vector2 vector)
+    {
+        if (vector.sqrMagnitude <= EPSILON)
+            return Vector2.zero;
+
+        return vector.normalized;
     }
 }
