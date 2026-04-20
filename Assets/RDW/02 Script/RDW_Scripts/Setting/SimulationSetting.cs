@@ -15,6 +15,8 @@ public class SimulationSetting
     public UnitSetting[] unitSettings;
     public bool bAllowUserReset;
     public bool useHybridApfUserResetDirection;
+    public bool enableBiRecoverabilityLogging;
+    public int biRecoverabilityLogEveryNFrames = 1;
     public bool showTarget;
     public bool showResetLocator;
     public bool showRealWall;

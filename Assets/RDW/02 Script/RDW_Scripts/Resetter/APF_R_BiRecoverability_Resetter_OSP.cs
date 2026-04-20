@@ -72,7 +72,8 @@ public class APF_R_BiRecoverability_Resetter_OSP : APF_R_Resetter_OSP
                 selfUnit,
                 otherUnit,
                 RECOVERABILITY_HORIZON_SECONDS,
-                RECOVERABILITY_SAMPLE_COUNT);
+                RECOVERABILITY_SAMPLE_COUNT,
+                "intersect_opposite");
 
         return assessment.Recoverable;
     }

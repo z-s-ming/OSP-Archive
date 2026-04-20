@@ -17,7 +17,8 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
         RedirectedUnit unitA,
         RedirectedUnit unitB,
         float horizonSeconds,
-        int sampleCount)
+        int sampleCount,
+        string triggerTag = "default")
     {
         Object2D userA = unitA.GetRealUser();
         Object2D userB = unitB.GetRealUser();
@@ -65,6 +66,15 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
         assessment.BestSigmaB = best.SigmaB;
         assessment.WorstTimeOnBestPair = best.WorstTime;
         assessment.Recoverable = best.Margin >= 0.0f;
+
+        BidirectionalCollisionRecoverabilityLogger.TryLog(
+            unitA,
+            unitB,
+            safeDistance,
+            safeHorizon,
+            safeSampleCount,
+            triggerTag,
+            assessment);
 
         return assessment;
     }

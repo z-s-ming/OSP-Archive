@@ -15,6 +15,10 @@ namespace _GCM
 {
     public class GlobalCoordinationManager : MonoBehaviour
     {
+        private const float BI_RECOVERABILITY_PRECHECK_HORIZON_SECONDS = 1.5f;
+        private const int BI_RECOVERABILITY_PRECHECK_SAMPLE_COUNT = 60;
+        private const float BI_RECOVERABILITY_DIRECTION_EPSILON = 0.0001f;
+
         #region singleton pattern
         /// <summary>
         /// Singleton instance
@@ -561,7 +565,14 @@ namespace _GCM
                 WeightDistancePenalty = localTargetWeightDistance,
                 SampleDensityPerM2 = localTargetSampleDensityPerM2,
                 MinSamplesPerUser = localTargetMinSamples,
-                MaxSamplesPerUser = localTargetMaxSamples
+                MaxSamplesPerUser = localTargetMaxSamples,
+                AngleSampleCount = 11,
+                RadiusSampleCount = 3,
+                WeightSelfOpen = localTargetWeightBoundary,
+                WeightFrontMargin = localTargetWeightOccupancy,
+                WeightNeighborImpact = localTargetWeightDistance,
+                WeightHeadingDeviation = 0.6f,
+                NeighborSafetyBuffer = 0.35f
             };
 
             localSafeTargetSelector = new LocalSafeTargetSelector(config);
@@ -796,6 +807,8 @@ namespace _GCM
             // Removed bEnable_InitPhyUserPosUni one-frame lock logic
             // Removed bOneframetimerblockVoronoi logic
 
+            TryEvaluateBidirectionalRecoverabilityCandidates(latestPartitionResult);
+
             /// Simulate the designated redirection controller
             RDWSimulationManager.instance.SimulateRDW();
 
@@ -834,6 +847,61 @@ namespace _GCM
                 else
                 {
                     partitionVisualizer.SetCenterPointerActive(i, false);
+                }
+            }
+        }
+
+        private void TryEvaluateBidirectionalRecoverabilityCandidates(PartitionResult partitionResult)
+        {
+            RDWSimulationManager simulationManager = RDWSimulationManager.instance;
+            if (simulationManager == null || simulationManager.simulationSetting == null)
+                return;
+
+            if (!simulationManager.simulationSetting.enableBiRecoverabilityLogging)
+                return;
+
+            if (partitionResult == null || partitionResult.CellAdjacency == null)
+                return;
+
+            RedirectedUnit[] units = simulationManager.GetRedirectedUnits;
+            if (units == null || units.Length == 0)
+                return;
+
+            for (int userId = 0; userId < units.Length; userId++)
+            {
+                if (!partitionResult.CellAdjacency.TryGetValue(userId, out HashSet<int> adjacentUsers) || adjacentUsers == null)
+                    continue;
+
+                RedirectedUnit unitA = units[userId];
+                if (unitA == null || unitA.GetRealUser() == null)
+                    continue;
+
+                foreach (int adjacentUserId in adjacentUsers)
+                {
+                    if (adjacentUserId <= userId || adjacentUserId < 0 || adjacentUserId >= units.Length)
+                        continue;
+
+                    RedirectedUnit unitB = units[adjacentUserId];
+                    if (unitB == null || unitB.GetRealUser() == null)
+                        continue;
+
+                    Vector2 movementA = unitA.GetLastMovementDirection();
+                    Vector2 movementB = unitB.GetLastMovementDirection();
+                    if (movementA.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON ||
+                        movementB.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON)
+                    {
+                        continue;
+                    }
+
+                    if (Vector2.Dot(movementA.normalized, movementB.normalized) >= 0.0f)
+                        continue;
+
+                    BidirectionalCollisionRecoverabilityEvaluator.Evaluate(
+                        unitA,
+                        unitB,
+                        BI_RECOVERABILITY_PRECHECK_HORIZON_SECONDS,
+                        BI_RECOVERABILITY_PRECHECK_SAMPLE_COUNT,
+                        "precheck_candidate");
                 }
             }
         }

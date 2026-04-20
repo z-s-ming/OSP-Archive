@@ -36,6 +36,31 @@ namespace RDW.Coordination.LocalSafeTarget
             List<Vector2> cellVertices,
             Vector2 cellCentroid,
             List<Vector2> allUserPositions,
+            List<PredictedOccupancyBand> occupancyBands,
+            PartitionRiskFrame riskFrame)
+        {
+            return SelectTargetForUser(
+                userId,
+                userPosition,
+                userHeading,
+                cellVertices,
+                cellCentroid,
+                allUserPositions,
+                null,
+                occupancyBands,
+                riskFrame);
+        }
+
+        /// <summary>
+        /// Compatibility entry used by GlobalCoordinationManager.
+        /// </summary>
+        public LocalTargetResult SelectTargetForUser(
+            int userId,
+            Vector2 userPosition,
+            Vector2 userHeading,
+            List<Vector2> cellVertices,
+            Vector2 cellCentroid,
+            List<Vector2> allUserPositions,
             IReadOnlyCollection<int> neighborUserIds,
             List<PredictedOccupancyBand> occupancyBands,
             PartitionRiskFrame riskFrame)
