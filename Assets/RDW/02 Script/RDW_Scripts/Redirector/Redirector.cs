@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System;
 using UnityEngine;
-using Unity.MLAgents;
 
 public enum GainType { Translation = 0, Rotation = 1, Curvature = 2, Undefined = -1 };
 

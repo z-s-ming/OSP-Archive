@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System;
-using Unity.MLAgents;
 using System.Text;
 
 public class RDWSimulationManager : MonoBehaviour

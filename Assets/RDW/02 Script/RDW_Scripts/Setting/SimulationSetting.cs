@@ -15,10 +15,8 @@ public class SimulationSetting
     public UnitSetting[] unitSettings;
     public bool bAllowUserReset;
     public bool useHybridApfUserResetDirection;
-    public bool enableProactiveUserResetArbitration;
-    public float proactiveUserResetMEpsilon = 0.02f;
-    public float proactiveUserResetCEpsilon = 0.05f;
-    public bool enableProactiveUserResetArbitrationDebugLog;
+    [HideInInspector] public bool enableProactiveUserResetArbitration = true;
+    public bool useSimpleProactiveTrigger;
     public bool enableBiRecoverabilityLogging;
     public int biRecoverabilityLogEveryNFrames = 1;
     public bool showTarget;

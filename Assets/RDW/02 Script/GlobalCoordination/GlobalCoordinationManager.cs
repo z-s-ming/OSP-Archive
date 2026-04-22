@@ -15,6 +15,10 @@ namespace _GCM
         private const int BI_RECOVERABILITY_PRECHECK_SAMPLE_COUNT = 60;
         private const float BI_RECOVERABILITY_DIRECTION_EPSILON = 0.0001f;
         private const float BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD = 0.05f;
+        private const float PROACTIVE_ARBITRATION_M_EPSILON = 0.02f;
+        private const float PROACTIVE_ARBITRATION_C_EPSILON = 0.05f;
+        private const float SIMPLE_PROACTIVE_TRIGGER_DISTANCE = 1.5f;
+        private const float SIMPLE_PROACTIVE_TRIGGER_CLOSING_SPEED_EPSILON = 0.05f;
 
         #region singleton pattern
         /// <summary>
@@ -256,7 +260,7 @@ namespace _GCM
             InitializePartitionUpdateLayer();
             InitializeLocalSafeTargetSelection();
 
-            // Manually trigger the first episode since we removed ML-Agents
+            // Manually trigger the first episode during startup.
             ResetEpisode();
         }
 
@@ -581,7 +585,7 @@ namespace _GCM
 
         /// <summary>
         /// Main simulation loop. 
-        /// Previously this logic was in OnActionReceived (ML-Agents), now it is called every FixedUpdate to drive the simulation.
+        /// This logic now runs in FixedUpdate to drive the simulation.
         /// </summary>
         private void ProcessStep()
         {
@@ -855,6 +859,7 @@ namespace _GCM
 
             bool proactiveEnabled = simulationManager.simulationSetting.enableProactiveUserResetArbitration &&
                                     simulationManager.simulationSetting.bAllowUserReset;
+            bool useSimpleProactiveTrigger = simulationManager.simulationSetting.useSimpleProactiveTrigger;
             bool shouldRunPrecheck = proactiveEnabled ||
                                      simulationManager.simulationSetting.enableBiRecoverabilityLogging ||
                                      BidirectionalCollisionDebugVisualizer.IsEnabled();
@@ -921,16 +926,22 @@ namespace _GCM
                         "precheck_candidate",
                         true);
 
-                    if (!proactiveEnabled || !assessment.RiskConfirmed)
+                    bool proactiveTriggerFired = useSimpleProactiveTrigger
+                        ? IsSimpleProactiveTriggerSatisfied(unitA, unitB)
+                        : assessment.RiskConfirmed;
+
+                    if (!proactiveEnabled || !proactiveTriggerFired)
                         continue;
+
+                    //Debug.Log($"[主动重置触发] pair ({userId}, {adjacentUserId}) trigger={(useSimpleProactiveTrigger ? "Simple" : "RiskConfirmed")}");
 
                     if (!ProactiveUserResetArbitrationService.TryArbitratePair(
                             unitA,
                             userId,
                             unitB,
                             adjacentUserId,
-                            simulationManager.simulationSetting.proactiveUserResetMEpsilon,
-                            simulationManager.simulationSetting.proactiveUserResetCEpsilon,
+                            PROACTIVE_ARBITRATION_M_EPSILON,
+                            PROACTIVE_ARBITRATION_C_EPSILON,
                             out ProactiveUserResetArbitrationService.ArbitrationResult arbitrationResult))
                     {
                         continue;
@@ -975,10 +986,6 @@ namespace _GCM
 
                 selectedUnit.SetProactiveUserResetIntent(otherUnit.GetRealUser(), candidate.ResetDirection, true);
 
-                if (simulationManager.simulationSetting.enableProactiveUserResetArbitrationDebugLog)
-                {
-                    Debug.Log($"[ProactiveReset] pair ({Mathf.Min(candidate.SelectedUserId, candidate.OtherUserId)}, {Mathf.Max(candidate.SelectedUserId, candidate.OtherUserId)}), selected={candidate.SelectedUserId}, M={candidate.SelectedM:F4}, Cself={candidate.SelectedCSelf:F4}, keepMargin={candidate.KeepMargin:F4}");
-                }
             }
         }
 
@@ -1015,6 +1022,37 @@ namespace _GCM
                 return true;
 
             return false;
+        }
+
+        private static bool IsSimpleProactiveTriggerSatisfied(RedirectedUnit unitA, RedirectedUnit unitB)
+        {
+            if (unitA == null || unitB == null || unitA.GetRealUser() == null || unitB.GetRealUser() == null)
+                return false;
+
+            Vector2 positionA = unitA.GetRealUser().transform2D.localPosition;
+            Vector2 positionB = unitB.GetRealUser().transform2D.localPosition;
+            Vector2 offsetAB = positionB - positionA;
+            float distance = offsetAB.magnitude;
+            if (distance <= BI_RECOVERABILITY_DIRECTION_EPSILON || distance > SIMPLE_PROACTIVE_TRIGGER_DISTANCE)
+                return false;
+
+            float speedA = Mathf.Max(unitA.GetResetter().GetTranslationSpeed(), 0.0f);
+            float speedB = Mathf.Max(unitB.GetResetter().GetTranslationSpeed(), 0.0f);
+            Vector2 movementA = unitA.GetLastMovementDirection();
+            Vector2 movementB = unitB.GetLastMovementDirection();
+            if (movementA.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON ||
+                movementB.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON)
+            {
+                return false;
+            }
+
+            Vector2 velocityA = movementA.normalized * speedA;
+            Vector2 velocityB = movementB.normalized * speedB;
+            if (Vector2.Dot(velocityA, velocityB) >= 0.0f)
+                return false;
+
+            float closingSpeed = ResolveClosingSpeedFromKinematics(offsetAB, velocityA, velocityB);
+            return closingSpeed > SIMPLE_PROACTIVE_TRIGGER_CLOSING_SPEED_EPSILON;
         }
 
         private void SyncPartitionUpdateStatesWithCurrentSeeds()

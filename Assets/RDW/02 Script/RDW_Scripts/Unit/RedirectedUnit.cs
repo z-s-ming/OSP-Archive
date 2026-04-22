@@ -234,6 +234,7 @@ public class RedirectedUnit
                     "USER_RESET",
                     isBidirectionalResetEvent,
                     realUser.transform2D.localPosition);
+                Debug.Log($"[主动重置] User {id} 执行主动USER_RESET, other={(intersectedUser != null ? intersectedUser.gameObject.name : "null")}");
 
                 if (isBidirectionalResetEvent &&
                     RDWSimulationManager.instance != null &&

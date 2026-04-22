@@ -65,7 +65,6 @@ public static class BidirectionalCollisionDebugVisualizer
         session.PointsB.Add(new Vector3(pB.x, 0.03f, pB.y));
         sessions[pairKey] = session;
 
-        Debug.Log($"[BiCollisionDebug] pair ({Mathf.Min(idA, idB)}, {Mathf.Max(idA, idB)}) tracked for {SAMPLE_DURATION_SECONDS:F1}s. Recoverable={assessment.Recoverable}, RiskConfirmed={assessment.RiskConfirmed}");
     }
 
     public static void Tick()
