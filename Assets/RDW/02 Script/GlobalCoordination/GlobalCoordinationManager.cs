@@ -172,6 +172,16 @@ namespace _GCM
         private Dictionary<int, LocalTargetResult> latestLocalTargets = new Dictionary<int, LocalTargetResult>();
         private string localTargetExperimentFolderPath = string.Empty;
         private RDW.Coordination.Visualization.LocalSafeTargetVisualizer localSafeTargetVisualizer;
+
+        private struct ProactiveIntentCandidate
+        {
+            public int SelectedUserId;
+            public int OtherUserId;
+            public Vector2 ResetDirection;
+            public float KeepMargin;
+            public float SelectedM;
+            public float SelectedCSelf;
+        }
         #endregion
 
         #region UI References
@@ -843,7 +853,10 @@ namespace _GCM
             if (simulationManager == null || simulationManager.simulationSetting == null)
                 return;
 
-            bool shouldRunPrecheck = simulationManager.simulationSetting.enableBiRecoverabilityLogging ||
+            bool proactiveEnabled = simulationManager.simulationSetting.enableProactiveUserResetArbitration &&
+                                    simulationManager.simulationSetting.bAllowUserReset;
+            bool shouldRunPrecheck = proactiveEnabled ||
+                                     simulationManager.simulationSetting.enableBiRecoverabilityLogging ||
                                      BidirectionalCollisionDebugVisualizer.IsEnabled();
             if (!shouldRunPrecheck)
                 return;
@@ -854,6 +867,18 @@ namespace _GCM
             RedirectedUnit[] units = simulationManager.GetRedirectedUnits;
             if (units == null || units.Length == 0)
                 return;
+
+            if (proactiveEnabled)
+            {
+                for (int i = 0; i < units.Length; i++)
+                {
+                    units[i]?.ClearProactiveUserResetIntent();
+                }
+            }
+
+            Dictionary<int, ProactiveIntentCandidate> selectedCandidateByUser = proactiveEnabled
+                ? new Dictionary<int, ProactiveIntentCandidate>()
+                : null;
 
             for (int userId = 0; userId < units.Length; userId++)
             {
@@ -888,13 +913,71 @@ namespace _GCM
                     if (closingSpeed <= BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD)
                         continue;
 
-                    BidirectionalCollisionRecoverabilityEvaluator.Evaluate(
+                    BidirectionalCollisionRecoverabilityAssessment assessment = BidirectionalCollisionRecoverabilityEvaluator.Evaluate(
                         unitA,
                         unitB,
                         BI_RECOVERABILITY_PRECHECK_HORIZON_SECONDS,
                         BI_RECOVERABILITY_PRECHECK_SAMPLE_COUNT,
                         "precheck_candidate",
                         true);
+
+                    if (!proactiveEnabled || !assessment.RiskConfirmed)
+                        continue;
+
+                    if (!ProactiveUserResetArbitrationService.TryArbitratePair(
+                            unitA,
+                            userId,
+                            unitB,
+                            adjacentUserId,
+                            simulationManager.simulationSetting.proactiveUserResetMEpsilon,
+                            simulationManager.simulationSetting.proactiveUserResetCEpsilon,
+                            out ProactiveUserResetArbitrationService.ArbitrationResult arbitrationResult))
+                    {
+                        continue;
+                    }
+
+                    ProactiveIntentCandidate candidate = new ProactiveIntentCandidate
+                    {
+                        SelectedUserId = arbitrationResult.SelectedUnitIndex,
+                        OtherUserId = arbitrationResult.OtherUnitIndex,
+                        ResetDirection = arbitrationResult.SelectedResetDirection,
+                        KeepMargin = arbitrationResult.KeepMargin,
+                        SelectedM = arbitrationResult.SelectedM,
+                        SelectedCSelf = arbitrationResult.SelectedCSelf
+                    };
+
+                    if (!selectedCandidateByUser.TryGetValue(candidate.SelectedUserId, out ProactiveIntentCandidate existing) ||
+                        ShouldReplaceProactiveCandidate(existing, candidate))
+                    {
+                        selectedCandidateByUser[candidate.SelectedUserId] = candidate;
+                    }
+                }
+            }
+
+            if (!proactiveEnabled || selectedCandidateByUser.Count == 0)
+                return;
+
+            foreach (KeyValuePair<int, ProactiveIntentCandidate> kvp in selectedCandidateByUser)
+            {
+                ProactiveIntentCandidate candidate = kvp.Value;
+                if (candidate.SelectedUserId < 0 || candidate.SelectedUserId >= units.Length)
+                    continue;
+                if (candidate.OtherUserId < 0 || candidate.OtherUserId >= units.Length)
+                    continue;
+
+                RedirectedUnit selectedUnit = units[candidate.SelectedUserId];
+                RedirectedUnit otherUnit = units[candidate.OtherUserId];
+                if (selectedUnit == null || selectedUnit.GetRealUser() == null || otherUnit == null || otherUnit.GetRealUser() == null)
+                    continue;
+
+                if (!string.Equals(selectedUnit.GetStatus(), "IDLE", StringComparison.Ordinal))
+                    continue;
+
+                selectedUnit.SetProactiveUserResetIntent(otherUnit.GetRealUser(), candidate.ResetDirection, true);
+
+                if (simulationManager.simulationSetting.enableProactiveUserResetArbitrationDebugLog)
+                {
+                    Debug.Log($"[ProactiveReset] pair ({Mathf.Min(candidate.SelectedUserId, candidate.OtherUserId)}, {Mathf.Max(candidate.SelectedUserId, candidate.OtherUserId)}), selected={candidate.SelectedUserId}, M={candidate.SelectedM:F4}, Cself={candidate.SelectedCSelf:F4}, keepMargin={candidate.KeepMargin:F4}");
                 }
             }
         }
@@ -907,6 +990,31 @@ namespace _GCM
             Vector2 towardB = offsetAB.normalized;
             Vector2 relativeVelocity = velocityB - velocityA;
             return -Vector2.Dot(relativeVelocity, towardB);
+        }
+
+        private static bool ShouldReplaceProactiveCandidate(ProactiveIntentCandidate current, ProactiveIntentCandidate incoming)
+        {
+            const float tolerance = 0.0001f;
+
+            if (incoming.KeepMargin < current.KeepMargin - tolerance)
+                return true;
+            if (incoming.KeepMargin > current.KeepMargin + tolerance)
+                return false;
+
+            if (incoming.SelectedM > current.SelectedM + tolerance)
+                return true;
+            if (incoming.SelectedM < current.SelectedM - tolerance)
+                return false;
+
+            if (incoming.SelectedCSelf < current.SelectedCSelf - tolerance)
+                return true;
+            if (incoming.SelectedCSelf > current.SelectedCSelf + tolerance)
+                return false;
+
+            if (incoming.OtherUserId < current.OtherUserId)
+                return true;
+
+            return false;
         }
 
         private void SyncPartitionUpdateStatesWithCurrentSeeds()

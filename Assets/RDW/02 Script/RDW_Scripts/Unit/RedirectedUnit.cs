@@ -38,6 +38,10 @@ public class RedirectedUnit
     private bool hasCachedUserResetDirection = false;
     private Vector2 lastMovementDirection = Vector2.zero;
     private bool usedRotationGainInLastMove = false;
+    private bool hasPendingProactiveUserResetIntent = false;
+    private Object2D pendingProactiveOtherUser = null;
+    private Vector2 pendingProactiveResetDirection = Vector2.zero;
+    private bool pendingProactiveIsBidirectionalResetEvent = true;
 
     private bool isResetting = false;
     public bool IsResetting { get { return isResetting; } }
@@ -211,6 +215,35 @@ public class RedirectedUnit
                 //Debug.LogError(realUser.gameObject.tag.ToString() + " AddWallReset");
             }
             else if (RDWSimulationManager.instance.simulationSetting.bAllowUserReset &&
+                     previousStatus != "USER_RESET_DONE" &&
+                     TryConsumeProactiveUserResetIntent(out Object2D proactiveOtherUser,
+                                                        out Vector2 proactiveDirection,
+                                                        out bool proactiveBidirectionalResetEvent))
+            {
+                status = "USER_RESET";
+                intersectedUser = proactiveOtherUser;
+                isBidirectionalResetEvent = proactiveBidirectionalResetEvent;
+                cachedUserResetDirection = proactiveDirection;
+                hasCachedUserResetDirection = true;
+
+                resultData.AddUserReset();
+                RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, isBidirectionalResetEvent);
+                _GCM.GM_DataRecord.instance?.LogInterResetDistance(
+                    id,
+                    controller != null ? controller.GetEpisodeID() : -1,
+                    "USER_RESET",
+                    isBidirectionalResetEvent,
+                    realUser.transform2D.localPosition);
+
+                if (isBidirectionalResetEvent &&
+                    RDWSimulationManager.instance != null &&
+                    RDWSimulationManager.instance.simulationSetting != null &&
+                    RDWSimulationManager.instance.simulationSetting.useDebugMode)
+                {
+                    Debug.Break();
+                }
+            }
+            else if (RDWSimulationManager.instance.simulationSetting.bAllowUserReset &&
                      resetter.NeedUserReset(realUser, otherUsers, out intersectedUser, out truc, out isBidirectionalResetEvent) &&
                      previousStatus != "USER_RESET_DONE" )
             {
@@ -250,6 +283,27 @@ public class RedirectedUnit
         }
 
         return status;
+    }
+
+    private bool TryConsumeProactiveUserResetIntent(out Object2D otherUser, out Vector2 resetDirection, out bool bidirectionalResetEvent)
+    {
+        if (!hasPendingProactiveUserResetIntent)
+        {
+            otherUser = null;
+            resetDirection = Vector2.zero;
+            bidirectionalResetEvent = false;
+            return false;
+        }
+
+        otherUser = pendingProactiveOtherUser;
+        resetDirection = pendingProactiveResetDirection;
+        bidirectionalResetEvent = pendingProactiveIsBidirectionalResetEvent;
+
+        hasPendingProactiveUserResetIntent = false;
+        pendingProactiveOtherUser = null;
+        pendingProactiveResetDirection = Vector2.zero;
+        pendingProactiveIsBidirectionalResetEvent = true;
+        return true;
     }
 
     public void Simulate(RedirectedUnit[] otherUnits)
@@ -301,6 +355,24 @@ public class RedirectedUnit
     public string ApplyWallReset()
     {
         return resetter.ApplyWallReset(realUser, virtualUser, realSpace);
+    }
+
+    public void SetProactiveUserResetIntent(Object2D otherUser, Vector2 resetDirection, bool bidirectionalResetEvent = true)
+    {
+        pendingProactiveOtherUser = otherUser;
+        pendingProactiveResetDirection = resetDirection.sqrMagnitude > Mathf.Epsilon
+            ? resetDirection.normalized
+            : GetLastMovementDirection();
+        pendingProactiveIsBidirectionalResetEvent = bidirectionalResetEvent;
+        hasPendingProactiveUserResetIntent = true;
+    }
+
+    public void ClearProactiveUserResetIntent()
+    {
+        hasPendingProactiveUserResetIntent = false;
+        pendingProactiveOtherUser = null;
+        pendingProactiveResetDirection = Vector2.zero;
+        pendingProactiveIsBidirectionalResetEvent = true;
     }
 
     private int i = 0;

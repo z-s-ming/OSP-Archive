@@ -52,6 +52,15 @@ public static class UserResetDirectionResolver
         return defaultResetDirection;
     }
 
+    public static Vector2 ComputeLocalApfDirection(RedirectedUnit unit)
+    {
+        if (unit == null)
+            return Vector2.zero;
+
+        Vector2 apfDirection = ComputeApfDirection(unit);
+        return NormalizeOrFallback(apfDirection, unit.GetLastMovementDirection());
+    }
+
     private static bool ShouldUseHybridStrategy()
     {
         RDWSimulationManager manager = RDWSimulationManager.instance;
