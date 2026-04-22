@@ -532,6 +532,15 @@ namespace _GCM
 
         public void ResetEpisode()
         {
+            if (episodeService != null && episodeService.IsExperimentCompleted)
+            {
+                if (RDWSimulationManager.instance != null)
+                {
+                    RDWSimulationManager.instance.BStart = false;
+                }
+                return;
+            }
+
             simulationFrameIndex = 0;
             simulationElapsedTime = 0f;
 
@@ -568,6 +577,12 @@ namespace _GCM
         {
             if (!RDWSimulationManager.instance.BStart)
                 return;
+
+            if (episodeService != null && episodeService.IsExperimentCompleted)
+            {
+                RDWSimulationManager.instance.BStart = false;
+                return;
+            }
 
             // Safety Check: ensure users are initialized before processing calculation
             if (stateCollector == null || !stateCollector.HasReadyUsers(totalUserCount)) 
@@ -717,6 +732,13 @@ namespace _GCM
                 {
                     InitializePredictionExportFolderForExperiment();
                 }
+            }
+
+            if (episodeService.IsExperimentCompleted)
+            {
+                RDWSimulationManager.instance.BStart = false;
+                Debug.Log($"Experiment completed at episode {episodeService.CurrentSimulationCount}/{episodeService.SimulationCountMax}. Simulation stopped.");
+                return true;
             }
 
             ResetEpisode();
