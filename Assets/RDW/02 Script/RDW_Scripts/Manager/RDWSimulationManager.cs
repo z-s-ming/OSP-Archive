@@ -26,6 +26,8 @@ public class RDWSimulationManager : MonoBehaviour
     private Dictionary<int, List<Vector2>> dic_initObstacleInfo = new Dictionary<int, List<Vector2>>();
 
     public float userResetTotalCount = 0;
+    private int episodeSingleUserResetEventCount = 0;
+    private int episodeDoubleUserResetEventCount = 0;
 
     public float simulspeed = 30.0f;
     [Header("Space Visualization")]
@@ -581,39 +583,54 @@ public class RDWSimulationManager : MonoBehaviour
         return totalresetcount;
     }
 
-    public int Calc_DoubleUserResetCount()
+    public void ResetEpisodeUserResetEventCounts()
     {
-        if (queue_userresetinfo.Count == 0)
-            return 0;
+        episodeSingleUserResetEventCount = 0;
+        episodeDoubleUserResetEventCount = 0;
+    }
 
-        List<DateTime> resetTimes = new List<DateTime>(queue_userresetinfo);
-        queue_userresetinfo.Clear();
-
-        int doubleResetCount = 0;
-        DateTime groupStart = resetTimes[0];
-        int groupSize = 1;
-
-        for (int i = 1; i < resetTimes.Count; i++)
+    public void RegisterUserResetEvent(int selfUnitId, Object2D otherUser, bool isDoubleEvent)
+    {
+        if (!isDoubleEvent)
         {
-            TimeSpan delta = resetTimes[i] - groupStart;
-            if (delta.TotalMilliseconds <= 150)
-            {
-                groupSize++;
-            }
-            else
-            {
-                if (groupSize >= 2)
-                    doubleResetCount++;
-
-                groupStart = resetTimes[i];
-                groupSize = 1;
-            }
+            episodeSingleUserResetEventCount++;
+            return;
         }
 
-        if (groupSize >= 2)
-            doubleResetCount++;
+        int otherUnitId = GetUnitIdByRealUser(otherUser);
+        if (otherUnitId < 0)
+        {
+            episodeDoubleUserResetEventCount++;
+            return;
+        }
 
-        return doubleResetCount;
+        // Deduplicate bidirectional events: count only once per pair trigger.
+        if (selfUnitId < otherUnitId)
+            episodeDoubleUserResetEventCount++;
+    }
+
+    public int GetEpisodeSingleUserResetEventCount()
+    {
+        return episodeSingleUserResetEventCount;
+    }
+
+    public int GetEpisodeDoubleUserResetEventCount()
+    {
+        return episodeDoubleUserResetEventCount;
+    }
+
+    private int GetUnitIdByRealUser(Object2D realUser)
+    {
+        if (realUser == null || redirectedUnits == null)
+            return -1;
+
+        for (int i = 0; i < redirectedUnits.Length; i++)
+        {
+            if (redirectedUnits[i] != null && redirectedUnits[i].GetRealUser() == realUser)
+                return redirectedUnits[i].GetID();
+        }
+
+        return -1;
     }
 
 }

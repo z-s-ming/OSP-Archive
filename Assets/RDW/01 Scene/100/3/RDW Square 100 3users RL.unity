@@ -914,7 +914,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   simulationSetting:
     useVisualization: 1
-    useDebugMode: 0
+    useDebugMode: 1
     useContinousSimulation: 0
     prefabSetting: {fileID: 11400000, guid: 3c866fcfabc9a4643b2febf2a8238d41, type: 2}
     realSpaceSetting:
@@ -1079,15 +1079,17 @@ MonoBehaviour:
       translationSpeed: 1
       rotationSpeed: 90
     bAllowUserReset: 1
-    useHybridApfUserResetDirection: 1
+    useHybridApfUserResetDirection: 0
+    enableBiRecoverabilityLogging: 0
+    biRecoverabilityLogEveryNFrames: 1
     showTarget: 1
     showResetLocator: 0
     showRealWall: 0
   userResetTotalCount: 0
-  simulspeed: 50
-  autoSeparateVirtualSpaceFromRealSpace: 1
+  simulspeed: 5
+  autoSeparateVirtualSpaceFromRealSpace: 0
   virtualSpaceSeparationOffset: {x: 50, y: 0}
-  keepOnlyOneVirtualTrail: 1
+  keepOnlyOneVirtualTrail: 0
   preservedVirtualTrailUnitIndex: 0
   useUnlimitedVirtualTrailLength: 0
   virtualTrailMaxLengthMeters: 210
@@ -1327,6 +1329,15 @@ MonoBehaviour:
       SearchRadiusMin: 1.5
       SearchRadiusMax: 2
       BoundaryBufferMin: 0.3
+      BoundaryBufferMax: 0.5
+      GridResolutionMin: 0.15
+      GridResolutionMax: 0.25
+      WeightBoundaryDist: 1
+      WeightOccupancyDist: 1.5
+      WeightDistancePenalty: 0.4
+      SampleDensityPerM2: 55
+      MinSamplesPerUser: 24
+      MaxSamplesPerUser: 120
       AngleSamples: 11
       RadiusSamples: 3
       WeightSelfOpen: 1
@@ -1351,4 +1362,4 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 9d8af6d21c4f3384e8b883eaa946e498, type: 2}
   - {fileID: 2100000, guid: 1345d5228d116654bb3151fea4cf31dd, type: 2}
   - {fileID: 2100000, guid: 5909335d10fc56e4cadcd5976c6b0e2e, type: 2}
-  text_currentEpi: {fileID: 0}
+  text_currentEpi: {fileID: 1237824341}

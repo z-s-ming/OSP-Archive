@@ -15,12 +15,18 @@ public class APF_R_BiRecoverability_Resetter_OSP : APF_R_Resetter_OSP
     {
     }
 
-    public override bool NeedUserReset(Object2D realUser, List<Object2D> otherUsers, out Object2D intersectedUser, out int truc)
+    public override bool NeedUserReset(
+        Object2D realUser,
+        List<Object2D> otherUsers,
+        out Object2D intersectedUser,
+        out int truc,
+        out bool isBidirectionalResetEvent)
     {
         bool flag = false;
         Object2D targetUser = null;
         truc = 0;
         bool resetflag = false;
+        isBidirectionalResetEvent = false;
 
         for (int i = 0; i < otherUsers.Count; i++)
         {
@@ -50,6 +56,7 @@ public class APF_R_BiRecoverability_Resetter_OSP : APF_R_Resetter_OSP
                 flag = true;
                 resetflag = true;
                 targetUser = candidateUser;
+                isBidirectionalResetEvent = true;
             }
 
             if (flag)

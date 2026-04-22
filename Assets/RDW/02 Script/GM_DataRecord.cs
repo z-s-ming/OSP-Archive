@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using System;
 using System.IO;
+using System.Globalization;
 
 using System.Text;
 using UnityEngine.SceneManagement;
@@ -21,8 +22,10 @@ namespace _GCM
 
         private string folderName = "CGnA_DataLog";
         private string fileName = string.Empty;
+        private string interResetDistanceFileName = string.Empty;
 
         private string str_DataCategory = string.Empty;
+        private string str_InterResetDistDataCategory = string.Empty;
 
         [HideInInspector]
         public enum Experiment_Type { VS_Line };
@@ -36,6 +39,7 @@ namespace _GCM
 
         // Added to prevent memory overflow
         private const int AUTO_SAVE_THRESHOLD = 5000;
+        private const float INTER_RESET_MAX_ACCEPTED_STEP_DISTANCE = 2.0f;
 
         [HideInInspector]
         public enum Warning_Type
@@ -53,8 +57,15 @@ namespace _GCM
         [HideInInspector]
         public Queue<string> Queue_EX_DATA = new Queue<string>();
         [HideInInspector]
+        public Queue<string> Queue_INTER_RESET_DIST = new Queue<string>();
+        [HideInInspector]
 
         public bool isCategoryPrinted;
+        public bool isInterResetDistCategoryPrinted;
+
+        private readonly Dictionary<int, Vector2> prevPhysicalPosByUnitId = new Dictionary<int, Vector2>();
+        private readonly Dictionary<int, float> cumulativeDistByUnitId = new Dictionary<int, float>();
+        private readonly Dictionary<int, float> lastResetCumulativeByUnitId = new Dictionary<int, float>();
 
         [SerializeField]
         private GameObject real_HMD;
@@ -88,6 +99,7 @@ namespace _GCM
         private void OnDisable()
         {
             StopAllCoroutines();
+            Save_InterResetDistance_Batch();
         }
 
 
@@ -102,6 +114,7 @@ namespace _GCM
             if (Input.GetKeyDown(KeyCode.Slash))
             {
                 Save_SteamingData_Batch();
+                Save_InterResetDistance_Batch();
 
             }
         }
@@ -109,6 +122,7 @@ namespace _GCM
         private void FixedUpdate()
         {
             currentTime = Time.time;
+            UpdateInterResetDistanceTracking();
 
         }
 
@@ -156,9 +170,19 @@ namespace _GCM
             WriteSteamingData_Batch(ref Queue_EX_DATA);
         }
 
+        public void Save_InterResetDistance_Batch()
+        {
+            WriteInterResetDistanceData_Batch(ref Queue_INTER_RESET_DIST);
+        }
+
         public void Clear_Queue_EX_DATA()
         {
             Queue_EX_DATA.Clear();
+        }
+
+        public void Clear_Queue_INTER_RESET_DIST()
+        {
+            Queue_INTER_RESET_DIST.Clear();
         }
 
         public bool WriteSteamingData_Batch(ref Queue<string> _Queue_ex)
@@ -254,6 +278,172 @@ namespace _GCM
             }
 
             return sb.ToString();
+        }
+
+        private string BuildInterResetDistDataCategory()
+        {
+            return "Date,Timestamp,episodeId,frame,simTime,unitId,resetType,isBidirectional,interResetDistance,cumulativeDistance";
+        }
+
+        public void ResetInterResetDistanceTracking()
+        {
+            prevPhysicalPosByUnitId.Clear();
+            cumulativeDistByUnitId.Clear();
+            lastResetCumulativeByUnitId.Clear();
+        }
+
+        public void LogInterResetDistance(int unitId, int episodeId, string resetType, bool isBidirectionalEvent, Vector2 currentPhysicalPosition)
+        {
+            EnsureTrackingInitialized(unitId, currentPhysicalPosition);
+            AccumulateDistanceForUnit(unitId, currentPhysicalPosition, false);
+
+            float cumulativeDistance = cumulativeDistByUnitId[unitId];
+            if (!lastResetCumulativeByUnitId.ContainsKey(unitId))
+            {
+                lastResetCumulativeByUnitId[unitId] = 0.0f;
+            }
+
+            float interResetDistance = Mathf.Max(0.0f, cumulativeDistance - lastResetCumulativeByUnitId[unitId]);
+            lastResetCumulativeByUnitId[unitId] = cumulativeDistance;
+
+            string refinedResetType = string.IsNullOrEmpty(resetType) ? "UNKNOWN" : resetType.Replace(",", "_");
+            string payload = string.Format(
+                CultureInfo.InvariantCulture,
+                "{0},{1},{2:F6},{3},{4},{5},{6:F6},{7:F6}",
+                episodeId,
+                Time.frameCount,
+                Time.time,
+                unitId,
+                refinedResetType,
+                isBidirectionalEvent ? 1 : 0,
+                interResetDistance,
+                cumulativeDistance);
+
+            Enqueue_InterResetDistanceData(payload);
+        }
+
+        private void Enqueue_InterResetDistanceData(string data)
+        {
+            currentTime = Time.time;
+            string stringRelativeTime = string.Format(CultureInfo.InvariantCulture, "{0:F4}", currentTime - startTime);
+
+            string refinedData = DateTime.Now.ToString("yyyyMMddHHmmss.fff") + "," + stringRelativeTime + "," + data;
+            Queue_INTER_RESET_DIST.Enqueue(refinedData);
+
+            if (Queue_INTER_RESET_DIST.Count >= AUTO_SAVE_THRESHOLD)
+            {
+                Save_InterResetDistance_Batch();
+            }
+        }
+
+        private bool WriteInterResetDistanceData_Batch(ref Queue<string> dataQueue)
+        {
+            bool success = false;
+
+            try
+            {
+                if (dataQueue.Count == 0)
+                    return true;
+
+                if (string.IsNullOrEmpty(interResetDistanceFileName))
+                {
+                    interResetDistanceFileName = "Experiment_01_InterResetDistance_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".csv";
+                }
+
+                string fileLocation = System.IO.Path.Combine(folder_Path, interResetDistanceFileName);
+                int totalCount = dataQueue.Count;
+                List<string> copyDataQueue = new List<string>(dataQueue);
+
+                Debug.Log("Saving Inter-Reset Distance Data Starts. Queue Count : " + totalCount);
+
+                using (StreamWriter streamWriter = File.AppendText(fileLocation))
+                {
+                    for (int i = 0; i < totalCount; i++)
+                    {
+                        string stringData = copyDataQueue[i];
+                        if (string.IsNullOrEmpty(stringData))
+                            continue;
+
+                        if (!isInterResetDistCategoryPrinted)
+                        {
+                            str_InterResetDistDataCategory = BuildInterResetDistDataCategory();
+                            streamWriter.WriteLine(str_InterResetDistDataCategory);
+                            isInterResetDistCategoryPrinted = true;
+                        }
+
+                        streamWriter.WriteLine(stringData);
+                    }
+                }
+
+                dataQueue.Clear();
+                success = true;
+                isInterResetDistCategoryPrinted = false;
+            }
+            catch (Exception e)
+            {
+                Debug.Log("WriteInterResetDistanceData_Batch ERROR : " + e);
+            }
+
+            return success;
+        }
+
+        private void UpdateInterResetDistanceTracking()
+        {
+            if (RDWSimulationManager.instance == null)
+                return;
+
+            RedirectedUnit[] units = RDWSimulationManager.instance.GetRedirectedUnits;
+            if (units == null)
+                return;
+
+            for (int i = 0; i < units.Length; i++)
+            {
+                RedirectedUnit unit = units[i];
+                if (unit == null || unit.GetRealUser() == null)
+                    continue;
+
+                int unitId = unit.GetID();
+                Vector2 currentPosition = unit.GetRealUser().transform2D.localPosition;
+
+                EnsureTrackingInitialized(unitId, currentPosition);
+                AccumulateDistanceForUnit(unitId, currentPosition, unit.IsResetting);
+            }
+        }
+
+        private void EnsureTrackingInitialized(int unitId, Vector2 currentPosition)
+        {
+            if (!prevPhysicalPosByUnitId.ContainsKey(unitId))
+            {
+                prevPhysicalPosByUnitId[unitId] = currentPosition;
+            }
+
+            if (!cumulativeDistByUnitId.ContainsKey(unitId))
+            {
+                cumulativeDistByUnitId[unitId] = 0.0f;
+            }
+
+            if (!lastResetCumulativeByUnitId.ContainsKey(unitId))
+            {
+                lastResetCumulativeByUnitId[unitId] = 0.0f;
+            }
+        }
+
+        private void AccumulateDistanceForUnit(int unitId, Vector2 currentPosition, bool isResetting)
+        {
+            Vector2 previousPosition = prevPhysicalPosByUnitId[unitId];
+            if (isResetting)
+            {
+                prevPhysicalPosByUnitId[unitId] = currentPosition;
+                return;
+            }
+
+            float dist = Vector2.Distance(currentPosition, previousPosition);
+            if (dist < INTER_RESET_MAX_ACCEPTED_STEP_DISTANCE)
+            {
+                cumulativeDistByUnitId[unitId] += dist;
+            }
+
+            prevPhysicalPosByUnitId[unitId] = currentPosition;
         }
 
 

@@ -86,7 +86,12 @@ public class Resetter
         //return !realSpace.IsInside(realUser, 0);
     }
 
-    public virtual bool NeedUserReset(Object2D realUser, List<Object2D> otherUsers, out Object2D intersectedUser, out int truc)
+    public virtual bool NeedUserReset(
+        Object2D realUser,
+        List<Object2D> otherUsers,
+        out Object2D intersectedUser,
+        out int truc,
+        out bool isBidirectionalResetEvent)
     {
         bool flag = false;
         float translationSpeed = 4;
@@ -94,6 +99,7 @@ public class Resetter
         Object2D targetUser = null;
         truc = 0;
         bool resetflag = false;
+        isBidirectionalResetEvent = false;
 
         for (int i = 0; i < otherUsers.Count; i++)
         {
@@ -123,6 +129,7 @@ public class Resetter
                     flag = true;
                     resetflag = true;
                     targetUser = otherUsers[i];
+                    isBidirectionalResetEvent = true;
                 }
             }
 

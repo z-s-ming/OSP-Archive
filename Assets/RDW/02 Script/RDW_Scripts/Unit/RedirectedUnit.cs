@@ -33,6 +33,7 @@ public class RedirectedUnit
 
 
     int truc;
+    private bool isBidirectionalResetEvent;
     private Vector2 cachedUserResetDirection = Vector2.zero;
     private bool hasCachedUserResetDirection = false;
     private Vector2 lastMovementDirection = Vector2.zero;
@@ -186,26 +187,53 @@ public class RedirectedUnit
                 if (item.Item2)
                 {
                     resultData.AddShutterReset();
+                    _GCM.GM_DataRecord.instance?.LogInterResetDistance(
+                        id,
+                        controller != null ? controller.GetEpisodeID() : -1,
+                        "SHUTTER_RESET",
+                        false,
+                        realUser.transform2D.localPosition);
                     //Debug.Log("bb");
                 }
                 else
                 {
                     resultData.AddWallReset();
+                    _GCM.GM_DataRecord.instance?.LogInterResetDistance(
+                        id,
+                        controller != null ? controller.GetEpisodeID() : -1,
+                        "WALL_RESET",
+                        false,
+                        realUser.transform2D.localPosition);
                     //Debug.Log("aa");
                 }
 
                 status = "WALL_RESET";
                 //Debug.LogError(realUser.gameObject.tag.ToString() + " AddWallReset");
             }
-            else if (RDWSimulationManager.instance.simulationSetting.bAllowUserReset && resetter.NeedUserReset(realUser, otherUsers, out intersectedUser, out truc) && previousStatus != "USER_RESET_DONE" )
+            else if (RDWSimulationManager.instance.simulationSetting.bAllowUserReset &&
+                     resetter.NeedUserReset(realUser, otherUsers, out intersectedUser, out truc, out isBidirectionalResetEvent) &&
+                     previousStatus != "USER_RESET_DONE" )
             {
-                // Debug.LogError($"[User Reset Triggered] User ID: {id} | 触发用户间重置！暂停中...");
-                // Debug.Break(); // 暂停 Unity 编辑器，方便观察碰撞现场
-                
+
                 status = "USER_RESET";
                 resultData.AddUserReset();
+                RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, isBidirectionalResetEvent);
+                _GCM.GM_DataRecord.instance?.LogInterResetDistance(
+                    id,
+                    controller != null ? controller.GetEpisodeID() : -1,
+                    "USER_RESET",
+                    isBidirectionalResetEvent,
+                    realUser.transform2D.localPosition);
                 hasCachedUserResetDirection = false;
                 //Debug.Log(realUser.gameObject.tag.ToString() + " AddUserReset");
+                if (isBidirectionalResetEvent &&
+                    RDWSimulationManager.instance != null &&
+                    RDWSimulationManager.instance.simulationSetting != null &&
+                    RDWSimulationManager.instance.simulationSetting.useDebugMode)
+                {
+                    Debug.Break(); // 暂停 Unity 编辑器，方便观察碰撞现场
+                }
+               
 
             }
             else if (!GetEpisode().IsNotEnd())

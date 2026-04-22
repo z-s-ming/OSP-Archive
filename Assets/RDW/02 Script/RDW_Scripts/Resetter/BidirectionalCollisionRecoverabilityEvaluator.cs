@@ -122,6 +122,11 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
                                    assessment.IsApproaching &&
                                    assessment.IsPersistent;
 
+        if (assessment.RiskConfirmed)
+        {
+            BidirectionalCollisionDebugVisualizer.TryStartTrace(unitA, unitB, assessment);
+        }
+
         BidirectionalCollisionRecoverabilityLogger.TryLog(
             unitA,
             unitB,
@@ -137,6 +142,11 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
     public static void ResetTemporalState()
     {
         temporalStates.Clear();
+    }
+
+    public static void SetDebugVisualizationEnabled(bool enabled)
+    {
+        BidirectionalCollisionDebugVisualizer.SetEnabled(enabled);
     }
 
     private static PairEvaluation EvaluatePair(

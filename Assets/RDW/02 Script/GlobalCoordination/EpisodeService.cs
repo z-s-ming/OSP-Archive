@@ -27,6 +27,8 @@ namespace _GCM
         public void BeginEpisode(StateCollector stateCollector)
         {
             stateCollector?.ResetEpisodeDistance();
+            RDWSimulationManager.instance?.ResetEpisodeUserResetEventCounts();
+            GM_DataRecord.instance?.ResetInterResetDistanceTracking();
         }
 
         public void Tick(StateCollector stateCollector)
@@ -54,10 +56,10 @@ namespace _GCM
             var units = RDWSimulationManager.instance.GetRedirectedUnits;
 
             StringBuilder sb = new StringBuilder();
-            int totalResetCount = 0;
-            int doubleUserResetCount = RDWSimulationManager.instance.Calc_DoubleUserResetCount();
+            int totalResetCountFromUsers = 0;
+            int doubleEventCount = RDWSimulationManager.instance.GetEpisodeDoubleUserResetEventCount();
+            int singleEventCount = RDWSimulationManager.instance.GetEpisodeSingleUserResetEventCount();
             int boundaryCollisionCount = 0;
-            int totalUserResetCount = 0;
             List<int> userResetCounts = new List<int>();
 
             for (int i = 0; i < _totalUserCount; i++)
@@ -67,10 +69,8 @@ namespace _GCM
                     int resetCount = (int)units[i].resultData.getTotalReset();
                     int wallResetCount = (int)units[i].resultData.getWallReset();
                     int shutterResetCount = (int)units[i].resultData.getShutterReset();
-                    int userResetCount = (int)units[i].resultData.getUserReset();
-                    totalResetCount += resetCount;
+                    totalResetCountFromUsers += resetCount;
                     boundaryCollisionCount += wallResetCount + shutterResetCount;
-                    totalUserResetCount += userResetCount;
                     userResetCounts.Add(resetCount);
                 }
                 else
@@ -79,14 +79,17 @@ namespace _GCM
                 }
             }
 
-            int singleUserResetCollisionCount = Mathf.Max(0, totalUserResetCount - (doubleUserResetCount * 2));
+            int totalResetCountFromTypes = singleEventCount + (doubleEventCount * 2) + boundaryCollisionCount;
+            string totalResetCountDisplay = totalResetCountFromUsers == totalResetCountFromTypes
+                ? totalResetCountFromUsers.ToString()
+                : $"{totalResetCountFromUsers}({totalResetCountFromTypes})";
             float userResetVariance = CalculateVariance(userResetCounts);
 
-            sb.Append(totalResetCount).Append(',');
+            sb.Append(totalResetCountDisplay).Append(',');
             sb.Append(userResetVariance.ToString("F4")).Append(',');
             sb.Append(boundaryCollisionCount).Append(',');
-            sb.Append(singleUserResetCollisionCount).Append(',');
-            sb.Append(doubleUserResetCount);
+            sb.Append(singleEventCount).Append(',');
+            sb.Append(doubleEventCount * 2);
 
             for (int i = 0; i < _totalUserCount; i++)
             {
@@ -111,6 +114,7 @@ namespace _GCM
             {
                 IsExperimentCompleted = true;
                 GM_DataRecord.instance?.Save_SteamingData_Batch();
+                GM_DataRecord.instance?.Save_InterResetDistance_Batch();
             }
         }
 

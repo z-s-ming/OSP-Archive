@@ -440,12 +440,16 @@ public class Polygon2D : Object2D
 
     public Vector2 GetCrossBoundaryVertex(int index, Space relativeTo)
     {
-        // int realIndex = Utility.mod(index, vertices.Count);
+        if (crossBoundaryPoints == null || crossBoundaryPoints.Count == 0)
+            return Vector2.zero;
 
-        if (relativeTo == Space.Self)
-            return crossBoundaryPoints[index];
-        else
-            return this.transform2D.TransformPointToGlobal(crossBoundaryPoints[index]);
+        int safeIndex = Utility.mod(index, crossBoundaryPoints.Count);
+        Vector2 localPoint = crossBoundaryPoints[safeIndex];
+
+        if (relativeTo == Space.Self || this.transform2D == null)
+            return localPoint;
+
+        return this.transform2D.TransformPointToGlobal(localPoint);
     }
 
     public List<Vector2> GetCrossBoundaryPoints()
@@ -732,7 +736,7 @@ public class Polygon2D : Object2D
         // Debug.Log(crossBoundaryPoints[1]);
         // Debug.Log(crossBoundaryPoints[2]);
         // Debug.Log(crossBoundaryPoints[3]);
-        if(this.tileType != null)
+        if (this.tileType != null && this.crossBoundaryPoints != null && this.crossBoundaryPoints.Count >= 4)
         {
             Vector3 cp1 = Utility.CastVector2Dto3D(GetCrossBoundaryVertex(0, Space.World)); // 오
             Vector3 cp2 = Utility.CastVector2Dto3D(GetCrossBoundaryVertex(2, Space.World)); // 왼

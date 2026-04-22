@@ -554,6 +554,7 @@ namespace _GCM
 
             BidirectionalCollisionRecoverabilityEvaluator.ResetTemporalState();
             BidirectionalCollisionRecoverabilityLogger.ResetSession();
+            BidirectionalCollisionDebugVisualizer.ResetSession();
 
             latestPartitionRiskFrame = null;
             latestPartitionUpdateAttempts.Clear();
@@ -595,6 +596,7 @@ namespace _GCM
             // Removed bOneframetimerblockVoronoi logic
 
             TryEvaluateBidirectionalRecoverabilityCandidates(latestPartitionResult);
+            BidirectionalCollisionDebugVisualizer.Tick();
 
             /// Simulate the designated redirection controller
             RDWSimulationManager.instance.SimulateRDW();
@@ -819,7 +821,9 @@ namespace _GCM
             if (simulationManager == null || simulationManager.simulationSetting == null)
                 return;
 
-            if (!simulationManager.simulationSetting.enableBiRecoverabilityLogging)
+            bool shouldRunPrecheck = simulationManager.simulationSetting.enableBiRecoverabilityLogging ||
+                                     BidirectionalCollisionDebugVisualizer.IsEnabled();
+            if (!shouldRunPrecheck)
                 return;
 
             if (partitionResult == null || partitionResult.CellAdjacency == null)
@@ -1021,6 +1025,11 @@ namespace _GCM
             ProcessStep();
         }
 
+        public void SetBiCollisionDebugVisualization(bool isEnabled)
+        {
+            BidirectionalCollisionDebugVisualizer.SetEnabled(isEnabled);
+        }
+
         private void OnDrawGizmos()
         {
             EnsureModuleConfig();
@@ -1040,6 +1049,7 @@ namespace _GCM
                 partitionUpdateVisualizer.Draw(latestPartitionUpdateAttempts, latestPartitionResult);
             }
 
+            BidirectionalCollisionDebugVisualizer.DrawGizmos();
             PartitionVisualizer.DrawPartitionAreaGizmos(dic_AreaSegmentsVertex, PartitionedSpaceMaterials);
         }
 
