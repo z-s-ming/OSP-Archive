@@ -57,6 +57,7 @@ namespace _GCM
 
             StringBuilder sb = new StringBuilder();
             int totalResetCountFromUsers = 0;
+            int proactiveEventCount = RDWSimulationManager.instance.GetEpisodeProactiveUserResetEventCount();
             int doubleEventCount = RDWSimulationManager.instance.GetEpisodeDoubleUserResetEventCount();
             int singleEventCount = RDWSimulationManager.instance.GetEpisodeSingleUserResetEventCount();
             int boundaryCollisionCount = 0;
@@ -79,17 +80,14 @@ namespace _GCM
                 }
             }
 
-            int totalResetCountFromTypes = singleEventCount + (doubleEventCount * 2) + boundaryCollisionCount;
-            string totalResetCountDisplay = totalResetCountFromUsers == totalResetCountFromTypes
-                ? totalResetCountFromUsers.ToString()
-                : $"{totalResetCountFromUsers}({totalResetCountFromTypes})";
             float userResetVariance = CalculateVariance(userResetCounts);
 
-            sb.Append(totalResetCountDisplay).Append(',');
+            sb.Append(totalResetCountFromUsers).Append(',');
             sb.Append(userResetVariance.ToString("F4")).Append(',');
             sb.Append(boundaryCollisionCount).Append(',');
+            sb.Append(proactiveEventCount).Append(',');
             sb.Append(singleEventCount).Append(',');
-            sb.Append(doubleEventCount * 2);
+            sb.Append(doubleEventCount);
 
             for (int i = 0; i < _totalUserCount; i++)
             {

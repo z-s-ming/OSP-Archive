@@ -261,6 +261,7 @@ namespace _GCM
             sb.Append("totalResetCountPerEpisode,");
             sb.Append("userResetCountVariancePerEpisode,");
             sb.Append("boundaryCollisionCountPerEpisode,");
+            sb.Append("proactiveUserResetCountPerEpisode,");
             sb.Append("userInterResetSingleCountPerEpisode,");
             sb.Append("userInterResetBothCountPerEpisode");
 

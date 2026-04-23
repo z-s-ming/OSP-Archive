@@ -25,6 +25,7 @@ public class RDWSimulationManager : MonoBehaviour
     private Dictionary<int, List<Vector2>> dic_initObstacleInfo = new Dictionary<int, List<Vector2>>();
 
     public float userResetTotalCount = 0;
+    private int episodeProactiveUserResetEventCount = 0;
     private int episodeSingleUserResetEventCount = 0;
     private int episodeDoubleUserResetEventCount = 0;
 
@@ -584,12 +585,20 @@ public class RDWSimulationManager : MonoBehaviour
 
     public void ResetEpisodeUserResetEventCounts()
     {
+        episodeProactiveUserResetEventCount = 0;
         episodeSingleUserResetEventCount = 0;
         episodeDoubleUserResetEventCount = 0;
     }
 
-    public void RegisterUserResetEvent(int selfUnitId, Object2D otherUser, bool isDoubleEvent)
+    public void RegisterUserResetEvent(int selfUnitId, Object2D otherUser, bool isDoubleEvent, bool isProactive)
     {
+        if (isProactive)
+        {
+            // Proactive reset is an independent type and is not merged into single/double user-inter reset.
+            episodeProactiveUserResetEventCount++;
+            return;
+        }
+
         if (!isDoubleEvent)
         {
             episodeSingleUserResetEventCount++;
@@ -606,6 +615,11 @@ public class RDWSimulationManager : MonoBehaviour
         // Deduplicate bidirectional events: count only once per pair trigger.
         if (selfUnitId < otherUnitId)
             episodeDoubleUserResetEventCount++;
+    }
+
+    public int GetEpisodeProactiveUserResetEventCount()
+    {
+        return episodeProactiveUserResetEventCount;
     }
 
     public int GetEpisodeSingleUserResetEventCount()

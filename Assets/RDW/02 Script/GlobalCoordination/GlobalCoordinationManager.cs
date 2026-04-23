@@ -17,7 +17,7 @@ namespace _GCM
         private const float BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD = 0.05f;
         private const float PROACTIVE_ARBITRATION_M_EPSILON = 0.02f;
         private const float PROACTIVE_ARBITRATION_C_EPSILON = 0.05f;
-        private const float SIMPLE_PROACTIVE_TRIGGER_DISTANCE = 1.5f;
+        private const float SIMPLE_PROACTIVE_TRIGGER_DISTANCE = 2.0f;
         private const float SIMPLE_PROACTIVE_TRIGGER_CLOSING_SPEED_EPSILON = 0.05f;
 
         #region singleton pattern

@@ -250,6 +250,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   curren_EX_Type: 0
   isCategoryPrinted: 0
+  isInterResetDistCategoryPrinted: 0
   real_HMD: {fileID: 0}
   AppQuit_Pref: {fileID: 0}
 --- !u!4 &346647692
@@ -914,7 +915,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   simulationSetting:
     useVisualization: 1
-    useDebugMode: 1
+    useDebugMode: 0
     useContinousSimulation: 0
     prefabSetting: {fileID: 11400000, guid: 3c866fcfabc9a4643b2febf2a8238d41, type: 2}
     realSpaceSetting:
@@ -1080,6 +1081,8 @@ MonoBehaviour:
       rotationSpeed: 90
     bAllowUserReset: 1
     useHybridApfUserResetDirection: 0
+    enableProactiveUserResetArbitration: 1
+    useSimpleProactiveTrigger: 0
     enableBiRecoverabilityLogging: 0
     biRecoverabilityLogEveryNFrames: 1
     showTarget: 1
@@ -1247,7 +1250,7 @@ MonoBehaviour:
   totalUserCount: 4
   userRadius: 0.5
   shutterWidth: 0.5
-  SimulationCount_max: 100
+  SimulationCount_max: 2
   TargetDistancePerUser: 200
   bMixedExploration: 0
   bUseCompareExperiment: 0
