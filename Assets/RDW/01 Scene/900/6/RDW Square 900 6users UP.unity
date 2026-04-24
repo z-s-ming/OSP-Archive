@@ -1,4 +1,4 @@
-%YAML 1.1
+﻿%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!29 &1
 OcclusionCullingSettings:
@@ -581,7 +581,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Current Reward : 0'
+  m_Text: ''
 --- !u!222 &1172250594
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1404,7 +1404,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Current Step : 0'
+  m_Text: ''
 --- !u!222 &1829637902
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1542,3 +1542,4 @@ MonoBehaviour:
   prefab_VoronoiEdgesCollider: {fileID: 3491661778377261238, guid: 70d3f05e765ee7f449bc1d671b9f2328,
     type: 3}
   list_VoronoiEdgesCollider: []
+

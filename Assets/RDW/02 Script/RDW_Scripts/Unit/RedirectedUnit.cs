@@ -248,7 +248,6 @@ public class RedirectedUnit
                      resetter.NeedUserReset(realUser, otherUsers, out intersectedUser, out truc, out isBidirectionalResetEvent) &&
                      previousStatus != "USER_RESET_DONE" )
             {
-
                 status = "USER_RESET";
                 resultData.AddUserReset();
                 RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, isBidirectionalResetEvent, false);
@@ -267,8 +266,6 @@ public class RedirectedUnit
                 {
                     Debug.Break(); // 暂停 Unity 编辑器，方便观察碰撞现场
                 }
-               
-
             }
             else if (!GetEpisode().IsNotEnd())
             {

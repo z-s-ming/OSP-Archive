@@ -17,7 +17,7 @@ namespace _GCM
         private const float BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD = 0.05f;
         private const float PROACTIVE_ARBITRATION_M_EPSILON = 0.02f;
         private const float PROACTIVE_ARBITRATION_C_EPSILON = 0.05f;
-        private const float SIMPLE_PROACTIVE_TRIGGER_DISTANCE = 2.0f;
+        private const float SIMPLE_PROACTIVE_TRIGGER_DISTANCE = 1.5f;
         private const float SIMPLE_PROACTIVE_TRIGGER_CLOSING_SPEED_EPSILON = 0.05f;
 
         #region singleton pattern
@@ -176,6 +176,16 @@ namespace _GCM
         private Dictionary<int, LocalTargetResult> latestLocalTargets = new Dictionary<int, LocalTargetResult>();
         private string localTargetExperimentFolderPath = string.Empty;
         private RDW.Coordination.Visualization.LocalSafeTargetVisualizer localSafeTargetVisualizer;
+        private GUIStyle resetActionCounterPanelStyle;
+        private GUIStyle resetActionCounterTextStyle;
+        private readonly Rect resetActionCounterPanelRect = new Rect(12f, 12f, 420f, 138f);
+        private RDWSimulationManager.ResetActionDebugStats previousResetActionDebugStats;
+        private bool hasPreviousResetActionDebugStats = false;
+        private const float resetActionHighlightDurationSeconds = 0.8f;
+        private float proactiveCounterLastChangedTime = float.NegativeInfinity;
+        private float singleCounterLastChangedTime = float.NegativeInfinity;
+        private float doubleCounterLastChangedTime = float.NegativeInfinity;
+        private float wallCounterLastChangedTime = float.NegativeInfinity;
 
         private struct ProactiveIntentCandidate
         {
@@ -857,9 +867,10 @@ namespace _GCM
             if (simulationManager == null || simulationManager.simulationSetting == null)
                 return;
 
-            bool proactiveEnabled = simulationManager.simulationSetting.enableProactiveUserResetArbitration &&
+            ProactiveUserResetSettings proactiveSettings = simulationManager.simulationSetting.proactiveUserReset ?? new ProactiveUserResetSettings();
+            bool proactiveEnabled = proactiveSettings.enableStrategy &&
                                     simulationManager.simulationSetting.bAllowUserReset;
-            bool useSimpleProactiveTrigger = simulationManager.simulationSetting.useSimpleProactiveTrigger;
+            bool useSimpleProactiveTrigger = proactiveSettings.judgeMode == ProactiveUserResetJudgeMode.Simple;
             bool shouldRunPrecheck = proactiveEnabled ||
                                      simulationManager.simulationSetting.enableBiRecoverabilityLogging ||
                                      BidirectionalCollisionDebugVisualizer.IsEnabled();
@@ -935,14 +946,21 @@ namespace _GCM
 
                     //Debug.Log($"[主动重置触发] pair ({userId}, {adjacentUserId}) trigger={(useSimpleProactiveTrigger ? "Simple" : "RiskConfirmed")}");
 
-                    if (!ProactiveUserResetArbitrationService.TryArbitratePair(
+                    bool arbitrationSucceeded = false;
+                    ProactiveUserResetArbitrationService.ArbitrationResult arbitrationResult = default;
+                    if (proactiveSettings.userSelectionMode == ProactiveUserResetUserSelectionMode.Arbitration)
+                    {
+                        arbitrationSucceeded = ProactiveUserResetArbitrationService.TryArbitratePair(
                             unitA,
                             userId,
                             unitB,
                             adjacentUserId,
                             PROACTIVE_ARBITRATION_M_EPSILON,
                             PROACTIVE_ARBITRATION_C_EPSILON,
-                            out ProactiveUserResetArbitrationService.ArbitrationResult arbitrationResult))
+                            out arbitrationResult);
+                    }
+
+                    if (!arbitrationSucceeded)
                     {
                         continue;
                     }
@@ -1219,6 +1237,84 @@ namespace _GCM
 
             BidirectionalCollisionDebugVisualizer.DrawGizmos();
             PartitionVisualizer.DrawPartitionAreaGizmos(dic_AreaSegmentsVertex, PartitionedSpaceMaterials);
+        }
+
+        private void OnGUI()
+        {
+            RDWSimulationManager simulationManager = RDWSimulationManager.instance;
+            if (simulationManager == null || simulationManager.simulationSetting == null || !simulationManager.simulationSetting.useDebugMode)
+                return;
+
+            EnsureResetActionCounterGuiStyles();
+
+            RDWSimulationManager.ResetActionDebugStats stats = simulationManager.GetResetActionDebugStats();
+            int proactiveDelta = hasPreviousResetActionDebugStats ? stats.ProactiveUserResetActionCount - previousResetActionDebugStats.ProactiveUserResetActionCount : 0;
+            int singleDelta = hasPreviousResetActionDebugStats ? stats.SingleUserResetActionCount - previousResetActionDebugStats.SingleUserResetActionCount : 0;
+            int doubleDelta = hasPreviousResetActionDebugStats ? stats.DoubleUserResetActionCount - previousResetActionDebugStats.DoubleUserResetActionCount : 0;
+            int wallDelta = hasPreviousResetActionDebugStats ? stats.WallResetActionCount - previousResetActionDebugStats.WallResetActionCount : 0;
+
+            float now = Time.time;
+            if (proactiveDelta > 0) proactiveCounterLastChangedTime = now;
+            if (singleDelta > 0) singleCounterLastChangedTime = now;
+            if (doubleDelta > 0) doubleCounterLastChangedTime = now;
+            if (wallDelta > 0) wallCounterLastChangedTime = now;
+
+            bool proactiveHighlighted = now - proactiveCounterLastChangedTime <= resetActionHighlightDurationSeconds;
+            bool singleHighlighted = now - singleCounterLastChangedTime <= resetActionHighlightDurationSeconds;
+            bool doubleHighlighted = now - doubleCounterLastChangedTime <= resetActionHighlightDurationSeconds;
+            bool wallHighlighted = now - wallCounterLastChangedTime <= resetActionHighlightDurationSeconds;
+
+            string content =
+                "Debug Reset Action Counter\n" +
+                "Frame: " + Time.frameCount + "\n" +
+                FormatCounterLine("USER_RESET Proactive (Action)", stats.ProactiveUserResetActionCount, proactiveHighlighted) + "\n" +
+                FormatCounterLine("USER_RESET Single (Action)", stats.SingleUserResetActionCount, singleHighlighted) + "\n" +
+                FormatCounterLine("USER_RESET Double (Action)", stats.DoubleUserResetActionCount, doubleHighlighted) + "\n" +
+                FormatCounterLine("WALL_RESET (Action)", stats.WallResetActionCount, wallHighlighted);
+
+            Color previousGuiColor = GUI.color;
+            GUI.color = new Color(0f, 0f, 0f, 0.65f);
+            GUI.Box(resetActionCounterPanelRect, GUIContent.none, resetActionCounterPanelStyle);
+            GUI.color = previousGuiColor;
+            Rect textRect = new Rect(
+                resetActionCounterPanelRect.x + 10f,
+                resetActionCounterPanelRect.y + 8f,
+                resetActionCounterPanelRect.width - 20f,
+                resetActionCounterPanelRect.height - 12f);
+            GUI.Label(textRect, content, resetActionCounterTextStyle);
+
+            previousResetActionDebugStats = stats;
+            hasPreviousResetActionDebugStats = true;
+        }
+
+        private void EnsureResetActionCounterGuiStyles()
+        {
+            if (resetActionCounterPanelStyle == null)
+            {
+                resetActionCounterPanelStyle = new GUIStyle(GUI.skin.box);
+                resetActionCounterPanelStyle.normal.background = Texture2D.whiteTexture;
+                resetActionCounterPanelStyle.normal.textColor = Color.white;
+            }
+
+            if (resetActionCounterTextStyle == null)
+            {
+                resetActionCounterTextStyle = new GUIStyle(GUI.skin.label);
+                resetActionCounterTextStyle.fontSize = 14;
+                resetActionCounterTextStyle.fontStyle = FontStyle.Bold;
+                resetActionCounterTextStyle.normal.textColor = Color.white;
+                resetActionCounterTextStyle.alignment = TextAnchor.UpperLeft;
+                resetActionCounterTextStyle.richText = true;
+            }
+
+        }
+
+        private static string FormatCounterLine(string label, int count, bool highlighted)
+        {
+            string line = label + ": " + count;
+            if (!highlighted)
+                return line;
+
+            return "<color=#FF5A5A>" + line + "</color>";
         }
 
         // Heuristic removed

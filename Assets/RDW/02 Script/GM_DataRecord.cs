@@ -261,9 +261,9 @@ namespace _GCM
             sb.Append("totalResetCountPerEpisode,");
             sb.Append("userResetCountVariancePerEpisode,");
             sb.Append("boundaryCollisionCountPerEpisode,");
-            sb.Append("proactiveUserResetCountPerEpisode,");
-            sb.Append("userInterResetSingleCountPerEpisode,");
-            sb.Append("userInterResetBothCountPerEpisode");
+            sb.Append("proactiveUserResetActionCountPerEpisode,");
+            sb.Append("userInterResetSingleActionCountPerEpisode,");
+            sb.Append("userInterResetBothActionCountPerEpisode");
 
             int userCount = 0;
             if (RDWSimulationManager.instance != null &&

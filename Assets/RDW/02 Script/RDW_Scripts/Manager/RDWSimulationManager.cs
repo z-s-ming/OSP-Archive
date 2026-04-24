@@ -6,6 +6,17 @@ using System.Text;
 
 public class RDWSimulationManager : MonoBehaviour
 {
+    public struct ResetActionDebugStats
+    {
+        public int ProactiveUserResetActionCount;
+        public int SingleUserResetActionCount;
+        public int DoubleUserResetActionCount;
+        public int TotalUserResetActionCount;
+        public int WallResetActionCount;
+        public int ShutterResetActionCount;
+        public int TotalResetActionCount;
+    }
+
     public static RDWSimulationManager instance = null;
 
     public SimulationSetting simulationSetting; // 시뮬레이션 환경 설정을 담은 변수
@@ -25,9 +36,9 @@ public class RDWSimulationManager : MonoBehaviour
     private Dictionary<int, List<Vector2>> dic_initObstacleInfo = new Dictionary<int, List<Vector2>>();
 
     public float userResetTotalCount = 0;
-    private int episodeProactiveUserResetEventCount = 0;
-    private int episodeSingleUserResetEventCount = 0;
-    private int episodeDoubleUserResetEventCount = 0;
+    private int episodeProactiveUserResetActionCount = 0;
+    private int episodeSingleUserResetActionCount = 0;
+    private int episodeDoubleUserResetActionCount = 0;
 
     public float simulspeed = 30.0f;
     [Header("Space Visualization")]
@@ -585,51 +596,74 @@ public class RDWSimulationManager : MonoBehaviour
 
     public void ResetEpisodeUserResetEventCounts()
     {
-        episodeProactiveUserResetEventCount = 0;
-        episodeSingleUserResetEventCount = 0;
-        episodeDoubleUserResetEventCount = 0;
+        episodeProactiveUserResetActionCount = 0;
+        episodeSingleUserResetActionCount = 0;
+        episodeDoubleUserResetActionCount = 0;
     }
 
     public void RegisterUserResetEvent(int selfUnitId, Object2D otherUser, bool isDoubleEvent, bool isProactive)
     {
         if (isProactive)
         {
-            // Proactive reset is an independent type and is not merged into single/double user-inter reset.
-            episodeProactiveUserResetEventCount++;
+            // Action-based counting: each executed proactive USER_RESET action counts once.
+            episodeProactiveUserResetActionCount++;
             return;
         }
 
         if (!isDoubleEvent)
         {
-            episodeSingleUserResetEventCount++;
+            // Action-based counting: each executed single-side USER_RESET action counts once.
+            episodeSingleUserResetActionCount++;
             return;
         }
 
-        int otherUnitId = GetUnitIdByRealUser(otherUser);
-        if (otherUnitId < 0)
-        {
-            episodeDoubleUserResetEventCount++;
-            return;
-        }
-
-        // Deduplicate bidirectional events: count only once per pair trigger.
-        if (selfUnitId < otherUnitId)
-            episodeDoubleUserResetEventCount++;
+        // Action-based counting: each executed bidirectional USER_RESET action counts once.
+        episodeDoubleUserResetActionCount++;
     }
 
     public int GetEpisodeProactiveUserResetEventCount()
     {
-        return episodeProactiveUserResetEventCount;
+        return episodeProactiveUserResetActionCount;
     }
 
     public int GetEpisodeSingleUserResetEventCount()
     {
-        return episodeSingleUserResetEventCount;
+        return episodeSingleUserResetActionCount;
     }
 
     public int GetEpisodeDoubleUserResetEventCount()
     {
-        return episodeDoubleUserResetEventCount;
+        return episodeDoubleUserResetActionCount;
+    }
+
+    public ResetActionDebugStats GetResetActionDebugStats()
+    {
+        ResetActionDebugStats stats = new ResetActionDebugStats
+        {
+            ProactiveUserResetActionCount = episodeProactiveUserResetActionCount,
+            SingleUserResetActionCount = episodeSingleUserResetActionCount,
+            DoubleUserResetActionCount = episodeDoubleUserResetActionCount
+        };
+        stats.TotalUserResetActionCount =
+            stats.ProactiveUserResetActionCount +
+            stats.SingleUserResetActionCount +
+            stats.DoubleUserResetActionCount;
+
+        if (redirectedUnits == null)
+            return stats;
+
+        for (int i = 0; i < redirectedUnits.Length; i++)
+        {
+            RedirectedUnit unit = redirectedUnits[i];
+            if (unit == null || unit.resultData == null)
+                continue;
+
+            stats.WallResetActionCount += (int)unit.resultData.getWallReset();
+            stats.ShutterResetActionCount += (int)unit.resultData.getShutterReset();
+            stats.TotalResetActionCount += (int)unit.resultData.getTotalReset();
+        }
+
+        return stats;
     }
 
     private int GetUnitIdByRealUser(Object2D realUser)

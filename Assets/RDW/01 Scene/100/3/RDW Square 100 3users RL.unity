@@ -513,7 +513,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Current Reward : 0'
+  m_Text: 
 --- !u!222 &1172250594
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -915,7 +915,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   simulationSetting:
     useVisualization: 1
-    useDebugMode: 0
+    useDebugMode: 1
     useContinousSimulation: 0
     prefabSetting: {fileID: 11400000, guid: 3c866fcfabc9a4643b2febf2a8238d41, type: 2}
     realSpaceSetting:
@@ -1080,7 +1080,10 @@ MonoBehaviour:
       translationSpeed: 1
       rotationSpeed: 90
     bAllowUserReset: 1
-    useHybridApfUserResetDirection: 0
+    proactiveUserReset:
+      enableStrategy: 1
+      judgeMode: 0
+      userSelectionMode: 0
     enableProactiveUserResetArbitration: 1
     useSimpleProactiveTrigger: 0
     enableBiRecoverabilityLogging: 0
@@ -1194,7 +1197,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: 'Current Step : 0'
+  m_Text: 
 --- !u!222 &1829637902
 CanvasRenderer:
   m_ObjectHideFlags: 0

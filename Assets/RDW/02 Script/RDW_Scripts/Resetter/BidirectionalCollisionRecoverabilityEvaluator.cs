@@ -7,7 +7,7 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
     private const float DEFAULT_SAFE_BUFFER = 0.1f;
     private const float CLOSING_SPEED_THRESHOLD = 0.05f;
     private const float APPROACHING_DISTANCE_MARGIN = 0.01f;
-    private const int CONTINUOUS_FRAMES_THRESHOLD = 10;
+    private const int CONTINUOUS_FRAMES_THRESHOLD = 3;
 
     private struct PairTemporalState
     {
