@@ -180,6 +180,7 @@ namespace _GCM
         private float singleCounterLastChangedTime = float.NegativeInfinity;
         private float doubleCounterLastChangedTime = float.NegativeInfinity;
         private float wallCounterLastChangedTime = float.NegativeInfinity;
+        private readonly Dictionary<int, int> proactiveResetExecutionCooldownUntilFrame = new Dictionary<int, int>();
 
         private struct ProactiveIntentCandidate
         {
@@ -582,6 +583,7 @@ namespace _GCM
             BidirectionalCollisionRecoverabilityEvaluator.ResetTemporalState();
             ProactiveResetPairDistanceLogger.ResetSession();
             BidirectionalCollisionDebugVisualizer.ResetSession();
+            proactiveResetExecutionCooldownUntilFrame.Clear();
 
             latestPartitionRiskFrame = null;
             latestPartitionUpdateAttempts.Clear();
@@ -977,8 +979,6 @@ namespace _GCM
                     if (!proactiveEnabled || !proactiveTriggerFired)
                         continue;
 
-                    ProactiveResetPairDistanceLogger.NotifyProactiveTrigger(unitA, unitB);
-
                     //Debug.Log($"[主动重置触发] pair ({userId}, {adjacentUserId}) trigger={(useSimpleProactiveTrigger ? "Simple" : "RiskConfirmed")}");
 
                     if (proactiveSettings.userSelectionMode == ProactiveUserResetUserSelectionMode.None)
@@ -1002,6 +1002,26 @@ namespace _GCM
 
                     if (!arbitrationSucceeded)
                     {
+                        continue;
+                    }
+
+                    if (IsProactiveResetExecutionCoolingDown(arbitrationResult.SelectedUnitIndex))
+                    {
+                        continue;
+                    }
+
+                    if (proactiveSettings.enableInPlaceSafetyCheck &&
+                        !ProactiveUserResetSafetyValidator.IsSafeInPlaceReset(
+                            units,
+                            arbitrationResult.SelectedUnitIndex,
+                            arbitrationResult.SelectedResetDirection,
+                            proactiveSettings.inPlaceSafetyBufferSeconds,
+                            predictionSampleCount,
+                            out int blockingUserIndex))
+                    {
+                        Debug.Log(
+                            $"[Proactive Reset Cancelled] selected={arbitrationResult.SelectedUnitIndex}, pair=({userId},{adjacentUserId}), " +
+                            $"blockedBy={blockingUserIndex}, reason=InPlaceSafetyCheck");
                         continue;
                     }
 
@@ -1042,9 +1062,42 @@ namespace _GCM
                 if (!string.Equals(selectedUnit.GetStatus(), "IDLE", StringComparison.Ordinal))
                     continue;
 
+                if (IsProactiveResetExecutionCoolingDown(candidate.SelectedUserId))
+                    continue;
+
                 selectedUnit.SetProactiveUserResetIntent(otherUnit.GetRealUser(), candidate.ResetDirection, true);
 
             }
+        }
+
+        public void RegisterProactiveUserResetExecution(int userId)
+        {
+            RDWSimulationManager simulationManager = RDWSimulationManager.instance;
+            if (simulationManager == null || simulationManager.simulationSetting == null)
+                return;
+
+            ProactiveUserResetSettings proactiveSettings = simulationManager.simulationSetting.proactiveUserReset ?? new ProactiveUserResetSettings();
+            float cooldownSeconds = Mathf.Max(0.0f, proactiveSettings.executionCooldownSeconds);
+            if (cooldownSeconds <= 0.0f)
+                return;
+
+            int cooldownFrames = Mathf.CeilToInt(cooldownSeconds / Mathf.Max(Time.fixedDeltaTime, 0.0001f));
+            proactiveResetExecutionCooldownUntilFrame[userId] = simulationFrameIndex + cooldownFrames;
+        }
+
+        private bool IsProactiveResetExecutionCoolingDown(int userId)
+        {
+            if (userId < 0)
+                return false;
+
+            if (!proactiveResetExecutionCooldownUntilFrame.TryGetValue(userId, out int cooldownUntilFrame))
+                return false;
+
+            if (simulationFrameIndex < cooldownUntilFrame)
+                return true;
+
+            proactiveResetExecutionCooldownUntilFrame.Remove(userId);
+            return false;
         }
 
         private static float ResolveClosingSpeedFromKinematics(Vector2 offsetAB, Vector2 velocityA, Vector2 velocityB)

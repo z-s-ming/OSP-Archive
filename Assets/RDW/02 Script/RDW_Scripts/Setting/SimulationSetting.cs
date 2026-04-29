@@ -56,6 +56,16 @@ public class ProactiveUserResetSettings
 
     [Tooltip("Tie-break epsilon for C_self score in arbitration.")]
     [Min(0.0f)] public float arbitrationCEpsilon = 0.05f;
+
+    [Header("Safety And Suppression")]
+    [Tooltip("Reject proactive reset if the selected user rotating in place would cause another user to unavoidably collide with it.")]
+    public bool enableInPlaceSafetyCheck = true;
+
+    [Tooltip("Extra prediction time after the estimated in-place reset duration.")]
+    [Min(0.0f)] public float inPlaceSafetyBufferSeconds = 0.2f;
+
+    [Tooltip("Cooldown applied to a user after a proactive reset is executed.")]
+    [Min(0.0f)] public float executionCooldownSeconds = 1.5f;
 }
 
 [System.Serializable]

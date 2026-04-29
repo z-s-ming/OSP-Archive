@@ -90,11 +90,7 @@ public class Circle2D : Object2D
             Vector2 thisPosition = this.transform2D.position;
             float otherRadius = other.GetRadius();
 
-            //if (Mathf.Abs(Vector2.Distance(thisPosition, otherPosition) - (otherRadius + this.radius)) < 0.02F) // 차이가 epsilon 만큼이라면 intersect 했다고 판단
-            if (Mathf.Abs(Vector2.Distance(thisPosition, otherPosition) - (otherRadius + this.radius)) < 0.02F) // 차이가 epsilon 만큼이라면 intersect 했다고 판단
-                return true;
-            else
-                return false;
+            return Vector2.Distance(thisPosition, otherPosition) <= otherRadius + this.radius + 0.02F;
         }
         else if (targetObject is Polygon2D)
         {

@@ -231,6 +231,8 @@ public class RedirectedUnit
 
                 resultData.AddUserReset();
                 RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, isBidirectionalResetEvent, true);
+                _GCM.GlobalCoordinationManager.instance?.RegisterProactiveUserResetExecution(id);
+                ProactiveResetPairDistanceLogger.NotifyProactiveTrigger(this, ResolveUnitByRealUser(intersectedUser));
                 _GCM.GM_DataRecord.instance?.LogInterResetDistance(
                     id,
                     controller != null ? controller.GetEpisodeID() : -1,
@@ -381,21 +383,27 @@ public class RedirectedUnit
 
     private static int ResolveUnitIdByRealUser(Object2D userObject)
     {
+        RedirectedUnit unit = ResolveUnitByRealUser(userObject);
+        return unit != null ? unit.GetID() : -1;
+    }
+
+    private static RedirectedUnit ResolveUnitByRealUser(Object2D userObject)
+    {
         if (userObject == null || RDWSimulationManager.instance == null)
-            return -1;
+            return null;
 
         RedirectedUnit[] units = RDWSimulationManager.instance.GetRedirectedUnits;
         if (units == null)
-            return -1;
+            return null;
 
         for (int i = 0; i < units.Length; i++)
         {
             RedirectedUnit unit = units[i];
             if (unit != null && unit.GetRealUser() == userObject)
-                return unit.GetID();
+                return unit;
         }
 
-        return -1;
+        return null;
     }
 
     private int i = 0;
