@@ -4,9 +4,6 @@ using UnityEngine;
 public static class ProactiveUserResetArbitrationService
 {
     private const float EPSILON = 0.0001f;
-    private const float DEFAULT_SAFE_BUFFER = 0.1f;
-    private const float DEFAULT_HORIZON_SECONDS = 1.5f;
-    private const int DEFAULT_SAMPLE_COUNT = 60;
     private const float RAY_MAX_DISTANCE = 200.0f;
 
     public struct ArbitrationResult
@@ -43,28 +40,30 @@ public static class ProactiveUserResetArbitrationService
 
         Vector2 keepDirectionA = ResolveKeepDirection(unitA);
         Vector2 keepDirectionB = ResolveKeepDirection(unitB);
-        Vector2 resetDirectionA = ResolveResetDirection(unitA, keepDirectionA);
-        Vector2 resetDirectionB = ResolveResetDirection(unitB, keepDirectionB);
+        Vector2 resetDirectionA = ResolveResetDirection(unitA, unitB);
+        Vector2 resetDirectionB = ResolveResetDirection(unitB, unitA);
+
+        bool hasValidResetA = resetDirectionA.sqrMagnitude > EPSILON;
+        bool hasValidResetB = resetDirectionB.sqrMagnitude > EPSILON;
+        if (!hasValidResetA && !hasValidResetB)
+            return false;
 
         float keepDistanceA = ComputePhysicalRemainingDistance(unitA, keepDirectionA);
         float keepDistanceB = ComputePhysicalRemainingDistance(unitB, keepDirectionB);
-        float resetDistanceA = ComputePhysicalRemainingDistance(unitA, resetDirectionA);
-        float resetDistanceB = ComputePhysicalRemainingDistance(unitB, resetDirectionB);
+        float resetDistanceA = hasValidResetA ? ComputePhysicalRemainingDistance(unitA, resetDirectionA) : keepDistanceA;
+        float resetDistanceB = hasValidResetB ? ComputePhysicalRemainingDistance(unitB, resetDirectionB) : keepDistanceB;
 
-        float cSelfA = keepDistanceA - resetDistanceA;
-        float cSelfB = keepDistanceB - resetDistanceB;
+        float cSelfA = hasValidResetA ? (keepDistanceA - resetDistanceA) : float.PositiveInfinity;
+        float cSelfB = hasValidResetB ? (keepDistanceB - resetDistanceB) : float.PositiveInfinity;
 
-        float keepMargin = EvaluatePairMargin(unitA, keepDirectionA, unitB, keepDirectionB, DEFAULT_HORIZON_SECONDS, DEFAULT_SAMPLE_COUNT);
-        float marginAReset = EvaluatePairMargin(unitA, resetDirectionA, unitB, keepDirectionB, DEFAULT_HORIZON_SECONDS, DEFAULT_SAMPLE_COUNT);
-        float marginBReset = EvaluatePairMargin(unitA, keepDirectionA, unitB, resetDirectionB, DEFAULT_HORIZON_SECONDS, DEFAULT_SAMPLE_COUNT);
-
-        float mA = marginAReset - keepMargin;
-        float mB = marginBReset - keepMargin;
+        float keepWorstDistance = Mathf.Min(keepDistanceA, keepDistanceB);
+        float resetAWorstDistance = hasValidResetA ? Mathf.Min(resetDistanceA, keepDistanceB) : float.NegativeInfinity;
+        float resetBWorstDistance = hasValidResetB ? Mathf.Min(resetDistanceB, keepDistanceA) : float.NegativeInfinity;
 
         bool selectA;
-        if (Mathf.Abs(mA - mB) > mEpsilon)
+        if (Mathf.Abs(resetAWorstDistance - resetBWorstDistance) > mEpsilon)
         {
-            selectA = mA > mB;
+            selectA = resetAWorstDistance > resetBWorstDistance;
         }
         else if (Mathf.Abs(cSelfA - cSelfB) > cEpsilon)
         {
@@ -80,7 +79,7 @@ public static class ProactiveUserResetArbitrationService
             result.SelectedUnitIndex = indexA;
             result.OtherUnitIndex = indexB;
             result.SelectedResetDirection = resetDirectionA;
-            result.SelectedM = mA;
+            result.SelectedM = resetAWorstDistance;
             result.SelectedCSelf = cSelfA;
         }
         else
@@ -88,11 +87,11 @@ public static class ProactiveUserResetArbitrationService
             result.SelectedUnitIndex = indexB;
             result.OtherUnitIndex = indexA;
             result.SelectedResetDirection = resetDirectionB;
-            result.SelectedM = mB;
+            result.SelectedM = resetBWorstDistance;
             result.SelectedCSelf = cSelfB;
         }
 
-        result.KeepMargin = keepMargin;
+        result.KeepMargin = keepWorstDistance;
         return true;
     }
 
@@ -112,16 +111,22 @@ public static class ProactiveUserResetArbitrationService
         return Vector2.up;
     }
 
-    private static Vector2 ResolveResetDirection(RedirectedUnit unit, Vector2 fallbackDirection)
+    private static Vector2 ResolveResetDirection(RedirectedUnit selectedUnit, RedirectedUnit otherUnit)
     {
-        Vector2 apfDirection = UserResetDirectionResolver.ComputeLocalApfDirection(unit);
-        if (apfDirection.sqrMagnitude > EPSILON)
-            return apfDirection.normalized;
+        if (selectedUnit == null || otherUnit == null || selectedUnit.GetRealUser() == null || otherUnit.GetRealUser() == null)
+            return Vector2.zero;
 
-        if (fallbackDirection.sqrMagnitude > EPSILON)
-            return fallbackDirection.normalized;
+        Vector2 awayFromPairUser = selectedUnit.GetRealUser().transform2D.localPosition -
+                                   otherUnit.GetRealUser().transform2D.localPosition;
+        if (awayFromPairUser.sqrMagnitude > EPSILON)
+            return awayFromPairUser.normalized;
 
-        return Vector2.up;
+        // Previous proactive reset direction policy:
+        // Vector2 apfDirection = UserResetDirectionResolver.ComputeLocalApfDirection(selectedUnit);
+        // if (apfDirection.sqrMagnitude > EPSILON)
+        //     return apfDirection.normalized;
+
+        return ResolveKeepDirection(selectedUnit);
     }
 
     private static float ComputePhysicalRemainingDistance(RedirectedUnit unit, Vector2 direction)
@@ -235,53 +240,6 @@ public static class ProactiveUserResetArbitrationService
 
         distance = best;
         return true;
-    }
-
-    private static float EvaluatePairMargin(
-        RedirectedUnit unitA,
-        Vector2 directionA,
-        RedirectedUnit unitB,
-        Vector2 directionB,
-        float horizonSeconds,
-        int sampleCount)
-    {
-        Object2D userA = unitA.GetRealUser();
-        Object2D userB = unitB.GetRealUser();
-
-        float speedA = Mathf.Max(unitA.GetResetter().GetTranslationSpeed(), EPSILON);
-        float speedB = Mathf.Max(unitB.GetResetter().GetTranslationSpeed(), EPSILON);
-        float safeDistance = ResolveSafeDistance(userA, userB);
-        Vector2 normalizedA = directionA.sqrMagnitude > EPSILON ? directionA.normalized : ResolveKeepDirection(unitA);
-        Vector2 normalizedB = directionB.sqrMagnitude > EPSILON ? directionB.normalized : ResolveKeepDirection(unitB);
-        int safeSampleCount = Mathf.Max(sampleCount, 2);
-
-        float minMargin = float.PositiveInfinity;
-        for (int i = 0; i <= safeSampleCount; i++)
-        {
-            float t = horizonSeconds * i / safeSampleCount;
-            Vector2 pA = userA.transform2D.localPosition + normalizedA * speedA * t;
-            Vector2 pB = userB.transform2D.localPosition + normalizedB * speedB * t;
-            float margin = Vector2.Distance(pA, pB) - safeDistance;
-            if (margin < minMargin)
-                minMargin = margin;
-        }
-
-        return minMargin;
-    }
-
-    private static float ResolveSafeDistance(Object2D userA, Object2D userB)
-    {
-        float radiusA = ResolveUserRadius(userA);
-        float radiusB = ResolveUserRadius(userB);
-        return radiusA + radiusB + DEFAULT_SAFE_BUFFER;
-    }
-
-    private static float ResolveUserRadius(Object2D user)
-    {
-        if (user is Circle2D circle)
-            return circle.GetRadius();
-
-        return 0.5f;
     }
 
     private static float Cross(Vector2 lhs, Vector2 rhs)

@@ -1082,17 +1082,22 @@ MonoBehaviour:
     bAllowUserReset: 1
     proactiveUserReset:
       enableStrategy: 1
-      judgeMode: 0
+      judgeMode: 2
       userSelectionMode: 0
-    enableProactiveUserResetArbitration: 1
-    useSimpleProactiveTrigger: 0
-    enableBiRecoverabilityLogging: 0
-    biRecoverabilityLogEveryNFrames: 1
+      predictionHorizonSeconds: 1.5
+      predictionSampleCount: 60
+      simpleTriggerDistanceMeters: 1.5
+      simpleClosingSpeedThreshold: 0.05
+      ttcCollisionDistanceMeters: 1
+      ttcMinTimeToHitSeconds: 0.5
+      arbitrationMEpsilon: 0.02
+      arbitrationCEpsilon: 0.05
+    enableProactiveResetPairDistanceLogging: 0
     showTarget: 1
     showResetLocator: 0
     showRealWall: 0
   userResetTotalCount: 0
-  simulspeed: 5
+  simulspeed: 2
   autoSeparateVirtualSpaceFromRealSpace: 0
   virtualSpaceSeparationOffset: {x: 50, y: 0}
   keepOnlyOneVirtualTrail: 0
@@ -1253,7 +1258,7 @@ MonoBehaviour:
   totalUserCount: 4
   userRadius: 0.5
   shutterWidth: 0.5
-  SimulationCount_max: 2
+  SimulationCount_max: 100
   TargetDistancePerUser: 200
   bMixedExploration: 0
   bUseCompareExperiment: 0

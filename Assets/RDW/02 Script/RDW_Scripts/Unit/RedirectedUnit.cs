@@ -37,7 +37,9 @@ public class RedirectedUnit
     private Vector2 cachedUserResetDirection = Vector2.zero;
     private bool hasCachedUserResetDirection = false;
     private Vector2 lastMovementDirection = Vector2.zero;
+    private float lastInstantaneousSpeed = 0.0f;
     private bool usedRotationGainInLastMove = false;
+    private bool hasSpeedAnchor = false;
     private bool hasPendingProactiveUserResetIntent = false;
     private Object2D pendingProactiveOtherUser = null;
     private Vector2 pendingProactiveResetDirection = Vector2.zero;
@@ -71,6 +73,7 @@ public class RedirectedUnit
         this.virtualUser = virtualUser;
         this.status = "IDLE";
         this.lastMovementDirection = realUser != null ? realUser.transform2D.forward : Vector2.zero;
+        this.hasSpeedAnchor = realUser != null;
 
         resetLocObjects = new List<GameObject>();
         realWallObjects = new List<GameObject>();
@@ -109,8 +112,6 @@ public class RedirectedUnit
 
     public string CheckCurrentStatus(RedirectedUnit[] otherUnits, string previousStatus)
     {
-        List<Object2D> otherUsers = GetUsers(otherUnits);
-
         if( 
                 ( (status == "WALL_RESET" && previousStatus == "WALL_RESET_DONE") ||
                   (status == "USER_RESET" && previousStatus == "USER_RESET_DONE")    )
@@ -225,6 +226,8 @@ public class RedirectedUnit
                 isBidirectionalResetEvent = proactiveBidirectionalResetEvent;
                 cachedUserResetDirection = proactiveDirection;
                 hasCachedUserResetDirection = true;
+                float proactiveResetSignedAngle = Vector2.SignedAngle(realUser.transform2D.forward, cachedUserResetDirection);
+                float proactiveResetAbsAngle = Mathf.Abs(proactiveResetSignedAngle);
 
                 resultData.AddUserReset();
                 RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, isBidirectionalResetEvent, true);
@@ -234,7 +237,10 @@ public class RedirectedUnit
                     "PROACTIVE_USER_RESET",
                     isBidirectionalResetEvent,
                     realUser.transform2D.localPosition);
-                Debug.Log($"[主动重置] User {id} 执行主动USER_RESET, other={(intersectedUser != null ? intersectedUser.gameObject.name : "null")}");
+                int otherUnitId = ResolveUnitIdByRealUser(intersectedUser);
+                Debug.Log(
+                    $"[主动重置] dangerPair=({id},{otherUnitId}), User {id} 执行主动USER_RESET, other={(intersectedUser != null ? intersectedUser.gameObject.name : "null")}, " +
+                    $"resetSignedAngle={proactiveResetSignedAngle:F2}deg, resetAbsAngle={proactiveResetAbsAngle:F2}deg");
 
                 if (isBidirectionalResetEvent &&
                     RDWSimulationManager.instance != null &&
@@ -245,7 +251,7 @@ public class RedirectedUnit
                 }
             }
             else if (RDWSimulationManager.instance.simulationSetting.bAllowUserReset &&
-                     resetter.NeedUserReset(realUser, otherUsers, out intersectedUser, out truc, out isBidirectionalResetEvent) &&
+                     resetter.NeedUserReset(this, otherUnits, out intersectedUser, out truc, out isBidirectionalResetEvent) &&
                      previousStatus != "USER_RESET_DONE" )
             {
                 status = "USER_RESET";
@@ -373,10 +379,30 @@ public class RedirectedUnit
         pendingProactiveIsBidirectionalResetEvent = true;
     }
 
+    private static int ResolveUnitIdByRealUser(Object2D userObject)
+    {
+        if (userObject == null || RDWSimulationManager.instance == null)
+            return -1;
+
+        RedirectedUnit[] units = RDWSimulationManager.instance.GetRedirectedUnits;
+        if (units == null)
+            return -1;
+
+        for (int i = 0; i < units.Length; i++)
+        {
+            RedirectedUnit unit = units[i];
+            if (unit != null && unit.GetRealUser() == userObject)
+                return unit.GetID();
+        }
+
+        return -1;
+    }
+
     private int i = 0;
     public void Move()
     {
         usedRotationGainInLastMove = false;
+        Vector2 positionBeforeMove = realUser != null ? realUser.transform2D.localPosition : Vector2.zero;
         Vector2 deltaPosition = new Vector2(0,0);
         float deltaRotation = 0f;
         if(virtualSpace.tileMode)
@@ -414,9 +440,30 @@ public class RedirectedUnit
             resultData.AddElapsedTime(Time.fixedDeltaTime);
         }
 
-        if (realUser != null && realUser.transform2D.forward.sqrMagnitude > Mathf.Epsilon)
+        if (realUser != null)
         {
-            lastMovementDirection = realUser.transform2D.forward.normalized;
+            Vector2 positionAfterMove = realUser.transform2D.localPosition;
+            if (hasSpeedAnchor)
+            {
+                Vector2 displacement = positionAfterMove - positionBeforeMove;
+                float deltaTime = Mathf.Max(Time.fixedDeltaTime, 0.0001f);
+                lastInstantaneousSpeed = displacement.magnitude / deltaTime;
+
+                if (displacement.sqrMagnitude > Mathf.Epsilon)
+                {
+                    lastMovementDirection = displacement.normalized;
+                }
+                else if (realUser.transform2D.forward.sqrMagnitude > Mathf.Epsilon)
+                {
+                    lastMovementDirection = realUser.transform2D.forward.normalized;
+                }
+            }
+            else if (realUser.transform2D.forward.sqrMagnitude > Mathf.Epsilon)
+            {
+                lastMovementDirection = realUser.transform2D.forward.normalized;
+            }
+
+            hasSpeedAnchor = true;
         }
 
       
@@ -482,6 +529,14 @@ public class RedirectedUnit
     public bool UsedRotationGainInLastMove()
     {
         return usedRotationGainInLastMove;
+    }
+
+    public float GetLastInstantaneousSpeed()
+    {
+        if (!string.Equals(status, "IDLE", StringComparison.Ordinal))
+            return 0.0f;
+
+        return Mathf.Max(0.0f, lastInstantaneousSpeed);
     }
 
     public Object2D GetVirtualUser()

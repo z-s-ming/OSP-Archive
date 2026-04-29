@@ -6,13 +6,15 @@ using UnityEngine;
 public enum ProactiveUserResetJudgeMode
 {
     Recoverability = 0,
-    Simple = 1
+    Simple = 1,
+    TTC = 2
 }
 
 [System.Serializable]
 public enum ProactiveUserResetUserSelectionMode
 {
-    Arbitration = 0
+    Arbitration = 0,
+    None = 1
 }
 
 [System.Serializable]
@@ -26,6 +28,34 @@ public class ProactiveUserResetSettings
 
     [Tooltip("Strategy used to select which user performs proactive reset.")]
     public ProactiveUserResetUserSelectionMode userSelectionMode = ProactiveUserResetUserSelectionMode.Arbitration;
+
+    [Header("Shared Prediction Window")]
+    [Tooltip("Prediction horizon (seconds) used by proactive precheck and trigger evaluation.")]
+    [Min(0.1f)] public float predictionHorizonSeconds = 1.5f;
+
+    [Tooltip("Sampling count used by proactive precheck and trigger evaluation.")]
+    [Range(2, 300)] public int predictionSampleCount = 60;
+
+    [Header("Simple Trigger")]
+    [Tooltip("Simple trigger distance threshold in meters.")]
+    [Min(0.1f)] public float simpleTriggerDistanceMeters = 1.5f;
+
+    [Tooltip("Simple trigger closing-speed threshold (m/s).")]
+    [Min(0.0f)] public float simpleClosingSpeedThreshold = 0.05f;
+
+    [Header("TTC Trigger")]
+    [Tooltip("Distance threshold (meters) used to detect TTC collision band entry.")]
+    [Min(0.1f)] public float ttcCollisionDistanceMeters = 1.0f;
+
+    [Tooltip("Minimum lead time (seconds) required for TTC trigger.")]
+    [Min(0.0f)] public float ttcMinTimeToHitSeconds = 0.5f;
+
+    [Header("Arbitration")]
+    [Tooltip("Tie-break epsilon for candidate worst walking distance in arbitration.")]
+    [Min(0.0f)] public float arbitrationMEpsilon = 0.02f;
+
+    [Tooltip("Tie-break epsilon for C_self score in arbitration.")]
+    [Min(0.0f)] public float arbitrationCEpsilon = 0.05f;
 }
 
 [System.Serializable]
@@ -44,11 +74,8 @@ public class SimulationSetting
     [Header("Proactive User Reset")]
     public ProactiveUserResetSettings proactiveUserReset = new ProactiveUserResetSettings();
 
-    [HideInInspector] public bool enableProactiveUserResetArbitration = true; // legacy
-    [HideInInspector] public bool useSimpleProactiveTrigger; // legacy
-
-    public bool enableBiRecoverabilityLogging;
-    public int biRecoverabilityLogEveryNFrames = 1;
+    [Tooltip("Log walking distance for proactive-triggered user pairs until their next reset.")]
+    public bool enableProactiveResetPairDistanceLogging;
     public bool showTarget;
     public bool showResetLocator;
     public bool showRealWall;

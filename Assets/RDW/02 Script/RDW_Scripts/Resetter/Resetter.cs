@@ -141,6 +141,84 @@ public class Resetter
         return resetflag;
     }
 
+    public virtual bool NeedUserReset(
+        RedirectedUnit currentUnit,
+        RedirectedUnit[] otherUnits,
+        out Object2D intersectedUser,
+        out int truc,
+        out bool isBidirectionalResetEvent)
+    {
+        bool resetCurrentUser = false;
+        Object2D targetUser = null;
+        truc = 0;
+        isBidirectionalResetEvent = false;
+
+        if (currentUnit == null || currentUnit.GetRealUser() == null || otherUnits == null)
+        {
+            intersectedUser = null;
+            return false;
+        }
+
+        Object2D currentUser = currentUnit.GetRealUser();
+        for (int i = 0; i < otherUnits.Length; i++)
+        {
+            RedirectedUnit otherUnit = otherUnits[i];
+            if (otherUnit == null || otherUnit.GetRealUser() == null || otherUnit.GetID() == currentUnit.GetID())
+                continue;
+
+            Object2D otherUser = otherUnit.GetRealUser();
+            if (!currentUser.IsIntersect(otherUser))
+                continue;
+
+            RedirectedUnit unitA = currentUnit.GetID() <= otherUnit.GetID() ? currentUnit : otherUnit;
+            RedirectedUnit unitB = currentUnit.GetID() <= otherUnit.GetID() ? otherUnit : currentUnit;
+            float closingVelocity = ComputeClosingVelocity(unitA, unitB);
+            float forwardDot = ComputeForwardDot(unitA, unitB);
+
+            if (closingVelocity > 0.0f && forwardDot < 0.0f)
+            {
+                resetCurrentUser = true;
+                targetUser = otherUser;
+                isBidirectionalResetEvent = true;
+                truc++;
+                continue;
+            }
+
+            if (currentUnit.GetID() == unitB.GetID())
+            {
+                resetCurrentUser = true;
+                targetUser = otherUser;
+                truc++;
+            }
+        }
+
+        intersectedUser = targetUser;
+        return resetCurrentUser;
+    }
+
+    private static float ComputeClosingVelocity(RedirectedUnit unitA, RedirectedUnit unitB)
+    {
+        Vector2 positionA = unitA.GetRealUser().transform2D.localPosition;
+        Vector2 positionB = unitB.GetRealUser().transform2D.localPosition;
+        Vector2 directionAB = positionB - positionA;
+        if (directionAB.sqrMagnitude <= Mathf.Epsilon)
+            return 0.0f;
+
+        Vector2 velocityA = unitA.GetLastMovementDirection() * Mathf.Max(0.0f, unitA.GetLastInstantaneousSpeed());
+        Vector2 velocityB = unitB.GetLastMovementDirection() * Mathf.Max(0.0f, unitB.GetLastInstantaneousSpeed());
+        return Vector2.Dot(velocityA - velocityB, directionAB.normalized);
+    }
+
+    private static float ComputeForwardDot(RedirectedUnit unitA, RedirectedUnit unitB)
+    {
+        Vector2 forwardA = unitA.GetRealUser().transform2D.forward;
+        Vector2 forwardB = unitB.GetRealUser().transform2D.forward;
+        if (forwardA.sqrMagnitude <= Mathf.Epsilon || forwardB.sqrMagnitude <= Mathf.Epsilon)
+            return 1.0f;
+
+        return Vector2.Dot(forwardA.normalized, forwardB.normalized);
+    }
+
     public float GetTranslationSpeed()
     {
         return translationSpeed;

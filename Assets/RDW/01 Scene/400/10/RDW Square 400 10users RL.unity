@@ -1,4 +1,4 @@
-﻿%YAML 1.1
+%YAML 1.1
 %TAG !u! tag:unity3d.com,2011:
 --- !u!29 &1
 OcclusionCullingSettings:
@@ -319,6 +319,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   curren_EX_Type: 0
   isCategoryPrinted: 0
+  isInterResetDistCategoryPrinted: 0
   real_HMD: {fileID: 0}
   AppQuit_Pref: {fileID: 0}
 --- !u!4 &346647692
@@ -581,7 +582,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: ''
+  m_Text: 
 --- !u!222 &1172250594
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1847,6 +1848,19 @@ MonoBehaviour:
       translationSpeed: 1
       rotationSpeed: 90
     bAllowUserReset: 1
+    proactiveUserReset:
+      enableStrategy: 0
+      judgeMode: 0
+      userSelectionMode: 0
+      predictionHorizonSeconds: 1.5
+      predictionSampleCount: 60
+      simpleTriggerDistanceMeters: 1.5
+      simpleClosingSpeedThreshold: 0.05
+      ttcCollisionDistanceMeters: 1
+      ttcMinTimeToHitSeconds: 0.5
+      arbitrationMEpsilon: 0.02
+      arbitrationCEpsilon: 0.05
+    enableProactiveResetPairDistanceLogging: 0
     showTarget: 1
     showResetLocator: 0
     showRealWall: 0
@@ -1956,7 +1970,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 0
     m_LineSpacing: 1
-  m_Text: ''
+  m_Text: 
 --- !u!222 &1829637902
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -2094,6 +2108,15 @@ MonoBehaviour:
       SearchRadiusMin: 1.5
       SearchRadiusMax: 2
       BoundaryBufferMin: 0.3
+      BoundaryBufferMax: 0.5
+      GridResolutionMin: 0.15
+      GridResolutionMax: 0.25
+      WeightBoundaryDist: 1
+      WeightOccupancyDist: 1.5
+      WeightDistancePenalty: 0.4
+      SampleDensityPerM2: 55
+      MinSamplesPerUser: 24
+      MaxSamplesPerUser: 120
       AngleSamples: 11
       RadiusSamples: 3
       WeightSelfOpen: 1
@@ -2119,4 +2142,3 @@ MonoBehaviour:
   - {fileID: 2100000, guid: 1345d5228d116654bb3151fea4cf31dd, type: 2}
   - {fileID: 2100000, guid: 5909335d10fc56e4cadcd5976c6b0e2e, type: 2}
   text_currentEpi: {fileID: 1237824341}
-

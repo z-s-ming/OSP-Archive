@@ -1,4 +1,4 @@
-ï»¿using System.Collections;
+using System.Collections;
 using System.Collections.Generic;
 using System;
 using System.IO;
@@ -11,14 +11,8 @@ namespace _GCM
 {
     public class GlobalCoordinationManager : MonoBehaviour
     {
-        private const float BI_RECOVERABILITY_PRECHECK_HORIZON_SECONDS = 1.5f;
-        private const int BI_RECOVERABILITY_PRECHECK_SAMPLE_COUNT = 60;
         private const float BI_RECOVERABILITY_DIRECTION_EPSILON = 0.0001f;
         private const float BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD = 0.05f;
-        private const float PROACTIVE_ARBITRATION_M_EPSILON = 0.02f;
-        private const float PROACTIVE_ARBITRATION_C_EPSILON = 0.05f;
-        private const float SIMPLE_PROACTIVE_TRIGGER_DISTANCE = 1.5f;
-        private const float SIMPLE_PROACTIVE_TRIGGER_CLOSING_SPEED_EPSILON = 0.05f;
 
         #region singleton pattern
         /// <summary>
@@ -586,7 +580,7 @@ namespace _GCM
             }
 
             BidirectionalCollisionRecoverabilityEvaluator.ResetTemporalState();
-            BidirectionalCollisionRecoverabilityLogger.ResetSession();
+            ProactiveResetPairDistanceLogger.ResetSession();
             BidirectionalCollisionDebugVisualizer.ResetSession();
 
             latestPartitionRiskFrame = null;
@@ -871,9 +865,12 @@ namespace _GCM
             bool proactiveEnabled = proactiveSettings.enableStrategy &&
                                     simulationManager.simulationSetting.bAllowUserReset;
             bool useSimpleProactiveTrigger = proactiveSettings.judgeMode == ProactiveUserResetJudgeMode.Simple;
+            bool useTtcProactiveTrigger = proactiveSettings.judgeMode == ProactiveUserResetJudgeMode.TTC;
+            bool useRecoverabilityTrigger = proactiveSettings.judgeMode == ProactiveUserResetJudgeMode.Recoverability;
+            bool debugVisualizationEnabled = BidirectionalCollisionDebugVisualizer.IsEnabled();
             bool shouldRunPrecheck = proactiveEnabled ||
-                                     simulationManager.simulationSetting.enableBiRecoverabilityLogging ||
-                                     BidirectionalCollisionDebugVisualizer.IsEnabled();
+                                     simulationManager.simulationSetting.enableProactiveResetPairDistanceLogging ||
+                                     debugVisualizationEnabled;
             if (!shouldRunPrecheck)
                 return;
 
@@ -883,6 +880,8 @@ namespace _GCM
             RedirectedUnit[] units = simulationManager.GetRedirectedUnits;
             if (units == null || units.Length == 0)
                 return;
+
+            ProactiveResetPairDistanceLogger.Tick(units);
 
             if (proactiveEnabled)
             {
@@ -922,29 +921,70 @@ namespace _GCM
                         continue;
                     }
 
-                    float speedA = Mathf.Max(unitA.GetResetter().GetTranslationSpeed(), 0.0f);
-                    float speedB = Mathf.Max(unitB.GetResetter().GetTranslationSpeed(), 0.0f);
+                    float speedA = ResolveInstantaneousSpeed(unitA);
+                    float speedB = ResolveInstantaneousSpeed(unitB);
+                    Vector2 velocityA = movementA.normalized * speedA;
+                    Vector2 velocityB = movementB.normalized * speedB;
+                    if (Vector2.Dot(velocityA, velocityB) >= 0.0f)
+                        continue;
+
                     Vector2 offsetAB = unitB.GetRealUser().transform2D.localPosition - unitA.GetRealUser().transform2D.localPosition;
-                    float closingSpeed = ResolveClosingSpeedFromKinematics(offsetAB, movementA.normalized * speedA, movementB.normalized * speedB);
+                    float closingSpeed = ResolveClosingSpeedFromKinematics(offsetAB, velocityA, velocityB);
                     if (closingSpeed <= BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD)
                         continue;
 
-                    BidirectionalCollisionRecoverabilityAssessment assessment = BidirectionalCollisionRecoverabilityEvaluator.Evaluate(
-                        unitA,
-                        unitB,
-                        BI_RECOVERABILITY_PRECHECK_HORIZON_SECONDS,
-                        BI_RECOVERABILITY_PRECHECK_SAMPLE_COUNT,
-                        "precheck_candidate",
-                        true);
+                    if (IsPotentialSingleSideCollision(offsetAB, velocityA, velocityB))
+                        continue;
 
-                    bool proactiveTriggerFired = useSimpleProactiveTrigger
-                        ? IsSimpleProactiveTriggerSatisfied(unitA, unitB)
-                        : assessment.RiskConfirmed;
+                    float predictionHorizonSeconds = Mathf.Max(proactiveSettings.predictionHorizonSeconds, 0.1f);
+                    int predictionSampleCount = Mathf.Max(proactiveSettings.predictionSampleCount, 2);
+                    bool needRecoverabilityAssessment = useRecoverabilityTrigger || debugVisualizationEnabled;
+                    BidirectionalCollisionRecoverabilityAssessment assessment = default;
+                    if (needRecoverabilityAssessment)
+                    {
+                        assessment = BidirectionalCollisionRecoverabilityEvaluator.Evaluate(
+                            unitA,
+                            unitB,
+                            predictionHorizonSeconds,
+                            predictionSampleCount,
+                            true);
+                    }
+
+                    bool proactiveTriggerFired;
+                    if (useSimpleProactiveTrigger)
+                    {
+                        proactiveTriggerFired = IsSimpleProactiveTriggerSatisfied(
+                            unitA,
+                            unitB,
+                            proactiveSettings.simpleTriggerDistanceMeters,
+                            proactiveSettings.simpleClosingSpeedThreshold);
+                    }
+                    else if (useTtcProactiveTrigger)
+                    {
+                        proactiveTriggerFired = IsTtcProactiveTriggerSatisfied(
+                            unitA,
+                            unitB,
+                            predictionHorizonSeconds,
+                            predictionSampleCount,
+                            proactiveSettings.ttcCollisionDistanceMeters,
+                            proactiveSettings.ttcMinTimeToHitSeconds);
+                    }
+                    else
+                    {
+                        proactiveTriggerFired = assessment.RiskConfirmed;
+                    }
 
                     if (!proactiveEnabled || !proactiveTriggerFired)
                         continue;
 
-                    //Debug.Log($"[ä¸»åŠ¨é‡ç½®è§¦å‘] pair ({userId}, {adjacentUserId}) trigger={(useSimpleProactiveTrigger ? "Simple" : "RiskConfirmed")}");
+                    ProactiveResetPairDistanceLogger.NotifyProactiveTrigger(unitA, unitB);
+
+                    //Debug.Log($"[Ö÷¶¯ÖØÖÃ´¥·¢] pair ({userId}, {adjacentUserId}) trigger={(useSimpleProactiveTrigger ? "Simple" : "RiskConfirmed")}");
+
+                    if (proactiveSettings.userSelectionMode == ProactiveUserResetUserSelectionMode.None)
+                    {
+                        continue;
+                    }
 
                     bool arbitrationSucceeded = false;
                     ProactiveUserResetArbitrationService.ArbitrationResult arbitrationResult = default;
@@ -955,8 +995,8 @@ namespace _GCM
                             userId,
                             unitB,
                             adjacentUserId,
-                            PROACTIVE_ARBITRATION_M_EPSILON,
-                            PROACTIVE_ARBITRATION_C_EPSILON,
+                            Mathf.Max(0.0f, proactiveSettings.arbitrationMEpsilon),
+                            Mathf.Max(0.0f, proactiveSettings.arbitrationCEpsilon),
                             out arbitrationResult);
                     }
 
@@ -1017,6 +1057,21 @@ namespace _GCM
             return -Vector2.Dot(relativeVelocity, towardB);
         }
 
+        private static bool IsPotentialSingleSideCollision(Vector2 offsetAB, Vector2 velocityA, Vector2 velocityB)
+        {
+            if (offsetAB.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON)
+                return false;
+
+            Vector2 towardB = offsetAB.normalized;
+            Vector2 towardA = -towardB;
+
+            // Dot-product based gating:
+            // only one user moving toward the other indicates a likely single-side collision.
+            bool aMovingTowardB = Vector2.Dot(velocityA, towardB) > BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD;
+            bool bMovingTowardA = Vector2.Dot(velocityB, towardA) > BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD;
+            return aMovingTowardB ^ bMovingTowardA;
+        }
+
         private static bool ShouldReplaceProactiveCandidate(ProactiveIntentCandidate current, ProactiveIntentCandidate incoming)
         {
             const float tolerance = 0.0001f;
@@ -1042,7 +1097,11 @@ namespace _GCM
             return false;
         }
 
-        private static bool IsSimpleProactiveTriggerSatisfied(RedirectedUnit unitA, RedirectedUnit unitB)
+        private static bool IsSimpleProactiveTriggerSatisfied(
+            RedirectedUnit unitA,
+            RedirectedUnit unitB,
+            float triggerDistanceMeters,
+            float closingSpeedThreshold)
         {
             if (unitA == null || unitB == null || unitA.GetRealUser() == null || unitB.GetRealUser() == null)
                 return false;
@@ -1051,11 +1110,12 @@ namespace _GCM
             Vector2 positionB = unitB.GetRealUser().transform2D.localPosition;
             Vector2 offsetAB = positionB - positionA;
             float distance = offsetAB.magnitude;
-            if (distance <= BI_RECOVERABILITY_DIRECTION_EPSILON || distance > SIMPLE_PROACTIVE_TRIGGER_DISTANCE)
+            float safeTriggerDistance = Mathf.Max(triggerDistanceMeters, 0.1f);
+            if (distance <= BI_RECOVERABILITY_DIRECTION_EPSILON || distance > safeTriggerDistance)
                 return false;
 
-            float speedA = Mathf.Max(unitA.GetResetter().GetTranslationSpeed(), 0.0f);
-            float speedB = Mathf.Max(unitB.GetResetter().GetTranslationSpeed(), 0.0f);
+            float speedA = ResolveInstantaneousSpeed(unitA);
+            float speedB = ResolveInstantaneousSpeed(unitB);
             Vector2 movementA = unitA.GetLastMovementDirection();
             Vector2 movementB = unitB.GetLastMovementDirection();
             if (movementA.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON ||
@@ -1070,7 +1130,60 @@ namespace _GCM
                 return false;
 
             float closingSpeed = ResolveClosingSpeedFromKinematics(offsetAB, velocityA, velocityB);
-            return closingSpeed > SIMPLE_PROACTIVE_TRIGGER_CLOSING_SPEED_EPSILON;
+            return closingSpeed > Mathf.Max(0.0f, closingSpeedThreshold);
+        }
+
+        private static bool IsTtcProactiveTriggerSatisfied(
+            RedirectedUnit unitA,
+            RedirectedUnit unitB,
+            float horizonSeconds,
+            int sampleCount,
+            float collisionDistanceMeters,
+            float minTimeToHitSeconds)
+        {
+            if (unitA == null || unitB == null || unitA.GetRealUser() == null || unitB.GetRealUser() == null)
+                return false;
+
+            Vector2 movementA = unitA.GetLastMovementDirection();
+            Vector2 movementB = unitB.GetLastMovementDirection();
+            if (movementA.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON ||
+                movementB.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON)
+            {
+                return false;
+            }
+
+            float speedA = ResolveInstantaneousSpeed(unitA);
+            float speedB = ResolveInstantaneousSpeed(unitB);
+            Vector2 velocityA = movementA.normalized * speedA;
+            Vector2 velocityB = movementB.normalized * speedB;
+
+            int safeSampleCount = Mathf.Max(sampleCount, 2);
+            float safeHorizon = Mathf.Max(horizonSeconds, 0.01f);
+            float safeCollisionDistance = Mathf.Max(collisionDistanceMeters, 0.1f);
+            float safeMinTimeToHit = Mathf.Max(0.0f, minTimeToHitSeconds);
+            Vector2 initialA = unitA.GetRealUser().transform2D.localPosition;
+            Vector2 initialB = unitB.GetRealUser().transform2D.localPosition;
+
+            for (int i = 0; i <= safeSampleCount; i++)
+            {
+                float t = safeHorizon * i / safeSampleCount;
+                Vector2 pA = initialA + velocityA * t;
+                Vector2 pB = initialB + velocityB * t;
+                float distance = Vector2.Distance(pA, pB);
+                if (distance < safeCollisionDistance)
+                {
+                    return t >= safeMinTimeToHit;
+                }
+            }
+
+            return false;
+        }
+        private static float ResolveInstantaneousSpeed(RedirectedUnit unit)
+        {
+            if (unit == null)
+                return 0.0f;
+
+            return Mathf.Max(0.0f, unit.GetLastInstantaneousSpeed());
         }
 
         private void SyncPartitionUpdateStatesWithCurrentSeeds()

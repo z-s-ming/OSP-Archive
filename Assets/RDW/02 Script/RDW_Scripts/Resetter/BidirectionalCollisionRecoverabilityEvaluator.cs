@@ -30,7 +30,6 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
         RedirectedUnit unitB,
         float horizonSeconds,
         int sampleCount,
-        string triggerTag = "default",
         bool isAdjacentCellCandidate = false)
     {
         Object2D userA = unitA.GetRealUser();
@@ -46,8 +45,8 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
             IsAdjacentCellCandidate = isAdjacentCellCandidate
         };
 
-        float speedA = Mathf.Max(unitA.GetResetter().GetTranslationSpeed(), EPSILON);
-        float speedB = Mathf.Max(unitB.GetResetter().GetTranslationSpeed(), EPSILON);
+        float speedA = Mathf.Max(unitA.GetLastInstantaneousSpeed(), 0.0f);
+        float speedB = Mathf.Max(unitB.GetLastInstantaneousSpeed(), 0.0f);
         float kappaA = ResolveMaxCurvature(unitA.GetResetter(), speedA);
         float kappaB = ResolveMaxCurvature(unitB.GetResetter(), speedB);
         float headingA = Mathf.Atan2(userA.transform2D.forward.y, userA.transform2D.forward.x);
@@ -126,15 +125,6 @@ public static class BidirectionalCollisionRecoverabilityEvaluator
         {
             BidirectionalCollisionDebugVisualizer.TryStartTrace(unitA, unitB, assessment);
         }
-
-        BidirectionalCollisionRecoverabilityLogger.TryLog(
-            unitA,
-            unitB,
-            safeDistance,
-            safeHorizon,
-            safeSampleCount,
-            triggerTag,
-            assessment);
 
         return assessment;
     }

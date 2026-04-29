@@ -26,7 +26,10 @@ public static class UserResetDirectionResolver
             return Vector2.zero;
 
         Vector2 apfDirection = ComputeApfDirection(unit);
-        return NormalizeOrFallback(apfDirection, unit.GetLastMovementDirection());
+        if (apfDirection.sqrMagnitude > EPSILON)
+            return apfDirection.normalized;
+
+        return Vector2.zero;
     }
 
     private static List<Vector2> GetUserResetPolygonVertices(RedirectedUnit unit)
