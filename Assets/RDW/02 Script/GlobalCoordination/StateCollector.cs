@@ -95,6 +95,11 @@ namespace _GCM
         public void ResetEpisodeDistance()
         {
             CurrentEpisodeTotalDistance = 0.0f;
+
+            for (int i = 0; i < UsersCumulativeDist.Count; i++)
+            {
+                UsersCumulativeDist[i] = 0.0f;
+            }
         }
 
         public void AccumulateDistanceStep(int totalUserCount, float maxAcceptedStepDistance)

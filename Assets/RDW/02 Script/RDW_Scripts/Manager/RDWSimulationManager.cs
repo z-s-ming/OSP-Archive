@@ -39,6 +39,7 @@ public class RDWSimulationManager : MonoBehaviour
     private int episodeProactiveUserResetActionCount = 0;
     private int episodeSingleUserResetActionCount = 0;
     private int episodeDoubleUserResetActionCount = 0;
+    private readonly HashSet<long> activeBidirectionalUserResetEventPairs = new HashSet<long>();
 
     public float simulspeed = 30.0f;
     [Header("Space Visualization")]
@@ -599,26 +600,40 @@ public class RDWSimulationManager : MonoBehaviour
         episodeProactiveUserResetActionCount = 0;
         episodeSingleUserResetActionCount = 0;
         episodeDoubleUserResetActionCount = 0;
+        activeBidirectionalUserResetEventPairs.Clear();
     }
 
-    public void RegisterUserResetEvent(int selfUnitId, Object2D otherUser, bool isDoubleEvent, bool isProactive)
+    public bool RegisterUserResetEvent(int selfUnitId, Object2D otherUser, bool isDoubleEvent, bool isProactive)
     {
+        RefreshBidirectionalUserResetEventPairs();
+
         if (isProactive)
         {
             // Action-based counting: each executed proactive USER_RESET action counts once.
             episodeProactiveUserResetActionCount++;
-            return;
+            return true;
         }
 
         if (!isDoubleEvent)
         {
             // Action-based counting: each executed single-side USER_RESET action counts once.
             episodeSingleUserResetActionCount++;
-            return;
+            return true;
         }
 
-        // Action-based counting: each executed bidirectional USER_RESET action counts once.
+        int otherUnitId = GetUnitIdByRealUser(otherUser);
+        if (otherUnitId >= 0)
+        {
+            long pairKey = BuildUnitPairKey(selfUnitId, otherUnitId);
+            if (activeBidirectionalUserResetEventPairs.Contains(pairKey))
+                return false;
+
+            activeBidirectionalUserResetEventPairs.Add(pairKey);
+        }
+
+        // Event-based counting: two users may execute USER_RESET, but the pair collision counts once.
         episodeDoubleUserResetActionCount++;
+        return true;
     }
 
     public int GetEpisodeProactiveUserResetEventCount()
@@ -678,6 +693,65 @@ public class RDWSimulationManager : MonoBehaviour
         }
 
         return -1;
+    }
+
+    private RedirectedUnit GetUnitById(int unitId)
+    {
+        if (redirectedUnits == null)
+            return null;
+
+        for (int i = 0; i < redirectedUnits.Length; i++)
+        {
+            RedirectedUnit unit = redirectedUnits[i];
+            if (unit != null && unit.GetID() == unitId)
+                return unit;
+        }
+
+        return null;
+    }
+
+    private void RefreshBidirectionalUserResetEventPairs()
+    {
+        if (activeBidirectionalUserResetEventPairs.Count == 0 || redirectedUnits == null)
+            return;
+
+        List<long> releasedPairs = null;
+        foreach (long pairKey in activeBidirectionalUserResetEventPairs)
+        {
+            DecodeUnitPairKey(pairKey, out int unitAId, out int unitBId);
+            RedirectedUnit unitA = GetUnitById(unitAId);
+            RedirectedUnit unitB = GetUnitById(unitBId);
+
+            if (unitA == null || unitB == null || unitA.GetRealUser() == null || unitB.GetRealUser() == null ||
+                !unitA.GetRealUser().IsIntersect(unitB.GetRealUser()))
+            {
+                if (releasedPairs == null)
+                    releasedPairs = new List<long>();
+
+                releasedPairs.Add(pairKey);
+            }
+        }
+
+        if (releasedPairs == null)
+            return;
+
+        for (int i = 0; i < releasedPairs.Count; i++)
+        {
+            activeBidirectionalUserResetEventPairs.Remove(releasedPairs[i]);
+        }
+    }
+
+    private static long BuildUnitPairKey(int unitAId, int unitBId)
+    {
+        int minId = Mathf.Min(unitAId, unitBId);
+        int maxId = Mathf.Max(unitAId, unitBId);
+        return ((long)(uint)minId << 32) | (uint)maxId;
+    }
+
+    private static void DecodeUnitPairKey(long pairKey, out int unitAId, out int unitBId)
+    {
+        unitAId = (int)(pairKey >> 32);
+        unitBId = (int)(pairKey & 0xffffffff);
     }
 
 }

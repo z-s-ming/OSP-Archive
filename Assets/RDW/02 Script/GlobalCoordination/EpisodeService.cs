@@ -44,8 +44,16 @@ namespace _GCM
             if (stateCollector == null)
                 return false;
 
-            float targetTotalDistance = _totalUserCount * TargetDistancePerUser;
-            return stateCollector.CurrentEpisodeTotalDistance >= targetTotalDistance;
+            if (stateCollector.UsersCumulativeDist.Count < _totalUserCount)
+                return false;
+
+            for (int i = 0; i < _totalUserCount; i++)
+            {
+                if (stateCollector.UsersCumulativeDist[i] < TargetDistancePerUser)
+                    return false;
+            }
+
+            return true;
         }
 
         public void FinalizeEpisode(StateCollector stateCollector)
