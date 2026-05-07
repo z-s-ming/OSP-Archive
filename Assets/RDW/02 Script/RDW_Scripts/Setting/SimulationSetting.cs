@@ -84,7 +84,7 @@ public class SimulationSetting
     [Header("Proactive User Reset")]
     public ProactiveUserResetSettings proactiveUserReset = new ProactiveUserResetSettings();
 
-    [Tooltip("Log walking distance for proactive-triggered user pairs until their next reset.")]
+    [Tooltip("Log proactive trigger frames for later lookup in reset/collision summary logs.")]
     public bool enableProactiveResetPairDistanceLogging;
     public bool showTarget;
     public bool showResetLocator;

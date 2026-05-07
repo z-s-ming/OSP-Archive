@@ -6,6 +6,9 @@ public class RandomEpisode : Episode
 {
     private const float MinSegmentDistance = 4.0f;
     private const float MaxSegmentDistance = 8.0f;
+    private const float MinFallbackSegmentDistance = 0.5f;
+    private const float FallbackDistanceStep = 0.25f;
+    private const float FallbackAngleStep = 10.0f;
     private const float DefaultTargetDistancePerUser = 200.0f;
     private const float TargetInsideBound = 0.5f;
     private const int MaxSamplingAttempts = 10000;
@@ -31,8 +34,9 @@ public class RandomEpisode : Episode
 
         Vector2 userPosition = virtualUserTransform.localPosition;
         float targetDistance = GetTargetDistancePerUser();
+        bool useGlobalEpisodeTermination = _GCM.GlobalCoordinationManager.instance != null;
 
-        if (generatedPathDistance >= targetDistance)
+        if (!useGlobalEpisodeTermination && generatedPathDistance >= targetDistance)
         {
             episodeLength = currentEpisodeIndex;
             currentTargetPosition = userPosition;
@@ -52,15 +56,82 @@ public class RandomEpisode : Episode
             generatedPathDistance += distance;
             currentTargetPosition = samplingPosition;
 
-            if (generatedPathDistance >= targetDistance)
+            if (!useGlobalEpisodeTermination && generatedPathDistance >= targetDistance)
                 episodeLength = currentEpisodeIndex + 1;
 
             return;
         }
 
-        Debug.LogWarning("RandomEpisode failed to sample a valid 4-8m target. Ending this user's episode path.");
+        if (TryFindDeterministicTarget(
+            virtualSpace,
+            userPosition,
+            virtualUserTransform.forward,
+            MinSegmentDistance,
+            MaxSegmentDistance,
+            out Vector2 deterministicTarget,
+            out float deterministicDistance))
+        {
+            generatedPathDistance += deterministicDistance;
+            currentTargetPosition = deterministicTarget;
+
+            if (!useGlobalEpisodeTermination && generatedPathDistance >= targetDistance)
+                episodeLength = currentEpisodeIndex + 1;
+
+            return;
+        }
+
+        if (TryFindDeterministicTarget(
+            virtualSpace,
+            userPosition,
+            virtualUserTransform.forward,
+            MinFallbackSegmentDistance,
+            MinSegmentDistance - FallbackDistanceStep,
+            out Vector2 fallbackTarget,
+            out float fallbackDistance))
+        {
+            Debug.LogWarning("RandomEpisode failed to sample a valid 4-8m target. Using a shorter reachable target instead.");
+            generatedPathDistance += fallbackDistance;
+            currentTargetPosition = fallbackTarget;
+
+            if (!useGlobalEpisodeTermination && generatedPathDistance >= targetDistance)
+                episodeLength = currentEpisodeIndex + 1;
+
+            return;
+        }
+
+        Debug.LogWarning("RandomEpisode failed to find any reachable target. Ending this user's episode path.");
         episodeLength = currentEpisodeIndex;
         currentTargetPosition = userPosition;
+    }
+
+    private bool TryFindDeterministicTarget(
+        Space2D virtualSpace,
+        Vector2 userPosition,
+        Vector2 forward,
+        float minDistance,
+        float maxDistance,
+        out Vector2 targetPosition,
+        out float targetDistance)
+    {
+        for (float distance = maxDistance; distance >= minDistance; distance -= FallbackDistanceStep)
+        {
+            for (float angle = 0.0f; angle < 360.0f; angle += FallbackAngleStep)
+            {
+                Vector2 sampleForward = Utility.RotateVector2(forward, angle);
+                Vector2 candidate = userPosition + sampleForward * distance;
+
+                if (!IsValidTargetCandidate(virtualSpace, userPosition, candidate, TargetInsideBound))
+                    continue;
+
+                targetPosition = candidate;
+                targetDistance = distance;
+                return true;
+            }
+        }
+
+        targetPosition = userPosition;
+        targetDistance = 0.0f;
+        return false;
     }
 
     private void ResetGeneratedDistanceIfNeeded()

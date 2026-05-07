@@ -581,7 +581,7 @@ namespace _GCM
             }
 
             BidirectionalCollisionRecoverabilityEvaluator.ResetTemporalState();
-            ProactiveResetPairDistanceLogger.ResetSession();
+            ProactiveTriggerWindowLogger.ResetSession();
             BidirectionalCollisionDebugVisualizer.ResetSession();
             proactiveResetExecutionCooldownUntilFrame.Clear();
 
@@ -595,12 +595,13 @@ namespace _GCM
         /// </summary>
         private void ProcessStep()
         {
-            if (!RDWSimulationManager.instance.BStart)
+            RDWSimulationManager simulationManager = RDWSimulationManager.instance;
+            if (simulationManager == null || !simulationManager.BStart)
                 return;
 
             if (episodeService != null && episodeService.IsExperimentCompleted)
             {
-                RDWSimulationManager.instance.BStart = false;
+                simulationManager.BStart = false;
                 return;
             }
 
@@ -634,7 +635,7 @@ namespace _GCM
             BidirectionalCollisionDebugVisualizer.Tick();
 
             /// Simulate the designated redirection controller
-            RDWSimulationManager.instance.SimulateRDW();
+            simulationManager.SimulateRDW();
 
             // AddRewards(); // Removed
         }
@@ -883,7 +884,7 @@ namespace _GCM
             if (units == null || units.Length == 0)
                 return;
 
-            ProactiveResetPairDistanceLogger.Tick(units);
+            ProactiveTriggerWindowLogger.Tick();
 
             if (proactiveEnabled)
             {
@@ -978,6 +979,14 @@ namespace _GCM
 
                     if (!proactiveEnabled || !proactiveTriggerFired)
                         continue;
+
+                    ProactiveTriggerWindowLogger.NotifyTriggerCandidate(
+                        unitA,
+                        unitB,
+                        proactiveSettings.judgeMode.ToString(),
+                        predictionHorizonSeconds,
+                        offsetAB.magnitude,
+                        closingSpeed);
 
                     //Debug.Log($"[主动重置触发] pair ({userId}, {adjacentUserId}) trigger={(useSimpleProactiveTrigger ? "Simple" : "RiskConfirmed")}");
 

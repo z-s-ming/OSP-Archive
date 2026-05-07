@@ -1,0 +1,4 @@
+interface:
+  display_name: "Open RDW Unity Architect"
+  short_description: "Review Unity RDW architecture before scoped refactors."
+  default_prompt: "Use $open-rdw-unity-architect to review this Unity RDW project architecture before making code changes."

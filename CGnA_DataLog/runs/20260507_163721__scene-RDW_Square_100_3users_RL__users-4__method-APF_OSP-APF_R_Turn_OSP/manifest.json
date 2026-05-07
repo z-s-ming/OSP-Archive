@@ -1,0 +1,44 @@
+﻿{
+  "runId": "20260507_163721",
+  "createdAt": "2026-05-07T16:37:21.911+08:00",
+  "sceneName": "RDW Square 100 3users RL",
+  "unityFrameAtCreate": 40,
+  "unityTimeAtCreate": 21.989100,
+  "userCount": "4",
+  "runFolder": "D:/GitRepository/OSP2/OSP-Archive/CGnA_DataLog/runs/20260507_163721__scene-RDW_Square_100_3users_RL__users-4__method-APF_OSP-APF_R_Turn_OSP",
+  "rawFiles": ["raw/episode_summary.csv", "raw/inter_reset_distance.csv", "raw/proactive_trigger_frame.csv"],
+  "proactiveUserReset": {
+    "enableStrategy": true,
+    "judgeMode": "Recoverability",
+    "userSelectionMode": "Arbitration",
+    "predictionHorizonSeconds": 1.500000,
+    "predictionSampleCount": 60,
+    "executionCooldownSeconds": 1.500000
+  },
+  "unitSettings": [
+    {
+      "logicalUserIndex": 0,
+      "redirectType": "APF_OSP",
+      "resetType": "APF_R_Turn_OSP",
+      "episodeType": "Random"
+    },
+    {
+      "logicalUserIndex": 1,
+      "redirectType": "APF_OSP",
+      "resetType": "APF_R_Turn_OSP",
+      "episodeType": "Random"
+    },
+    {
+      "logicalUserIndex": 2,
+      "redirectType": "APF_OSP",
+      "resetType": "APF_R_Turn_OSP",
+      "episodeType": "Random"
+    },
+    {
+      "logicalUserIndex": 3,
+      "redirectType": "APF_OSP",
+      "resetType": "APF_R_Turn_OSP",
+      "episodeType": "Random"
+    }
+  ]
+}

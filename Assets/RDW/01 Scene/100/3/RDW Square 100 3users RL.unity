@@ -915,7 +915,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   simulationSetting:
     useVisualization: 1
-    useDebugMode: 1
+    useDebugMode: 0
     useContinousSimulation: 0
     prefabSetting: {fileID: 11400000, guid: 3c866fcfabc9a4643b2febf2a8238d41, type: 2}
     realSpaceSetting:
@@ -1017,7 +1017,7 @@ MonoBehaviour:
     unitSettings:
     - redirectType: 6
       resetType: 5
-      episodeType: 5
+      episodeType: 1
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1033,7 +1033,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 5
+      episodeType: 1
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1049,7 +1049,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 5
+      episodeType: 1
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1065,7 +1065,7 @@ MonoBehaviour:
       rotationSpeed: 90
     - redirectType: 6
       resetType: 5
-      episodeType: 5
+      episodeType: 1
       episodeLength: 99999
       episodeFileName: 
       useRandomStartReal: 1
@@ -1095,12 +1095,12 @@ MonoBehaviour:
       enableInPlaceSafetyCheck: 1
       inPlaceSafetyBufferSeconds: 0.2
       executionCooldownSeconds: 1.5
-    enableProactiveResetPairDistanceLogging: 0
+    enableProactiveResetPairDistanceLogging: 1
     showTarget: 1
     showResetLocator: 0
     showRealWall: 0
   userResetTotalCount: 0
-  simulspeed: 2
+  simulspeed: 50
   autoSeparateVirtualSpaceFromRealSpace: 0
   virtualSpaceSeparationOffset: {x: 50, y: 0}
   keepOnlyOneVirtualTrail: 0
@@ -1261,10 +1261,10 @@ MonoBehaviour:
   totalUserCount: 4
   userRadius: 0.5
   shutterWidth: 0.5
-  SimulationCount_max: 100
+  SimulationCount_max: 50
   TargetDistancePerUser: 200
   bMixedExploration: 0
-  bUseCompareExperiment: 0
+  bUseCompareExperiment: 1
   bEnable_InitPhyUserPosUni: 0
   moduleConfig:
     Velocity:

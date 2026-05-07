@@ -23,6 +23,14 @@ namespace _GCM
         private string folderName = "CGnA_DataLog";
         private string fileName = string.Empty;
         private string interResetDistanceFileName = string.Empty;
+        private string runId = string.Empty;
+        private string runFolderPath = string.Empty;
+        private string runRawFolderPath = string.Empty;
+        private string runDerivedFolderPath = string.Empty;
+        private string runPlotsFolderPath = string.Empty;
+        private string runManifestPath = string.Empty;
+        private string runEpisodeSummaryFilePath = string.Empty;
+        private string runInterResetDistanceFilePath = string.Empty;
 
         private string str_DataCategory = string.Empty;
         private string str_InterResetDistDataCategory = string.Empty;
@@ -135,6 +143,230 @@ namespace _GCM
             Directory.CreateDirectory(folder_Path);
         }
 
+        public string GetRunId()
+        {
+            EnsureRunSession();
+            return runId;
+        }
+
+        public string GetRunFolderPath()
+        {
+            EnsureRunSession();
+            return runFolderPath;
+        }
+
+        public string GetRunRawLogPath(string fileNameInRaw)
+        {
+            EnsureRunSession();
+            string safeFileName = SanitizePathSegment(string.IsNullOrEmpty(fileNameInRaw) ? "log.csv" : fileNameInRaw);
+            return Path.Combine(runRawFolderPath, safeFileName);
+        }
+
+        private void EnsureRunSession()
+        {
+            if (!string.IsNullOrEmpty(runFolderPath))
+                return;
+
+            DateTime now = DateTime.Now;
+            runId = now.ToString("yyyyMMdd_HHmmss");
+            string sceneName = SanitizePathSegment(SceneManager.GetActiveScene().name);
+            string userCount = ResolveUserCountLabel();
+            string methodLabel = ResolveMethodLabel();
+            string runDirectoryName = string.Format(
+                CultureInfo.InvariantCulture,
+                "{0}__scene-{1}__users-{2}__method-{3}",
+                runId,
+                sceneName,
+                userCount,
+                methodLabel);
+
+            runFolderPath = Path.Combine(folder_Path, "runs", runDirectoryName);
+            runRawFolderPath = Path.Combine(runFolderPath, "raw");
+            runDerivedFolderPath = Path.Combine(runFolderPath, "derived");
+            runPlotsFolderPath = Path.Combine(runFolderPath, "plots");
+            runManifestPath = Path.Combine(runFolderPath, "manifest.json");
+            runEpisodeSummaryFilePath = Path.Combine(runRawFolderPath, "episode_summary.csv");
+            runInterResetDistanceFilePath = Path.Combine(runRawFolderPath, "inter_reset_distance.csv");
+
+            Directory.CreateDirectory(runRawFolderPath);
+            Directory.CreateDirectory(runDerivedFolderPath);
+            Directory.CreateDirectory(runPlotsFolderPath);
+            WriteRunManifest();
+        }
+
+        private void WriteRunManifest()
+        {
+            try
+            {
+                File.WriteAllText(runManifestPath, BuildRunManifestJson(), Encoding.UTF8);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("GM_DataRecord WriteRunManifest ERROR : " + e);
+            }
+        }
+
+        private string BuildRunManifestJson()
+        {
+            RDWSimulationManager manager = RDWSimulationManager.instance;
+            SimulationSetting setting = manager != null ? manager.simulationSetting : null;
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("{");
+            AppendJsonProperty(sb, "runId", runId, true, 1);
+            sb.AppendLine(",");
+            AppendJsonProperty(sb, "createdAt", DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fffzzz"), true, 1);
+            sb.AppendLine(",");
+            AppendJsonProperty(sb, "sceneName", SceneManager.GetActiveScene().name, true, 1);
+            sb.AppendLine(",");
+            AppendJsonProperty(sb, "unityFrameAtCreate", Time.frameCount.ToString(CultureInfo.InvariantCulture), false, 1);
+            sb.AppendLine(",");
+            AppendJsonProperty(sb, "unityTimeAtCreate", Time.time.ToString("F6", CultureInfo.InvariantCulture), false, 1);
+            sb.AppendLine(",");
+            AppendJsonProperty(sb, "userCount", ResolveUserCountLabel(), true, 1);
+            sb.AppendLine(",");
+            AppendJsonProperty(sb, "runFolder", runFolderPath.Replace("\\", "/"), true, 1);
+            sb.AppendLine(",");
+            AppendJsonArrayProperty(sb, "rawFiles", new[]
+            {
+                "raw/episode_summary.csv",
+                "raw/inter_reset_distance.csv",
+                "raw/proactive_trigger_frame.csv"
+            }, 1);
+
+            sb.AppendLine(",");
+            sb.AppendLine("  \"proactiveUserReset\": {");
+            if (setting != null && setting.proactiveUserReset != null)
+            {
+                ProactiveUserResetSettings proactive = setting.proactiveUserReset;
+                AppendJsonProperty(sb, "enableStrategy", proactive.enableStrategy ? "true" : "false", false, 2);
+                sb.AppendLine(",");
+                AppendJsonProperty(sb, "judgeMode", proactive.judgeMode.ToString(), true, 2);
+                sb.AppendLine(",");
+                AppendJsonProperty(sb, "userSelectionMode", proactive.userSelectionMode.ToString(), true, 2);
+                sb.AppendLine(",");
+                AppendJsonProperty(sb, "predictionHorizonSeconds", proactive.predictionHorizonSeconds.ToString("F6", CultureInfo.InvariantCulture), false, 2);
+                sb.AppendLine(",");
+                AppendJsonProperty(sb, "predictionSampleCount", proactive.predictionSampleCount.ToString(CultureInfo.InvariantCulture), false, 2);
+                sb.AppendLine(",");
+                AppendJsonProperty(sb, "executionCooldownSeconds", proactive.executionCooldownSeconds.ToString("F6", CultureInfo.InvariantCulture), false, 2);
+                sb.AppendLine();
+            }
+            sb.AppendLine("  },");
+            sb.AppendLine("  \"unitSettings\": [");
+            if (setting != null && setting.unitSettings != null)
+            {
+                for (int i = 0; i < setting.unitSettings.Length; i++)
+                {
+                    UnitSetting unit = setting.unitSettings[i];
+                    sb.AppendLine("    {");
+                    AppendJsonProperty(sb, "logicalUserIndex", i.ToString(CultureInfo.InvariantCulture), false, 3);
+                    sb.AppendLine(",");
+                    AppendJsonProperty(sb, "redirectType", unit != null ? unit.redirectType.ToString() : "UNKNOWN", true, 3);
+                    sb.AppendLine(",");
+                    AppendJsonProperty(sb, "resetType", unit != null ? unit.resetType.ToString() : "UNKNOWN", true, 3);
+                    sb.AppendLine(",");
+                    AppendJsonProperty(sb, "episodeType", unit != null ? unit.episodeType.ToString() : "UNKNOWN", true, 3);
+                    sb.AppendLine();
+                    sb.Append("    }");
+                    if (i < setting.unitSettings.Length - 1)
+                        sb.Append(",");
+                    sb.AppendLine();
+                }
+            }
+            sb.AppendLine("  ]");
+            sb.AppendLine("}");
+            return sb.ToString();
+        }
+
+        private static void AppendJsonProperty(StringBuilder sb, string key, string value, bool quoteValue, int indentLevel)
+        {
+            sb.Append(new string(' ', indentLevel * 2));
+            sb.Append('"').Append(EscapeJson(key)).Append("\": ");
+            if (quoteValue)
+            {
+                sb.Append('"').Append(EscapeJson(value)).Append('"');
+            }
+            else
+            {
+                sb.Append(string.IsNullOrEmpty(value) ? "null" : value);
+            }
+        }
+
+        private static void AppendJsonArrayProperty(StringBuilder sb, string key, string[] values, int indentLevel)
+        {
+            sb.Append(new string(' ', indentLevel * 2));
+            sb.Append('"').Append(EscapeJson(key)).Append("\": [");
+            for (int i = 0; i < values.Length; i++)
+            {
+                if (i > 0)
+                    sb.Append(", ");
+                sb.Append('"').Append(EscapeJson(values[i])).Append('"');
+            }
+            sb.Append("]");
+        }
+
+        private static string EscapeJson(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return string.Empty;
+
+            return value
+                .Replace("\\", "\\\\")
+                .Replace("\"", "\\\"")
+                .Replace("\r", "\\r")
+                .Replace("\n", "\\n");
+        }
+
+        private static string SanitizePathSegment(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return "unknown";
+
+            StringBuilder sb = new StringBuilder(value.Length);
+            char[] invalidChars = Path.GetInvalidFileNameChars();
+            for (int i = 0; i < value.Length; i++)
+            {
+                char c = value[i];
+                bool invalid = false;
+                for (int j = 0; j < invalidChars.Length; j++)
+                {
+                    if (c == invalidChars[j])
+                    {
+                        invalid = true;
+                        break;
+                    }
+                }
+
+                sb.Append(invalid || char.IsWhiteSpace(c) ? '_' : c);
+            }
+
+            return sb.ToString();
+        }
+
+        private static string ResolveUserCountLabel()
+        {
+            RDWSimulationManager manager = RDWSimulationManager.instance;
+            if (manager == null || manager.simulationSetting == null || manager.simulationSetting.unitSettings == null)
+                return "unknown";
+
+            return manager.simulationSetting.unitSettings.Length.ToString(CultureInfo.InvariantCulture);
+        }
+
+        private static string ResolveMethodLabel()
+        {
+            RDWSimulationManager manager = RDWSimulationManager.instance;
+            if (manager == null || manager.simulationSetting == null ||
+                manager.simulationSetting.unitSettings == null ||
+                manager.simulationSetting.unitSettings.Length == 0 ||
+                manager.simulationSetting.unitSettings[0] == null)
+            {
+                return "unknown";
+            }
+
+            UnitSetting firstUnit = manager.simulationSetting.unitSettings[0];
+            return SanitizePathSegment(firstUnit.redirectType + "-" + firstUnit.resetType);
+        }
+
         private void SetFileName()
         {
             string fileNameFormat = string.Empty;
@@ -196,49 +428,15 @@ namespace _GCM
                 string tempFileName = fileName + ".txt";
                 string file_Location = System.IO.Path.Combine(folder_Path, tempFileName);
 
-                string m_str_DataCategory = string.Empty;
-
                 int totalCountoftheQueue = _Queue_ex.Count;
 
                 List<string> copyDataQueue = new List<string>(_Queue_ex);
 
-                //int markerCount = 1;
-
-                string catestr = string.Empty;
-
                 Debug.Log("Saving Data Starts. Queue Count : " + totalCountoftheQueue);
 
-                using (StreamWriter streamWriter = File.AppendText(file_Location))
-                {
-                    //while (_Queue_ex.Count != 0)
-                    {
-                        for (int i = 0; i < totalCountoftheQueue; i++)
-                        {
-                            //string stringData = _Queue_ex.Dequeue();
-                            string stringData = copyDataQueue[i];
-
-                            if (stringData.Length > 0)
-                            {
-                                if (!isCategoryPrinted)
-                                {
-                                    switch (curren_EX_Type)
-                                    {
-                                        case Experiment_Type.VS_Line:
-                                            str_DataCategory = BuildDataCategory();
-
-
-                                            break;
-
-                                    }
-                                    streamWriter.WriteLine(str_DataCategory);
-                                    isCategoryPrinted = true;
-                                }
-
-                                streamWriter.WriteLine(stringData);
-                            }
-                        }
-                    }
-                }
+                str_DataCategory = BuildDataCategory();
+                AppendRowsWithHeader(file_Location, str_DataCategory, copyDataQueue);
+                AppendRowsWithHeader(GetRunEpisodeSummaryFilePath(), str_DataCategory, copyDataQueue);
                 
                 _Queue_ex.Clear(); // Clear buffer to prevent memory leak and double-writing
                 
@@ -283,7 +481,7 @@ namespace _GCM
 
         private string BuildInterResetDistDataCategory()
         {
-            return "Date,Timestamp,episodeId,frame,simTime,unitId,resetType,isBidirectional,interResetDistance,cumulativeDistance";
+            return "Date,Timestamp,episodeObjectId,frame,simTime,runtimeUnitId,otherRuntimeUnitId,runtimePairMinId,runtimePairMaxId,resetEventType,isBidirectionalUserPair,interResetDistance,cumulativeDistance";
         }
 
         public void ResetInterResetDistanceTracking()
@@ -293,30 +491,35 @@ namespace _GCM
             lastResetCumulativeByUnitId.Clear();
         }
 
-        public void LogInterResetDistance(int unitId, int episodeId, string resetType, bool isBidirectionalEvent, Vector2 currentPhysicalPosition)
+        public void LogInterResetDistance(int runtimeUnitId, int episodeObjectId, string resetEventType, bool isBidirectionalUserPair, Vector2 currentPhysicalPosition, int otherRuntimeUnitId = -1)
         {
-            EnsureTrackingInitialized(unitId, currentPhysicalPosition);
-            AccumulateDistanceForUnit(unitId, currentPhysicalPosition, false);
+            EnsureTrackingInitialized(runtimeUnitId, currentPhysicalPosition);
+            AccumulateDistanceForUnit(runtimeUnitId, currentPhysicalPosition, false);
 
-            float cumulativeDistance = cumulativeDistByUnitId[unitId];
-            if (!lastResetCumulativeByUnitId.ContainsKey(unitId))
+            float cumulativeDistance = cumulativeDistByUnitId[runtimeUnitId];
+            if (!lastResetCumulativeByUnitId.ContainsKey(runtimeUnitId))
             {
-                lastResetCumulativeByUnitId[unitId] = 0.0f;
+                lastResetCumulativeByUnitId[runtimeUnitId] = 0.0f;
             }
 
-            float interResetDistance = Mathf.Max(0.0f, cumulativeDistance - lastResetCumulativeByUnitId[unitId]);
-            lastResetCumulativeByUnitId[unitId] = cumulativeDistance;
+            float interResetDistance = Mathf.Max(0.0f, cumulativeDistance - lastResetCumulativeByUnitId[runtimeUnitId]);
+            lastResetCumulativeByUnitId[runtimeUnitId] = cumulativeDistance;
+            int runtimePairMinId = otherRuntimeUnitId >= 0 ? Mathf.Min(runtimeUnitId, otherRuntimeUnitId) : -1;
+            int runtimePairMaxId = otherRuntimeUnitId >= 0 ? Mathf.Max(runtimeUnitId, otherRuntimeUnitId) : -1;
 
-            string refinedResetType = string.IsNullOrEmpty(resetType) ? "UNKNOWN" : resetType.Replace(",", "_");
+            string refinedResetEventType = string.IsNullOrEmpty(resetEventType) ? "UNKNOWN" : resetEventType.Replace(",", "_");
             string payload = string.Format(
                 CultureInfo.InvariantCulture,
-                "{0},{1},{2:F6},{3},{4},{5},{6:F6},{7:F6}",
-                episodeId,
+                "{0},{1},{2:F6},{3},{4},{5},{6},{7},{8},{9:F6},{10:F6}",
+                episodeObjectId,
                 Time.frameCount,
                 Time.time,
-                unitId,
-                refinedResetType,
-                isBidirectionalEvent ? 1 : 0,
+                runtimeUnitId,
+                otherRuntimeUnitId,
+                runtimePairMinId,
+                runtimePairMaxId,
+                refinedResetEventType,
+                isBidirectionalUserPair ? 1 : 0,
                 interResetDistance,
                 cumulativeDistance);
 
@@ -357,24 +560,9 @@ namespace _GCM
 
                 Debug.Log("Saving Inter-Reset Distance Data Starts. Queue Count : " + totalCount);
 
-                using (StreamWriter streamWriter = File.AppendText(fileLocation))
-                {
-                    for (int i = 0; i < totalCount; i++)
-                    {
-                        string stringData = copyDataQueue[i];
-                        if (string.IsNullOrEmpty(stringData))
-                            continue;
-
-                        if (!isInterResetDistCategoryPrinted)
-                        {
-                            str_InterResetDistDataCategory = BuildInterResetDistDataCategory();
-                            streamWriter.WriteLine(str_InterResetDistDataCategory);
-                            isInterResetDistCategoryPrinted = true;
-                        }
-
-                        streamWriter.WriteLine(stringData);
-                    }
-                }
+                str_InterResetDistDataCategory = BuildInterResetDistDataCategory();
+                AppendRowsWithHeader(fileLocation, str_InterResetDistDataCategory, copyDataQueue);
+                AppendRowsWithHeader(GetRunInterResetDistanceFilePath(), str_InterResetDistDataCategory, copyDataQueue);
 
                 dataQueue.Clear();
                 success = true;
@@ -386,6 +574,48 @@ namespace _GCM
             }
 
             return success;
+        }
+
+        private string GetRunEpisodeSummaryFilePath()
+        {
+            EnsureRunSession();
+            return runEpisodeSummaryFilePath;
+        }
+
+        private string GetRunInterResetDistanceFilePath()
+        {
+            EnsureRunSession();
+            return runInterResetDistanceFilePath;
+        }
+
+        private static void AppendRowsWithHeader(string filePath, string header, List<string> rows)
+        {
+            if (string.IsNullOrEmpty(filePath) || rows == null || rows.Count == 0)
+                return;
+
+            string directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrEmpty(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            bool shouldWriteHeader = !File.Exists(filePath) || new FileInfo(filePath).Length == 0;
+            using (StreamWriter streamWriter = File.AppendText(filePath))
+            {
+                if (shouldWriteHeader && !string.IsNullOrEmpty(header))
+                {
+                    streamWriter.WriteLine(header);
+                }
+
+                for (int i = 0; i < rows.Count; i++)
+                {
+                    string row = rows[i];
+                    if (!string.IsNullOrEmpty(row))
+                    {
+                        streamWriter.WriteLine(row);
+                    }
+                }
+            }
         }
 
         private void UpdateInterResetDistanceTracking()

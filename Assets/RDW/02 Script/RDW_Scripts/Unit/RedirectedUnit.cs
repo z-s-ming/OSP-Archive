@@ -232,14 +232,14 @@ public class RedirectedUnit
                 resultData.AddUserReset();
                 bool countedUserResetEvent = RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, isBidirectionalResetEvent, true);
                 _GCM.GlobalCoordinationManager.instance?.RegisterProactiveUserResetExecution(id);
-                ProactiveResetPairDistanceLogger.NotifyProactiveTrigger(this, ResolveUnitByRealUser(intersectedUser));
+                int otherUnitId = ResolveUnitIdByRealUser(intersectedUser);
                 _GCM.GM_DataRecord.instance?.LogInterResetDistance(
                     id,
                     controller != null ? controller.GetEpisodeID() : -1,
                     "PROACTIVE_USER_RESET",
                     isBidirectionalResetEvent,
-                    realUser.transform2D.localPosition);
-                int otherUnitId = ResolveUnitIdByRealUser(intersectedUser);
+                    realUser.transform2D.localPosition,
+                    otherUnitId);
                 Debug.Log(
                     $"[主动重置] dangerPair=({id},{otherUnitId}), User {id} 执行主动USER_RESET, other={(intersectedUser != null ? intersectedUser.gameObject.name : "null")}, " +
                     $"resetSignedAngle={proactiveResetSignedAngle:F2}deg, resetAbsAngle={proactiveResetAbsAngle:F2}deg");
@@ -260,12 +260,14 @@ public class RedirectedUnit
                 status = "USER_RESET";
                 resultData.AddUserReset();
                 bool countedUserResetEvent = RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, isBidirectionalResetEvent, false);
+                int otherUnitId = ResolveUnitIdByRealUser(intersectedUser);
                 _GCM.GM_DataRecord.instance?.LogInterResetDistance(
                     id,
                     controller != null ? controller.GetEpisodeID() : -1,
                     "USER_RESET",
                     isBidirectionalResetEvent,
-                    realUser.transform2D.localPosition);
+                    realUser.transform2D.localPosition,
+                    otherUnitId);
                 hasCachedUserResetDirection = false;
                 if (isBidirectionalResetEvent)
                 {
@@ -340,12 +342,14 @@ public class RedirectedUnit
 
         resultData.AddUserReset();
         RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, true, false);
+        int otherUnitId = ResolveUnitIdByRealUser(intersectedUser);
         _GCM.GM_DataRecord.instance?.LogInterResetDistance(
             id,
             controller != null ? controller.GetEpisodeID() : -1,
             "USER_RESET",
             true,
-            realUser.transform2D.localPosition);
+            realUser.transform2D.localPosition,
+            otherUnitId);
     }
 
     public void Simulate(RedirectedUnit[] otherUnits)
