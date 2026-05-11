@@ -4,13 +4,14 @@
 
 ## 1. Log Sources
 
-后处理脚本至少读取三类文件：
+后处理脚本至少读取三类文件；若分析主动 reset 的阶段效果，建议同时读取 candidate 层日志：
 
 | 文件 | 典型路径 | 用途 |
 | --- | --- | --- |
-| Episode summary | `CGnA_DataLog/Experiment_01_DataLog_*.txt` | 每个 experiment episode 的汇总 reset 计数。 |
-| Inter-reset detail | `CGnA_DataLog/Experiment_01_InterResetDistance_*.csv` | 每次 wall/user/proactive reset 事件明细，以及 reset 间距离。 |
-| Proactive trigger frame log | `CGnA_DataLog/proactiveResetPairDistance/proactive_trigger_frame_log_*.csv` | 主动 reset 的风险触发帧。 |
+| Episode summary | `CGnA_DataLog/runs/<run>/raw/episode_summary.csv` | 每个 experiment episode 的汇总 reset 计数。 |
+| Inter-reset detail | `CGnA_DataLog/runs/<run>/raw/inter_reset_distance.csv` | 每次 wall/user/proactive reset 事件明细，以及 reset 间距离。 |
+| Proactive trigger frame log | `CGnA_DataLog/runs/<run>/raw/proactive_trigger_frame.csv` | 主动 reset 的风险触发帧。 |
+| Proactive candidate frame log | `CGnA_DataLog/runs/<run>/raw/proactive_candidate_frame.csv` | trigger 后候选选择、冷却、安全检查的阶段结果。 |
 
 脚本不要依赖 Excel 打开的显示值。`Date` 可能被 Excel 显示成科学计数法，必须按字符串读取。
 
@@ -91,6 +92,29 @@ triggerIdInLog,episodeObjectId,triggerFrame,triggerTime,runtimePairMinId,runtime
 - `triggerIdInLog` 在不同 CSV 文件之间会重复。脚本应构造 `triggerGlobalKey = fileName + ":" + triggerIdInLog`。
 - `predictedPairType=BIDIRECTIONAL_USER_PAIR` 表示触发时根据朝向/closing 判断出的风险类型，不等于实际发生了双边 reset。
 
+### 2.4 Proactive Candidate Frame Log
+
+当前 header：
+
+```csv
+Date,Timestamp,episodeObjectId,frame,simTime,runtimePairMinId,runtimePairMaxId,runtimeUnitAId,runtimeUnitBId,judgeMode,selectionMode,candidateStatus,selectedRuntimeUnitId,otherRuntimeUnitId,resetDirectionX,resetDirectionY,keepMargin,selectedM,selectedCSelf,rejectReason
+```
+
+该表是阶段日志，不是 reset 执行日志：
+
+| 字段 | 语义 |
+| --- | --- |
+| `candidateStatus` | `ACCEPTED` 表示产生可下发候选；`REJECTED` 表示候选阶段被拒绝；`SELECTION_DISABLED` 表示 trigger 成立但配置为不选择执行用户。 |
+| `rejectReason` | `NONE`、`SelectionDisabled`、`ArbitrationFailed`、`Cooldown`、`InPlaceSafetyCheck` 等阶段原因。 |
+| `selectedRuntimeUnitId` | 被选中执行主动 reset 的 runtime unit；未选中时可能为 `-1`。 |
+| `otherRuntimeUnitId` | 候选对应的另一 runtime unit；选择失败时可能为 `-1`。 |
+| `keepMargin/selectedM/selectedCSelf` | arbitration 候选评分，用于比较不同 selector 的行为。 |
+
+关键注意：
+
+- `ACCEPTED` 不等于真正执行 `PROACTIVE_USER_RESET`。真正执行仍以 `inter_reset_distance.csv` 中 `resetEventType=PROACTIVE_USER_RESET` 为准。
+- candidate 日志按 pair 的 trigger window 去重，适合解释“为什么 trigger 没有变成主动 reset”，不适合当逐帧 trace 使用。
+
 ## 3. Normalization Layer
 
 脚本第一步应做字段归一化，允许读取旧日志和新日志。
@@ -111,6 +135,9 @@ triggerIdInLog
 triggerTime
 horizonSeconds
 predictedPairType
+candidateStatus
+selectedRuntimeUnitId
+rejectReason
 sourceFile
 ```
 
@@ -352,3 +379,18 @@ for trigger in triggers:
 - `isBidirectionalUserPair=1` 不等于双方都执行 reset。
 - `predictedPairType` 是触发时的预测类别，不是实际碰撞结果。
 - `episodeObjectId` 和 `runtimeUnitId` 是运行时对象 ID；稳定实验口径应使用派生出的 `runtimeEpisodeIndex` 和 `logicalUserIndex`。
+
+## 11. Runtime Module Layout
+
+主动 reset 运行时代码按阶段放在 `Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/` 下：
+
+```text
+Core/       context、pair filter、pipeline、strategy interfaces
+Trigger/    Simple / TTC / Recoverability trigger detectors and recoverability evaluator
+Selection/  candidate selector and arbitration service
+Safety/     safety policies and in-place safety validator
+Execution/  cooldown policy and intent dispatcher
+Logging/    trigger and candidate frame loggers
+```
+
+GCM 只负责每帧构造 context、调用 pipeline、调用日志输出和 dispatcher；具体触发、候选、检查、冷却、下发细节不应再回流到 GCM。

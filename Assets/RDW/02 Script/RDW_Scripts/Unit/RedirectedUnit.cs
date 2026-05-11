@@ -44,6 +44,11 @@ public class RedirectedUnit
     private Object2D pendingProactiveOtherUser = null;
     private Vector2 pendingProactiveResetDirection = Vector2.zero;
     private bool pendingProactiveIsBidirectionalResetEvent = true;
+    private int pendingProactiveUserId = -1;
+    private int pendingProactiveOtherUserId = -1;
+    private int pendingProactiveOriginTriggerId = -1;
+    private int pendingProactiveOriginCandidateId = -1;
+    private int pendingProactiveDecisionId = -1;
 
     private bool isResetting = false;
     public bool IsResetting { get { return isResetting; } }
@@ -191,9 +196,10 @@ public class RedirectedUnit
 
                 if (item.Item2)
                 {
+                    int userId = ResolveUserIdByRealUser(realUser);
                     resultData.AddShutterReset();
                     _GCM.GM_DataRecord.instance?.LogInterResetDistance(
-                        id,
+                        userId,
                         controller != null ? controller.GetEpisodeID() : -1,
                         "SHUTTER_RESET",
                         false,
@@ -202,9 +208,10 @@ public class RedirectedUnit
                 }
                 else
                 {
+                    int userId = ResolveUserIdByRealUser(realUser);
                     resultData.AddWallReset();
                     _GCM.GM_DataRecord.instance?.LogInterResetDistance(
-                        id,
+                        userId,
                         controller != null ? controller.GetEpisodeID() : -1,
                         "WALL_RESET",
                         false,
@@ -219,7 +226,12 @@ public class RedirectedUnit
                      previousStatus != "USER_RESET_DONE" &&
                      TryConsumeProactiveUserResetIntent(out Object2D proactiveOtherUser,
                                                         out Vector2 proactiveDirection,
-                                                        out bool proactiveBidirectionalResetEvent))
+                                                        out bool proactiveBidirectionalResetEvent,
+                                                        out int proactiveUserId,
+                                                        out int proactiveOtherUserId,
+                                                        out int originTriggerId,
+                                                        out int originCandidateId,
+                                                        out int decisionId))
             {
                 status = "USER_RESET";
                 intersectedUser = proactiveOtherUser;
@@ -231,17 +243,29 @@ public class RedirectedUnit
 
                 resultData.AddUserReset();
                 bool countedUserResetEvent = RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, isBidirectionalResetEvent, true);
-                _GCM.GlobalCoordinationManager.instance?.RegisterProactiveUserResetExecution(id);
-                int otherUnitId = ResolveUnitIdByRealUser(intersectedUser);
+                int userId = proactiveUserId >= 0 ? proactiveUserId : ResolveUserIdByRealUser(realUser);
+                int otherUserId = proactiveOtherUserId >= 0 ? proactiveOtherUserId : ResolveUserIdByRealUser(intersectedUser);
+                int executionId = ProactiveResetEventIdTracker.NextExecutionId();
+                ProactiveResetEventIdTracker.RecordExecution(true);
+                _GCM.GlobalCoordinationManager.instance?.RegisterProactiveUserResetExecution(userId, otherUserId);
                 _GCM.GM_DataRecord.instance?.LogInterResetDistance(
-                    id,
+                    userId,
                     controller != null ? controller.GetEpisodeID() : -1,
                     "PROACTIVE_USER_RESET",
                     isBidirectionalResetEvent,
                     realUser.transform2D.localPosition,
-                    otherUnitId);
+                    otherUserId,
+                    originTriggerId,
+                    originCandidateId,
+                    decisionId,
+                    executionId,
+                    originTriggerId,
+                    originCandidateId,
+                    true,
+                    true,
+                    "NONE");
                 Debug.Log(
-                    $"[主动重置] dangerPair=({id},{otherUnitId}), User {id} 执行主动USER_RESET, other={(intersectedUser != null ? intersectedUser.gameObject.name : "null")}, " +
+                    $"[主动重置] triggerId={originTriggerId}, candidateId={originCandidateId}, decisionId={decisionId}, executionId={executionId}, dangerPair=({userId},{otherUserId}), userId={userId} 执行主动USER_RESET, other={(intersectedUser != null ? intersectedUser.gameObject.name : "null")}, " +
                     $"resetSignedAngle={proactiveResetSignedAngle:F2}deg, resetAbsAngle={proactiveResetAbsAngle:F2}deg");
 
                 if (countedUserResetEvent &&
@@ -260,14 +284,15 @@ public class RedirectedUnit
                 status = "USER_RESET";
                 resultData.AddUserReset();
                 bool countedUserResetEvent = RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, isBidirectionalResetEvent, false);
-                int otherUnitId = ResolveUnitIdByRealUser(intersectedUser);
+                int userId = ResolveUserIdByRealUser(realUser);
+                int otherUserId = ResolveUserIdByRealUser(intersectedUser);
                 _GCM.GM_DataRecord.instance?.LogInterResetDistance(
-                    id,
+                    userId,
                     controller != null ? controller.GetEpisodeID() : -1,
                     "USER_RESET",
                     isBidirectionalResetEvent,
                     realUser.transform2D.localPosition,
-                    otherUnitId);
+                    otherUserId);
                 hasCachedUserResetDirection = false;
                 if (isBidirectionalResetEvent)
                 {
@@ -299,24 +324,47 @@ public class RedirectedUnit
         return status;
     }
 
-    private bool TryConsumeProactiveUserResetIntent(out Object2D otherUser, out Vector2 resetDirection, out bool bidirectionalResetEvent)
+    private bool TryConsumeProactiveUserResetIntent(
+        out Object2D otherUser,
+        out Vector2 resetDirection,
+        out bool bidirectionalResetEvent,
+        out int userId,
+        out int otherUserId,
+        out int originTriggerId,
+        out int originCandidateId,
+        out int decisionId)
     {
         if (!hasPendingProactiveUserResetIntent)
         {
             otherUser = null;
             resetDirection = Vector2.zero;
             bidirectionalResetEvent = false;
+            userId = -1;
+            otherUserId = -1;
+            originTriggerId = -1;
+            originCandidateId = -1;
+            decisionId = -1;
             return false;
         }
 
         otherUser = pendingProactiveOtherUser;
         resetDirection = pendingProactiveResetDirection;
         bidirectionalResetEvent = pendingProactiveIsBidirectionalResetEvent;
+        userId = pendingProactiveUserId;
+        otherUserId = pendingProactiveOtherUserId;
+        originTriggerId = pendingProactiveOriginTriggerId;
+        originCandidateId = pendingProactiveOriginCandidateId;
+        decisionId = pendingProactiveDecisionId;
 
         hasPendingProactiveUserResetIntent = false;
         pendingProactiveOtherUser = null;
         pendingProactiveResetDirection = Vector2.zero;
         pendingProactiveIsBidirectionalResetEvent = true;
+        pendingProactiveUserId = -1;
+        pendingProactiveOtherUserId = -1;
+        pendingProactiveOriginTriggerId = -1;
+        pendingProactiveOriginCandidateId = -1;
+        pendingProactiveDecisionId = -1;
         return true;
     }
 
@@ -342,14 +390,15 @@ public class RedirectedUnit
 
         resultData.AddUserReset();
         RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, true, false);
-        int otherUnitId = ResolveUnitIdByRealUser(intersectedUser);
+        int userId = ResolveUserIdByRealUser(realUser);
+        int otherUserId = ResolveUserIdByRealUser(intersectedUser);
         _GCM.GM_DataRecord.instance?.LogInterResetDistance(
-            id,
+            userId,
             controller != null ? controller.GetEpisodeID() : -1,
             "USER_RESET",
             true,
             realUser.transform2D.localPosition,
-            otherUnitId);
+            otherUserId);
     }
 
     public void Simulate(RedirectedUnit[] otherUnits)
@@ -403,13 +452,26 @@ public class RedirectedUnit
         return resetter.ApplyWallReset(realUser, virtualUser, realSpace);
     }
 
-    public void SetProactiveUserResetIntent(Object2D otherUser, Vector2 resetDirection, bool bidirectionalResetEvent = true)
+    public void SetProactiveUserResetIntent(
+        Object2D otherUser,
+        Vector2 resetDirection,
+        bool bidirectionalResetEvent = true,
+        int userId = -1,
+        int otherUserId = -1,
+        int originTriggerId = -1,
+        int originCandidateId = -1,
+        int decisionId = -1)
     {
         pendingProactiveOtherUser = otherUser;
         pendingProactiveResetDirection = resetDirection.sqrMagnitude > Mathf.Epsilon
             ? resetDirection.normalized
             : GetLastMovementDirection();
         pendingProactiveIsBidirectionalResetEvent = bidirectionalResetEvent;
+        pendingProactiveUserId = userId;
+        pendingProactiveOtherUserId = otherUserId;
+        pendingProactiveOriginTriggerId = originTriggerId;
+        pendingProactiveOriginCandidateId = originCandidateId;
+        pendingProactiveDecisionId = decisionId;
         hasPendingProactiveUserResetIntent = true;
     }
 
@@ -419,12 +481,30 @@ public class RedirectedUnit
         pendingProactiveOtherUser = null;
         pendingProactiveResetDirection = Vector2.zero;
         pendingProactiveIsBidirectionalResetEvent = true;
+        pendingProactiveUserId = -1;
+        pendingProactiveOtherUserId = -1;
+        pendingProactiveOriginTriggerId = -1;
+        pendingProactiveOriginCandidateId = -1;
+        pendingProactiveDecisionId = -1;
     }
 
-    private static int ResolveUnitIdByRealUser(Object2D userObject)
+    private static int ResolveUserIdByRealUser(Object2D userObject)
     {
-        RedirectedUnit unit = ResolveUnitByRealUser(userObject);
-        return unit != null ? unit.GetID() : -1;
+        if (userObject == null || RDWSimulationManager.instance == null)
+            return -1;
+
+        RedirectedUnit[] units = RDWSimulationManager.instance.GetRedirectedUnits;
+        if (units == null)
+            return -1;
+
+        for (int i = 0; i < units.Length; i++)
+        {
+            RedirectedUnit unit = units[i];
+            if (unit != null && unit.GetRealUser() == userObject)
+                return i;
+        }
+
+        return -1;
     }
 
     private static RedirectedUnit ResolveUnitByRealUser(Object2D userObject)

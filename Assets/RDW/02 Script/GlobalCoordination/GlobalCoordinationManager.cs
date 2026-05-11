@@ -11,9 +11,6 @@ namespace _GCM
 {
     public class GlobalCoordinationManager : MonoBehaviour
     {
-        private const float BI_RECOVERABILITY_DIRECTION_EPSILON = 0.0001f;
-        private const float BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD = 0.05f;
-
         #region singleton pattern
         /// <summary>
         /// Singleton instance
@@ -180,17 +177,9 @@ namespace _GCM
         private float singleCounterLastChangedTime = float.NegativeInfinity;
         private float doubleCounterLastChangedTime = float.NegativeInfinity;
         private float wallCounterLastChangedTime = float.NegativeInfinity;
-        private readonly Dictionary<int, int> proactiveResetExecutionCooldownUntilFrame = new Dictionary<int, int>();
-
-        private struct ProactiveIntentCandidate
-        {
-            public int SelectedUserId;
-            public int OtherUserId;
-            public Vector2 ResetDirection;
-            public float KeepMargin;
-            public float SelectedM;
-            public float SelectedCSelf;
-        }
+        private readonly PerUserProactiveResetCooldown proactiveResetCooldown = new PerUserProactiveResetCooldown();
+        private ProactiveResetPipeline proactiveResetPipeline;
+        private ProactiveResetIntentDispatcher proactiveResetIntentDispatcher;
         #endregion
 
         #region UI References
@@ -224,6 +213,8 @@ namespace _GCM
         {
             EnsureModuleConfig();
             instance = this;
+            proactiveResetPipeline = new ProactiveResetPipeline(proactiveResetCooldown);
+            proactiveResetIntentDispatcher = new ProactiveResetIntentDispatcher(proactiveResetCooldown);
 
             //Academy.Instance.AutomaticSteppingEnabled = false;
         }
@@ -581,9 +572,12 @@ namespace _GCM
             }
 
             BidirectionalCollisionRecoverabilityEvaluator.ResetTemporalState();
+            VoronoiBoundaryProactiveResetTriggerDetector.ResetTemporalState();
+            ProactiveResetEventIdTracker.ResetSession();
             ProactiveTriggerWindowLogger.ResetSession();
+            ProactiveCandidateFrameLogger.ResetSession();
             BidirectionalCollisionDebugVisualizer.ResetSession();
-            proactiveResetExecutionCooldownUntilFrame.Clear();
+            proactiveResetCooldown.Clear();
 
             latestPartitionRiskFrame = null;
             latestPartitionUpdateAttempts.Clear();
@@ -867,9 +861,6 @@ namespace _GCM
             ProactiveUserResetSettings proactiveSettings = simulationManager.simulationSetting.proactiveUserReset ?? new ProactiveUserResetSettings();
             bool proactiveEnabled = proactiveSettings.enableStrategy &&
                                     simulationManager.simulationSetting.bAllowUserReset;
-            bool useSimpleProactiveTrigger = proactiveSettings.judgeMode == ProactiveUserResetJudgeMode.Simple;
-            bool useTtcProactiveTrigger = proactiveSettings.judgeMode == ProactiveUserResetJudgeMode.TTC;
-            bool useRecoverabilityTrigger = proactiveSettings.judgeMode == ProactiveUserResetJudgeMode.Recoverability;
             bool debugVisualizationEnabled = BidirectionalCollisionDebugVisualizer.IsEnabled();
             bool shouldRunPrecheck = proactiveEnabled ||
                                      simulationManager.simulationSetting.enableProactiveResetPairDistanceLogging ||
@@ -884,7 +875,13 @@ namespace _GCM
             if (units == null || units.Length == 0)
                 return;
 
+            if (proactiveResetPipeline == null)
+            {
+                proactiveResetPipeline = new ProactiveResetPipeline(proactiveResetCooldown);
+            }
+
             ProactiveTriggerWindowLogger.Tick();
+            ProactiveCandidateFrameLogger.Tick();
 
             if (proactiveEnabled)
             {
@@ -894,358 +891,99 @@ namespace _GCM
                 }
             }
 
-            Dictionary<int, ProactiveIntentCandidate> selectedCandidateByUser = proactiveEnabled
-                ? new Dictionary<int, ProactiveIntentCandidate>()
-                : null;
-
-            for (int userId = 0; userId < units.Length; userId++)
+            ProactiveResetFrameContext context = new ProactiveResetFrameContext
             {
-                if (!partitionResult.CellAdjacency.TryGetValue(userId, out HashSet<int> adjacentUsers) || adjacentUsers == null)
-                    continue;
+                Units = units,
+                PartitionResult = partitionResult,
+                CellAdjacency = partitionResult.CellAdjacency,
+                Settings = proactiveSettings,
+                FrameIndex = simulationFrameIndex,
+                TimeSeconds = Time.time,
+                FixedDeltaTime = Time.fixedDeltaTime,
+                ProactiveEnabled = proactiveEnabled,
+                ShouldRunPrecheck = shouldRunPrecheck,
+                DebugVisualizationEnabled = debugVisualizationEnabled
+            };
 
-                RedirectedUnit unitA = units[userId];
-                if (unitA == null || unitA.GetRealUser() == null)
-                    continue;
+            ProactiveResetFrameResult result = proactiveResetPipeline.Evaluate(context);
+            LogProactiveResetTriggers(result.Triggers);
+            DispatchProactiveResetIntents(result.Intents, units);
+        }
 
-                foreach (int adjacentUserId in adjacentUsers)
-                {
-                    if (adjacentUserId <= userId || adjacentUserId < 0 || adjacentUserId >= units.Length)
-                        continue;
-
-                    RedirectedUnit unitB = units[adjacentUserId];
-                    if (unitB == null || unitB.GetRealUser() == null)
-                        continue;
-
-                    Vector2 movementA = unitA.GetLastMovementDirection();
-                    Vector2 movementB = unitB.GetLastMovementDirection();
-                    if (movementA.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON ||
-                        movementB.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON)
-                    {
-                        continue;
-                    }
-
-                    float speedA = ResolveInstantaneousSpeed(unitA);
-                    float speedB = ResolveInstantaneousSpeed(unitB);
-                    Vector2 velocityA = movementA.normalized * speedA;
-                    Vector2 velocityB = movementB.normalized * speedB;
-                    if (Vector2.Dot(velocityA, velocityB) >= 0.0f)
-                        continue;
-
-                    Vector2 offsetAB = unitB.GetRealUser().transform2D.localPosition - unitA.GetRealUser().transform2D.localPosition;
-                    float closingSpeed = ResolveClosingSpeedFromKinematics(offsetAB, velocityA, velocityB);
-                    if (closingSpeed <= BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD)
-                        continue;
-
-                    if (IsPotentialSingleSideCollision(offsetAB, velocityA, velocityB))
-                        continue;
-
-                    float predictionHorizonSeconds = Mathf.Max(proactiveSettings.predictionHorizonSeconds, 0.1f);
-                    int predictionSampleCount = Mathf.Max(proactiveSettings.predictionSampleCount, 2);
-                    bool needRecoverabilityAssessment = useRecoverabilityTrigger || debugVisualizationEnabled;
-                    BidirectionalCollisionRecoverabilityAssessment assessment = default;
-                    if (needRecoverabilityAssessment)
-                    {
-                        assessment = BidirectionalCollisionRecoverabilityEvaluator.Evaluate(
-                            unitA,
-                            unitB,
-                            predictionHorizonSeconds,
-                            predictionSampleCount,
-                            true);
-                    }
-
-                    bool proactiveTriggerFired;
-                    if (useSimpleProactiveTrigger)
-                    {
-                        proactiveTriggerFired = IsSimpleProactiveTriggerSatisfied(
-                            unitA,
-                            unitB,
-                            proactiveSettings.simpleTriggerDistanceMeters,
-                            proactiveSettings.simpleClosingSpeedThreshold);
-                    }
-                    else if (useTtcProactiveTrigger)
-                    {
-                        proactiveTriggerFired = IsTtcProactiveTriggerSatisfied(
-                            unitA,
-                            unitB,
-                            predictionHorizonSeconds,
-                            predictionSampleCount,
-                            proactiveSettings.ttcCollisionDistanceMeters,
-                            proactiveSettings.ttcMinTimeToHitSeconds);
-                    }
-                    else
-                    {
-                        proactiveTriggerFired = assessment.RiskConfirmed;
-                    }
-
-                    if (!proactiveEnabled || !proactiveTriggerFired)
-                        continue;
-
-                    ProactiveTriggerWindowLogger.NotifyTriggerCandidate(
-                        unitA,
-                        unitB,
-                        proactiveSettings.judgeMode.ToString(),
-                        predictionHorizonSeconds,
-                        offsetAB.magnitude,
-                        closingSpeed);
-
-                    //Debug.Log($"[主动重置触发] pair ({userId}, {adjacentUserId}) trigger={(useSimpleProactiveTrigger ? "Simple" : "RiskConfirmed")}");
-
-                    if (proactiveSettings.userSelectionMode == ProactiveUserResetUserSelectionMode.None)
-                    {
-                        continue;
-                    }
-
-                    bool arbitrationSucceeded = false;
-                    ProactiveUserResetArbitrationService.ArbitrationResult arbitrationResult = default;
-                    if (proactiveSettings.userSelectionMode == ProactiveUserResetUserSelectionMode.Arbitration)
-                    {
-                        arbitrationSucceeded = ProactiveUserResetArbitrationService.TryArbitratePair(
-                            unitA,
-                            userId,
-                            unitB,
-                            adjacentUserId,
-                            Mathf.Max(0.0f, proactiveSettings.arbitrationMEpsilon),
-                            Mathf.Max(0.0f, proactiveSettings.arbitrationCEpsilon),
-                            out arbitrationResult);
-                    }
-
-                    if (!arbitrationSucceeded)
-                    {
-                        continue;
-                    }
-
-                    if (IsProactiveResetExecutionCoolingDown(arbitrationResult.SelectedUnitIndex))
-                    {
-                        continue;
-                    }
-
-                    if (proactiveSettings.enableInPlaceSafetyCheck &&
-                        !ProactiveUserResetSafetyValidator.IsSafeInPlaceReset(
-                            units,
-                            arbitrationResult.SelectedUnitIndex,
-                            arbitrationResult.SelectedResetDirection,
-                            proactiveSettings.inPlaceSafetyBufferSeconds,
-                            predictionSampleCount,
-                            out int blockingUserIndex))
-                    {
-                        Debug.Log(
-                            $"[Proactive Reset Cancelled] selected={arbitrationResult.SelectedUnitIndex}, pair=({userId},{adjacentUserId}), " +
-                            $"blockedBy={blockingUserIndex}, reason=InPlaceSafetyCheck");
-                        continue;
-                    }
-
-                    ProactiveIntentCandidate candidate = new ProactiveIntentCandidate
-                    {
-                        SelectedUserId = arbitrationResult.SelectedUnitIndex,
-                        OtherUserId = arbitrationResult.OtherUnitIndex,
-                        ResetDirection = arbitrationResult.SelectedResetDirection,
-                        KeepMargin = arbitrationResult.KeepMargin,
-                        SelectedM = arbitrationResult.SelectedM,
-                        SelectedCSelf = arbitrationResult.SelectedCSelf
-                    };
-
-                    if (!selectedCandidateByUser.TryGetValue(candidate.SelectedUserId, out ProactiveIntentCandidate existing) ||
-                        ShouldReplaceProactiveCandidate(existing, candidate))
-                    {
-                        selectedCandidateByUser[candidate.SelectedUserId] = candidate;
-                    }
-                }
-            }
-
-            if (!proactiveEnabled || selectedCandidateByUser.Count == 0)
+        private void LogProactiveResetTriggers(List<ProactiveResetTriggerEvent> triggers)
+        {
+            if (triggers == null || triggers.Count == 0)
                 return;
 
-            foreach (KeyValuePair<int, ProactiveIntentCandidate> kvp in selectedCandidateByUser)
+            for (int i = 0; i < triggers.Count; i++)
             {
-                ProactiveIntentCandidate candidate = kvp.Value;
-                if (candidate.SelectedUserId < 0 || candidate.SelectedUserId >= units.Length)
-                    continue;
-                if (candidate.OtherUserId < 0 || candidate.OtherUserId >= units.Length)
-                    continue;
-
-                RedirectedUnit selectedUnit = units[candidate.SelectedUserId];
-                RedirectedUnit otherUnit = units[candidate.OtherUserId];
-                if (selectedUnit == null || selectedUnit.GetRealUser() == null || otherUnit == null || otherUnit.GetRealUser() == null)
-                    continue;
-
-                if (!string.Equals(selectedUnit.GetStatus(), "IDLE", StringComparison.Ordinal))
-                    continue;
-
-                if (IsProactiveResetExecutionCoolingDown(candidate.SelectedUserId))
-                    continue;
-
-                selectedUnit.SetProactiveUserResetIntent(otherUnit.GetRealUser(), candidate.ResetDirection, true);
-
+                ProactiveResetTriggerEvent triggerEvent = triggers[i];
+                ProactiveTriggerWindowLogger.NotifyTriggerCandidate(
+                    triggerEvent.TriggerId,
+                    triggerEvent.UnitA,
+                    triggerEvent.UnitB,
+                    triggerEvent.UnitAId,
+                    triggerEvent.UnitBId,
+                    triggerEvent.JudgeMode,
+                    triggerEvent.HorizonSeconds,
+                    triggerEvent.TriggerDistance,
+                    triggerEvent.ClosingSpeed,
+                    triggerEvent.ConflictBoundaryDistanceA,
+                    triggerEvent.ConflictBoundaryDistanceB,
+                    triggerEvent.ConflictBoundaryDistancePair,
+                    triggerEvent.ReverseWallDistanceA,
+                    triggerEvent.ReverseWallDistanceB,
+                    triggerEvent.ConflictBoundaryTrendHitCount,
+                    triggerEvent.ConflictBoundaryTrendWindowFrames);
             }
         }
 
-        public void RegisterProactiveUserResetExecution(int userId)
+        private void DispatchProactiveResetIntents(List<ProactiveResetIntent> intents, RedirectedUnit[] units)
+        {
+            if (proactiveResetIntentDispatcher == null)
+            {
+                proactiveResetIntentDispatcher = new ProactiveResetIntentDispatcher(proactiveResetCooldown);
+            }
+
+            proactiveResetIntentDispatcher.Dispatch(intents, units, simulationFrameIndex);
+        }
+
+        public void RegisterProactiveUserResetExecution(int userId, int otherUserId = -1)
         {
             RDWSimulationManager simulationManager = RDWSimulationManager.instance;
             if (simulationManager == null || simulationManager.simulationSetting == null)
                 return;
 
             ProactiveUserResetSettings proactiveSettings = simulationManager.simulationSetting.proactiveUserReset ?? new ProactiveUserResetSettings();
-            float cooldownSeconds = Mathf.Max(0.0f, proactiveSettings.executionCooldownSeconds);
-            if (cooldownSeconds <= 0.0f)
-                return;
-
-            int cooldownFrames = Mathf.CeilToInt(cooldownSeconds / Mathf.Max(Time.fixedDeltaTime, 0.0001f));
-            proactiveResetExecutionCooldownUntilFrame[userId] = simulationFrameIndex + cooldownFrames;
+            proactiveResetCooldown.RegisterExecution(
+                userId,
+                simulationFrameIndex,
+                Time.fixedDeltaTime,
+                proactiveSettings.executionCooldownSeconds);
+            proactiveResetCooldown.RegisterPairExecution(
+                userId,
+                otherUserId,
+                simulationFrameIndex,
+                Time.fixedDeltaTime,
+                proactiveSettings.pairExecutionCooldownSeconds);
         }
 
-        private bool IsProactiveResetExecutionCoolingDown(int userId)
+        private int GetUnitIndexById(int unitId)
         {
-            if (userId < 0)
-                return false;
+            RedirectedUnit[] units = RDWSimulationManager.instance != null
+                ? RDWSimulationManager.instance.GetRedirectedUnits
+                : null;
+            if (units == null)
+                return -1;
 
-            if (!proactiveResetExecutionCooldownUntilFrame.TryGetValue(userId, out int cooldownUntilFrame))
-                return false;
-
-            if (simulationFrameIndex < cooldownUntilFrame)
-                return true;
-
-            proactiveResetExecutionCooldownUntilFrame.Remove(userId);
-            return false;
-        }
-
-        private static float ResolveClosingSpeedFromKinematics(Vector2 offsetAB, Vector2 velocityA, Vector2 velocityB)
-        {
-            if (offsetAB.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON)
-                return 0.0f;
-
-            Vector2 towardB = offsetAB.normalized;
-            Vector2 relativeVelocity = velocityB - velocityA;
-            return -Vector2.Dot(relativeVelocity, towardB);
-        }
-
-        private static bool IsPotentialSingleSideCollision(Vector2 offsetAB, Vector2 velocityA, Vector2 velocityB)
-        {
-            if (offsetAB.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON)
-                return false;
-
-            Vector2 towardB = offsetAB.normalized;
-            Vector2 towardA = -towardB;
-
-            // Dot-product based gating:
-            // only one user moving toward the other indicates a likely single-side collision.
-            bool aMovingTowardB = Vector2.Dot(velocityA, towardB) > BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD;
-            bool bMovingTowardA = Vector2.Dot(velocityB, towardA) > BI_RECOVERABILITY_CLOSING_SPEED_THRESHOLD;
-            return aMovingTowardB ^ bMovingTowardA;
-        }
-
-        private static bool ShouldReplaceProactiveCandidate(ProactiveIntentCandidate current, ProactiveIntentCandidate incoming)
-        {
-            const float tolerance = 0.0001f;
-
-            if (incoming.KeepMargin < current.KeepMargin - tolerance)
-                return true;
-            if (incoming.KeepMargin > current.KeepMargin + tolerance)
-                return false;
-
-            if (incoming.SelectedM > current.SelectedM + tolerance)
-                return true;
-            if (incoming.SelectedM < current.SelectedM - tolerance)
-                return false;
-
-            if (incoming.SelectedCSelf < current.SelectedCSelf - tolerance)
-                return true;
-            if (incoming.SelectedCSelf > current.SelectedCSelf + tolerance)
-                return false;
-
-            if (incoming.OtherUserId < current.OtherUserId)
-                return true;
-
-            return false;
-        }
-
-        private static bool IsSimpleProactiveTriggerSatisfied(
-            RedirectedUnit unitA,
-            RedirectedUnit unitB,
-            float triggerDistanceMeters,
-            float closingSpeedThreshold)
-        {
-            if (unitA == null || unitB == null || unitA.GetRealUser() == null || unitB.GetRealUser() == null)
-                return false;
-
-            Vector2 positionA = unitA.GetRealUser().transform2D.localPosition;
-            Vector2 positionB = unitB.GetRealUser().transform2D.localPosition;
-            Vector2 offsetAB = positionB - positionA;
-            float distance = offsetAB.magnitude;
-            float safeTriggerDistance = Mathf.Max(triggerDistanceMeters, 0.1f);
-            if (distance <= BI_RECOVERABILITY_DIRECTION_EPSILON || distance > safeTriggerDistance)
-                return false;
-
-            float speedA = ResolveInstantaneousSpeed(unitA);
-            float speedB = ResolveInstantaneousSpeed(unitB);
-            Vector2 movementA = unitA.GetLastMovementDirection();
-            Vector2 movementB = unitB.GetLastMovementDirection();
-            if (movementA.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON ||
-                movementB.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON)
+            for (int i = 0; i < units.Length; i++)
             {
-                return false;
+                RedirectedUnit unit = units[i];
+                if (unit != null && unit.GetID() == unitId)
+                    return i;
             }
 
-            Vector2 velocityA = movementA.normalized * speedA;
-            Vector2 velocityB = movementB.normalized * speedB;
-            if (Vector2.Dot(velocityA, velocityB) >= 0.0f)
-                return false;
-
-            float closingSpeed = ResolveClosingSpeedFromKinematics(offsetAB, velocityA, velocityB);
-            return closingSpeed > Mathf.Max(0.0f, closingSpeedThreshold);
-        }
-
-        private static bool IsTtcProactiveTriggerSatisfied(
-            RedirectedUnit unitA,
-            RedirectedUnit unitB,
-            float horizonSeconds,
-            int sampleCount,
-            float collisionDistanceMeters,
-            float minTimeToHitSeconds)
-        {
-            if (unitA == null || unitB == null || unitA.GetRealUser() == null || unitB.GetRealUser() == null)
-                return false;
-
-            Vector2 movementA = unitA.GetLastMovementDirection();
-            Vector2 movementB = unitB.GetLastMovementDirection();
-            if (movementA.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON ||
-                movementB.sqrMagnitude <= BI_RECOVERABILITY_DIRECTION_EPSILON)
-            {
-                return false;
-            }
-
-            float speedA = ResolveInstantaneousSpeed(unitA);
-            float speedB = ResolveInstantaneousSpeed(unitB);
-            Vector2 velocityA = movementA.normalized * speedA;
-            Vector2 velocityB = movementB.normalized * speedB;
-
-            int safeSampleCount = Mathf.Max(sampleCount, 2);
-            float safeHorizon = Mathf.Max(horizonSeconds, 0.01f);
-            float safeCollisionDistance = Mathf.Max(collisionDistanceMeters, 0.1f);
-            float safeMinTimeToHit = Mathf.Max(0.0f, minTimeToHitSeconds);
-            Vector2 initialA = unitA.GetRealUser().transform2D.localPosition;
-            Vector2 initialB = unitB.GetRealUser().transform2D.localPosition;
-
-            for (int i = 0; i <= safeSampleCount; i++)
-            {
-                float t = safeHorizon * i / safeSampleCount;
-                Vector2 pA = initialA + velocityA * t;
-                Vector2 pB = initialB + velocityB * t;
-                float distance = Vector2.Distance(pA, pB);
-                if (distance < safeCollisionDistance)
-                {
-                    return t >= safeMinTimeToHit;
-                }
-            }
-
-            return false;
-        }
-        private static float ResolveInstantaneousSpeed(RedirectedUnit unit)
-        {
-            if (unit == null)
-                return 0.0f;
-
-            return Mathf.Max(0.0f, unit.GetLastInstantaneousSpeed());
+            return -1;
         }
 
         private void SyncPartitionUpdateStatesWithCurrentSeeds()

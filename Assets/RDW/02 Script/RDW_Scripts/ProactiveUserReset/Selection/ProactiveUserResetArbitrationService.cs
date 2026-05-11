@@ -71,7 +71,7 @@ public static class ProactiveUserResetArbitrationService
         }
         else
         {
-            selectA = unitA.GetID() <= unitB.GetID();
+            selectA = indexA <= indexB;
         }
 
         if (selectA)

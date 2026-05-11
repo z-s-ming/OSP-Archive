@@ -21,8 +21,6 @@ namespace _GCM
         private string folder_Path = string.Empty;
 
         private string folderName = "CGnA_DataLog";
-        private string fileName = string.Empty;
-        private string interResetDistanceFileName = string.Empty;
         private string runId = string.Empty;
         private string runFolderPath = string.Empty;
         private string runRawFolderPath = string.Empty;
@@ -230,7 +228,8 @@ namespace _GCM
             {
                 "raw/episode_summary.csv",
                 "raw/inter_reset_distance.csv",
-                "raw/proactive_trigger_frame.csv"
+                "raw/proactive_trigger_frame.csv",
+                "raw/proactive_candidate_frame.csv"
             }, 1);
 
             sb.AppendLine(",");
@@ -249,6 +248,16 @@ namespace _GCM
                 AppendJsonProperty(sb, "predictionSampleCount", proactive.predictionSampleCount.ToString(CultureInfo.InvariantCulture), false, 2);
                 sb.AppendLine(",");
                 AppendJsonProperty(sb, "executionCooldownSeconds", proactive.executionCooldownSeconds.ToString("F6", CultureInfo.InvariantCulture), false, 2);
+                sb.AppendLine(",");
+                AppendJsonProperty(sb, "pairExecutionCooldownSeconds", proactive.pairExecutionCooldownSeconds.ToString("F6", CultureInfo.InvariantCulture), false, 2);
+                sb.AppendLine(",");
+                AppendJsonProperty(sb, "voronoiBoundaryDistanceThreshold", proactive.voronoiBoundaryDistanceThreshold.ToString("F6", CultureInfo.InvariantCulture), false, 2);
+                sb.AppendLine(",");
+                AppendJsonProperty(sb, "voronoiBoundaryReverseWallDistanceThreshold", proactive.voronoiBoundaryReverseWallDistanceThreshold.ToString("F6", CultureInfo.InvariantCulture), false, 2);
+                sb.AppendLine(",");
+                AppendJsonProperty(sb, "voronoiBoundaryTrendWindowFrames", proactive.voronoiBoundaryTrendWindowFrames.ToString(CultureInfo.InvariantCulture), false, 2);
+                sb.AppendLine(",");
+                AppendJsonProperty(sb, "voronoiBoundaryTrendRequiredFrames", proactive.voronoiBoundaryTrendRequiredFrames.ToString(CultureInfo.InvariantCulture), false, 2);
                 sb.AppendLine();
             }
             sb.AppendLine("  },");
@@ -367,20 +376,6 @@ namespace _GCM
             return SanitizePathSegment(firstUnit.redirectType + "-" + firstUnit.resetType);
         }
 
-        private void SetFileName()
-        {
-            string fileNameFormat = string.Empty;
-
-            switch (curren_EX_Type)
-            {
-                case Experiment_Type.VS_Line:
-                    fileName = "Experiment_01_DataLog_" + DateTime.Now.ToString("yyyyMMddHHmmss");
-                    break;
-
-                
-            }
-        }
-
         public void Enequeue_Data(string _data)
         {
             currentTime = Time.time;
@@ -423,11 +418,6 @@ namespace _GCM
 
             try
             {
-                //string tempFileName = fileName + ".txt";
-                SetFileName();
-                string tempFileName = fileName + ".txt";
-                string file_Location = System.IO.Path.Combine(folder_Path, tempFileName);
-
                 int totalCountoftheQueue = _Queue_ex.Count;
 
                 List<string> copyDataQueue = new List<string>(_Queue_ex);
@@ -435,7 +425,6 @@ namespace _GCM
                 Debug.Log("Saving Data Starts. Queue Count : " + totalCountoftheQueue);
 
                 str_DataCategory = BuildDataCategory();
-                AppendRowsWithHeader(file_Location, str_DataCategory, copyDataQueue);
                 AppendRowsWithHeader(GetRunEpisodeSummaryFilePath(), str_DataCategory, copyDataQueue);
                 
                 _Queue_ex.Clear(); // Clear buffer to prevent memory leak and double-writing
@@ -481,7 +470,7 @@ namespace _GCM
 
         private string BuildInterResetDistDataCategory()
         {
-            return "Date,Timestamp,episodeObjectId,frame,simTime,runtimeUnitId,otherRuntimeUnitId,runtimePairMinId,runtimePairMaxId,resetEventType,isBidirectionalUserPair,interResetDistance,cumulativeDistance";
+            return "Date,Timestamp,episodeObjectId,frame,simTime,userId,otherUserId,pairMinUserId,pairMaxUserId,resetEventType,isBidirectionalUserPair,interResetDistance,cumulativeDistance,triggerId,candidateId,decisionId,executionId,originTriggerId,originCandidateId,accepted,executed,rejectReason";
         }
 
         public void ResetInterResetDistanceTracking()
@@ -491,37 +480,62 @@ namespace _GCM
             lastResetCumulativeByUnitId.Clear();
         }
 
-        public void LogInterResetDistance(int runtimeUnitId, int episodeObjectId, string resetEventType, bool isBidirectionalUserPair, Vector2 currentPhysicalPosition, int otherRuntimeUnitId = -1)
+        public void LogInterResetDistance(
+            int userId,
+            int episodeObjectId,
+            string resetEventType,
+            bool isBidirectionalUserPair,
+            Vector2 currentPhysicalPosition,
+            int otherUserId = -1,
+            int triggerId = -1,
+            int candidateId = -1,
+            int decisionId = -1,
+            int executionId = -1,
+            int originTriggerId = -1,
+            int originCandidateId = -1,
+            bool accepted = false,
+            bool executed = true,
+            string rejectReason = "NONE")
         {
-            EnsureTrackingInitialized(runtimeUnitId, currentPhysicalPosition);
-            AccumulateDistanceForUnit(runtimeUnitId, currentPhysicalPosition, false);
+            EnsureTrackingInitialized(userId, currentPhysicalPosition);
+            AccumulateDistanceForUnit(userId, currentPhysicalPosition, false);
 
-            float cumulativeDistance = cumulativeDistByUnitId[runtimeUnitId];
-            if (!lastResetCumulativeByUnitId.ContainsKey(runtimeUnitId))
+            float cumulativeDistance = cumulativeDistByUnitId[userId];
+            if (!lastResetCumulativeByUnitId.ContainsKey(userId))
             {
-                lastResetCumulativeByUnitId[runtimeUnitId] = 0.0f;
+                lastResetCumulativeByUnitId[userId] = 0.0f;
             }
 
-            float interResetDistance = Mathf.Max(0.0f, cumulativeDistance - lastResetCumulativeByUnitId[runtimeUnitId]);
-            lastResetCumulativeByUnitId[runtimeUnitId] = cumulativeDistance;
-            int runtimePairMinId = otherRuntimeUnitId >= 0 ? Mathf.Min(runtimeUnitId, otherRuntimeUnitId) : -1;
-            int runtimePairMaxId = otherRuntimeUnitId >= 0 ? Mathf.Max(runtimeUnitId, otherRuntimeUnitId) : -1;
+            float interResetDistance = Mathf.Max(0.0f, cumulativeDistance - lastResetCumulativeByUnitId[userId]);
+            lastResetCumulativeByUnitId[userId] = cumulativeDistance;
+            int pairMinUserId = otherUserId >= 0 ? Mathf.Min(userId, otherUserId) : -1;
+            int pairMaxUserId = otherUserId >= 0 ? Mathf.Max(userId, otherUserId) : -1;
 
             string refinedResetEventType = string.IsNullOrEmpty(resetEventType) ? "UNKNOWN" : resetEventType.Replace(",", "_");
+            string refinedRejectReason = string.IsNullOrEmpty(rejectReason) ? "NONE" : rejectReason.Replace(",", "_");
             string payload = string.Format(
                 CultureInfo.InvariantCulture,
-                "{0},{1},{2:F6},{3},{4},{5},{6},{7},{8},{9:F6},{10:F6}",
+                "{0},{1},{2:F6},{3},{4},{5},{6},{7},{8},{9:F6},{10:F6},{11},{12},{13},{14},{15},{16},{17},{18},{19}",
                 episodeObjectId,
                 Time.frameCount,
                 Time.time,
-                runtimeUnitId,
-                otherRuntimeUnitId,
-                runtimePairMinId,
-                runtimePairMaxId,
+                userId,
+                otherUserId,
+                pairMinUserId,
+                pairMaxUserId,
                 refinedResetEventType,
                 isBidirectionalUserPair ? 1 : 0,
                 interResetDistance,
-                cumulativeDistance);
+                cumulativeDistance,
+                triggerId,
+                candidateId,
+                decisionId,
+                executionId,
+                originTriggerId,
+                originCandidateId,
+                accepted ? 1 : 0,
+                executed ? 1 : 0,
+                refinedRejectReason);
 
             Enqueue_InterResetDistanceData(payload);
         }
@@ -549,19 +563,12 @@ namespace _GCM
                 if (dataQueue.Count == 0)
                     return true;
 
-                if (string.IsNullOrEmpty(interResetDistanceFileName))
-                {
-                    interResetDistanceFileName = "Experiment_01_InterResetDistance_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".csv";
-                }
-
-                string fileLocation = System.IO.Path.Combine(folder_Path, interResetDistanceFileName);
                 int totalCount = dataQueue.Count;
                 List<string> copyDataQueue = new List<string>(dataQueue);
 
                 Debug.Log("Saving Inter-Reset Distance Data Starts. Queue Count : " + totalCount);
 
                 str_InterResetDistDataCategory = BuildInterResetDistDataCategory();
-                AppendRowsWithHeader(fileLocation, str_InterResetDistDataCategory, copyDataQueue);
                 AppendRowsWithHeader(GetRunInterResetDistanceFilePath(), str_InterResetDistDataCategory, copyDataQueue);
 
                 dataQueue.Clear();
@@ -633,7 +640,7 @@ namespace _GCM
                 if (unit == null || unit.GetRealUser() == null)
                     continue;
 
-                int unitId = unit.GetID();
+                int unitId = i;
                 Vector2 currentPosition = unit.GetRealUser().transform2D.localPosition;
 
                 EnsureTrackingInitialized(unitId, currentPosition);

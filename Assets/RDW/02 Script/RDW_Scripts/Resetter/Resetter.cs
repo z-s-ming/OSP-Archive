@@ -301,14 +301,34 @@ public class Resetter
         float distance = Vector2.Distance(currentPosition, otherPosition);
         float threshold = ResolveUserRadius(currentUser) + ResolveUserRadius(otherUser) + 0.02f;
         bool bidirectionalCandidate = closingVelocity > 0.0f && forwardDot < 0.0f;
+        int currentUserId = ResolveUserId(currentUnit);
+        int otherUserId = ResolveUserId(otherUnit);
 
         Debug.Log(
-            $"[UserResetCollisionDiagnostic] frame={Time.frameCount}, pair=({currentUnit.GetID()},{otherUnit.GetID()}), " +
+            $"[UserResetCollisionDiagnostic] frame={Time.frameCount}, pair=({currentUserId},{otherUserId}), " +
             $"distance={distance:F4}, threshold={threshold:F4}, overlap={threshold - distance:F4}, " +
             $"closingVelocity={closingVelocity:F4}, forwardDot={forwardDot:F4}, bidirectionalCandidate={bidirectionalCandidate}, " +
             $"status=({currentUnit.GetStatus()},{otherUnit.GetStatus()}), " +
             $"pos=({currentPosition.x:F3},{currentPosition.y:F3})/({otherPosition.x:F3},{otherPosition.y:F3}), " +
             $"forward=({currentUser.transform2D.forward.x:F3},{currentUser.transform2D.forward.y:F3})/({otherUser.transform2D.forward.x:F3},{otherUser.transform2D.forward.y:F3})");
+    }
+
+    private static int ResolveUserId(RedirectedUnit targetUnit)
+    {
+        if (targetUnit == null || RDWSimulationManager.instance == null)
+            return -1;
+
+        RedirectedUnit[] units = RDWSimulationManager.instance.GetRedirectedUnits;
+        if (units == null)
+            return -1;
+
+        for (int i = 0; i < units.Length; i++)
+        {
+            if (units[i] == targetUnit)
+                return i;
+        }
+
+        return -1;
     }
 
     private static float ResolveUserRadius(Object2D user)

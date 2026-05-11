@@ -13,61 +13,64 @@ public static class ProactiveTriggerWindowLogger
         public float HorizonSeconds;
     }
 
-    private const string HEADER = "triggerIdInLog,episodeObjectId,triggerFrame,triggerTime,runtimePairMinId,runtimePairMaxId,runtimeUnitAId,runtimeUnitBId,judgeMode,horizonSeconds,triggerDistance,triggerClosingSpeed,unitMinStatus,unitMaxStatus,predictedPairType";
+    private const string HEADER = "triggerId,episodeObjectId,triggerFrame,triggerTime,pairMinUserId,pairMaxUserId,userId,otherUserId,judgeMode,horizonSeconds,triggerDistance,triggerClosingSpeed,unitMinStatus,unitMaxStatus,predictedPairType,conflictBoundaryDistanceA,conflictBoundaryDistanceB,conflictBoundaryDistancePair,reverseWallDistanceA,reverseWallDistanceB,conflictBoundaryTrendHitCount,conflictBoundaryTrendWindowFrames";
     private static string logFilePath = string.Empty;
-    private static string legacyLogFilePath = string.Empty;
-    private static int nextTriggerId = 1;
     private static readonly Dictionary<long, TriggerSession> activeSessionsByPair = new Dictionary<long, TriggerSession>();
 
     public static void ResetSession()
     {
         logFilePath = string.Empty;
-        legacyLogFilePath = string.Empty;
-        nextTriggerId = 1;
         activeSessionsByPair.Clear();
     }
 
     public static void NotifyTriggerCandidate(
+        int triggerId,
         RedirectedUnit unitA,
         RedirectedUnit unitB,
+        int userId,
+        int otherUserId,
         string judgeMode,
         float horizonSeconds,
         float triggerDistance,
-        float closingSpeed)
+        float closingSpeed,
+        float conflictBoundaryDistanceA = -1.0f,
+        float conflictBoundaryDistanceB = -1.0f,
+        float conflictBoundaryDistancePair = -1.0f,
+        float reverseWallDistanceA = -1.0f,
+        float reverseWallDistanceB = -1.0f,
+        int conflictBoundaryTrendHitCount = 0,
+        int conflictBoundaryTrendWindowFrames = 0)
     {
         if (!ShouldLoggingEnabled())
             return;
         if (unitA == null || unitB == null || unitA.GetRealUser() == null || unitB.GetRealUser() == null)
             return;
 
-        int runtimeUnitAId = unitA.GetID();
-        int runtimeUnitBId = unitB.GetID();
-        int runtimePairMinId = Mathf.Min(runtimeUnitAId, runtimeUnitBId);
-        int runtimePairMaxId = Mathf.Max(runtimeUnitAId, runtimeUnitBId);
-        long pairKey = BuildPairKey(runtimePairMinId, runtimePairMaxId);
-
-        if (activeSessionsByPair.ContainsKey(pairKey))
-            return;
-
-        RedirectedUnit unitMin = runtimeUnitAId == runtimePairMinId ? unitA : unitB;
-        RedirectedUnit unitMax = runtimeUnitAId == runtimePairMaxId ? unitA : unitB;
+        int pairMinUserId = Mathf.Min(userId, otherUserId);
+        int pairMaxUserId = Mathf.Max(userId, otherUserId);
+        RedirectedUnit unitMin = userId == pairMinUserId ? unitA : unitB;
+        RedirectedUnit unitMax = userId == pairMaxUserId ? unitA : unitB;
         float safeHorizonSeconds = Mathf.Max(0.1f, horizonSeconds);
 
-        activeSessionsByPair[pairKey] = new TriggerSession
-        {
-            TriggerTime = Time.time,
-            HorizonSeconds = safeHorizonSeconds
-        };
-
         AppendTriggerRow(
+            triggerId,
             unitMin,
             unitMax,
-            runtimeUnitAId,
-            runtimeUnitBId,
+            userId,
+            otherUserId,
+            pairMinUserId,
+            pairMaxUserId,
             string.IsNullOrEmpty(judgeMode) ? "UNKNOWN" : judgeMode,
             safeHorizonSeconds,
             triggerDistance,
-            closingSpeed);
+            closingSpeed,
+            conflictBoundaryDistanceA,
+            conflictBoundaryDistanceB,
+            conflictBoundaryDistancePair,
+            reverseWallDistanceA,
+            reverseWallDistanceB,
+            conflictBoundaryTrendHitCount,
+            conflictBoundaryTrendWindowFrames);
     }
 
     public static void Tick()
@@ -88,14 +91,24 @@ public static class ProactiveTriggerWindowLogger
     }
 
     private static void AppendTriggerRow(
+        int triggerId,
         RedirectedUnit unitMin,
         RedirectedUnit unitMax,
-        int runtimeUnitAId,
-        int runtimeUnitBId,
+        int userId,
+        int otherUserId,
+        int pairMinUserId,
+        int pairMaxUserId,
         string judgeMode,
         float horizonSeconds,
         float triggerDistance,
-        float closingSpeed)
+        float closingSpeed,
+        float conflictBoundaryDistanceA,
+        float conflictBoundaryDistanceB,
+        float conflictBoundaryDistancePair,
+        float reverseWallDistanceA,
+        float reverseWallDistanceB,
+        int conflictBoundaryTrendHitCount,
+        int conflictBoundaryTrendWindowFrames)
     {
         EnsureLogFile();
 
@@ -105,29 +118,31 @@ public static class ProactiveTriggerWindowLogger
         string minStatus = unitMin.GetStatus() ?? string.Empty;
         string maxStatus = unitMax.GetStatus() ?? string.Empty;
 
-        sb.Append(nextTriggerId++).Append(',');
+        sb.Append(triggerId).Append(',');
         sb.Append(episodeObjectId).Append(',');
         sb.Append(Time.frameCount).Append(',');
         sb.Append(ToInvariant(Time.time)).Append(',');
-        sb.Append(unitMin.GetID()).Append(',');
-        sb.Append(unitMax.GetID()).Append(',');
-        sb.Append(runtimeUnitAId).Append(',');
-        sb.Append(runtimeUnitBId).Append(',');
+        sb.Append(pairMinUserId).Append(',');
+        sb.Append(pairMaxUserId).Append(',');
+        sb.Append(userId).Append(',');
+        sb.Append(otherUserId).Append(',');
         sb.Append(SanitizeCsv(judgeMode)).Append(',');
         sb.Append(ToInvariant(horizonSeconds)).Append(',');
         sb.Append(ToInvariant(triggerDistance)).Append(',');
         sb.Append(ToInvariant(closingSpeed)).Append(',');
         sb.Append(SanitizeCsv(minStatus)).Append(',');
         sb.Append(SanitizeCsv(maxStatus)).Append(',');
-        sb.Append(SanitizeCsv(ResolvePredictedPairType(unitMin, unitMax, minStatus, maxStatus)));
+        sb.Append(SanitizeCsv(ResolvePredictedPairType(unitMin, unitMax, minStatus, maxStatus))).Append(',');
+        sb.Append(ToInvariant(conflictBoundaryDistanceA)).Append(',');
+        sb.Append(ToInvariant(conflictBoundaryDistanceB)).Append(',');
+        sb.Append(ToInvariant(conflictBoundaryDistancePair)).Append(',');
+        sb.Append(ToInvariant(reverseWallDistanceA)).Append(',');
+        sb.Append(ToInvariant(reverseWallDistanceB)).Append(',');
+        sb.Append(conflictBoundaryTrendHitCount).Append(',');
+        sb.Append(conflictBoundaryTrendWindowFrames);
         sb.AppendLine();
 
         AppendLineWithHeader(logFilePath, sb.ToString());
-        if (!string.IsNullOrEmpty(legacyLogFilePath) &&
-            !string.Equals(logFilePath, legacyLogFilePath, StringComparison.OrdinalIgnoreCase))
-        {
-            AppendLineWithHeader(legacyLogFilePath, sb.ToString());
-        }
     }
 
     private static string ResolvePredictedPairType(RedirectedUnit unitMin, RedirectedUnit unitMax, string minStatus, string maxStatus)
@@ -186,14 +201,9 @@ public static class ProactiveTriggerWindowLogger
         if (!string.IsNullOrEmpty(logFilePath))
             return;
 
-        string legacyRoot = Path.Combine(Directory.GetCurrentDirectory(), "CGnA_DataLog", "proactiveResetPairDistance");
-        Directory.CreateDirectory(legacyRoot);
-        string legacyName = $"proactive_trigger_frame_log_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
-        legacyLogFilePath = Path.Combine(legacyRoot, legacyName);
-
         logFilePath = _GCM.GM_DataRecord.instance != null
             ? _GCM.GM_DataRecord.instance.GetRunRawLogPath("proactive_trigger_frame.csv")
-            : legacyLogFilePath;
+            : string.Empty;
     }
 
     private static void AppendLineWithHeader(string filePath, string line)

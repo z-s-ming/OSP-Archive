@@ -50,6 +50,7 @@ Each run folder is intended to contain:
     episode_summary.csv
     inter_reset_distance.csv
     proactive_trigger_frame.csv
+    proactive_candidate_frame.csv
   derived/
     normalized_reset_events.csv
     proactive_trigger_outcomes.csv
@@ -66,8 +67,12 @@ Current implementation writes these raw files:
 | `raw/episode_summary.csv` | `GM_DataRecord.WriteSteamingData_Batch` | Run-scoped copy of the episode summary rows. |
 | `raw/inter_reset_distance.csv` | `GM_DataRecord.WriteInterResetDistanceData_Batch` | Run-scoped copy of reset event detail rows. |
 | `raw/proactive_trigger_frame.csv` | `ProactiveTriggerWindowLogger` | Run-scoped proactive trigger frame log. |
+| `raw/proactive_candidate_frame.csv` | `ProactiveCandidateFrameLogger` | Run-scoped candidate-stage outcome log after a proactive trigger. |
 
 The `derived/` and `plots/` folders are created automatically but are reserved for postprocess scripts.
+
+`proactive_trigger_frame.csv` means the risk/trigger rule fired; it does not mean a reset was selected or executed.
+`proactive_candidate_frame.csv` records the next stage: whether the trigger produced an accepted candidate or was rejected by selection, cooldown, or safety policy. The true execution event remains `resetEventType == PROACTIVE_USER_RESET` in `inter_reset_distance.csv`.
 
 ## 4. Manifest
 
@@ -91,23 +96,15 @@ The manifest is written when the run session is first needed by a logger. It rec
 
 Postprocess scripts should use `manifest.json` as the entry point for a run. If multiple run folders exist, select the run folder first, then load its manifest and raw files.
 
-## 5. Legacy Compatibility
+## 5. Active Output Path
 
-The system still writes legacy paths:
-
-```text
-CGnA_DataLog/Experiment_01_DataLog_*.txt
-CGnA_DataLog/Experiment_01_InterResetDistance_*.csv
-CGnA_DataLog/proactiveResetPairDistance/proactive_trigger_frame_log_*.csv
-```
-
-These are kept so older scripts and manual workflows do not break immediately.
-
-New scripts should prefer:
+The runtime now writes experiment logs only under the run-scoped folder:
 
 ```text
 CGnA_DataLog/runs/<run-directory>/raw/
 ```
+
+Legacy root-level outputs such as `Experiment_01_DataLog_*.txt`, `Experiment_01_InterResetDistance_*.csv`, `proactiveResetPairDistance/`, and `proactiveResetCandidate/` are no longer produced.
 
 Legacy files should be treated as compatibility copies, not the primary data source.
 

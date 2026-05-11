@@ -1082,7 +1082,7 @@ MonoBehaviour:
     bAllowUserReset: 1
     proactiveUserReset:
       enableStrategy: 1
-      judgeMode: 0
+      judgeMode: 3
       userSelectionMode: 0
       predictionHorizonSeconds: 1.5
       predictionSampleCount: 60
@@ -1095,12 +1095,17 @@ MonoBehaviour:
       enableInPlaceSafetyCheck: 1
       inPlaceSafetyBufferSeconds: 0.2
       executionCooldownSeconds: 1.5
+      pairExecutionCooldownSeconds: 3
+      voronoiBoundaryDistanceThreshold: 1.25
+      voronoiBoundaryReverseWallDistanceThreshold: 2
+      voronoiBoundaryTrendWindowFrames: 5
+      voronoiBoundaryTrendRequiredFrames: 4
     enableProactiveResetPairDistanceLogging: 1
     showTarget: 1
     showResetLocator: 0
     showRealWall: 0
   userResetTotalCount: 0
-  simulspeed: 50
+  simulspeed: 2
   autoSeparateVirtualSpaceFromRealSpace: 0
   virtualSpaceSeparationOffset: {x: 50, y: 0}
   keepOnlyOneVirtualTrail: 0
