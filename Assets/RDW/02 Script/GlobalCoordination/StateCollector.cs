@@ -9,6 +9,9 @@ namespace _GCM
         public List<GameObject> VirtualUsers { get; } = new List<GameObject>();
         public List<Vector2> UsersPrePhysicalPos { get; } = new List<Vector2>();
         public List<Vector2> UsersCurrentPhysicalPos { get; } = new List<Vector2>();
+        public List<Vector2> UsersPreVirtualPos { get; } = new List<Vector2>();
+        public List<Vector2> UsersCurrentVirtualPos { get; } = new List<Vector2>();
+        // Episode completion uses virtual walking distance so RDW methods do not change task length.
         public List<float> UsersCumulativeDist { get; } = new List<float>();
 
         public float CurrentEpisodeTotalDistance { get; private set; }
@@ -18,12 +21,16 @@ namespace _GCM
             UsersCumulativeDist.Clear();
             UsersCurrentPhysicalPos.Clear();
             UsersPrePhysicalPos.Clear();
+            UsersCurrentVirtualPos.Clear();
+            UsersPreVirtualPos.Clear();
 
             for (int i = 0; i < totalUserCount; i++)
             {
                 UsersCumulativeDist.Add(0.0f);
                 UsersCurrentPhysicalPos.Add(initPos);
                 UsersPrePhysicalPos.Add(initPos);
+                UsersCurrentVirtualPos.Add(initPos);
+                UsersPreVirtualPos.Add(initPos);
             }
         }
 
@@ -61,20 +68,29 @@ namespace _GCM
             }
         }
 
-        public void SyncPreAndCurrentToPhysicalUsers(int totalUserCount)
+        public void SyncPreAndCurrentToUsers(int totalUserCount)
         {
             for (int i = 0; i < totalUserCount; i++)
             {
-                if (i >= PhysicalUsers.Count || PhysicalUsers[i] == null)
-                    continue;
-
-                Vector2 currentPos = new Vector2(PhysicalUsers[i].transform.position.x, PhysicalUsers[i].transform.position.z);
-                if (i < UsersPrePhysicalPos.Count)
+                if (i < PhysicalUsers.Count && PhysicalUsers[i] != null && i < UsersPrePhysicalPos.Count)
                 {
-                    UsersPrePhysicalPos[i] = currentPos;
-                    UsersCurrentPhysicalPos[i] = currentPos;
+                    Vector2 currentPhysicalPos = ToPlanarPosition(PhysicalUsers[i]);
+                    UsersPrePhysicalPos[i] = currentPhysicalPos;
+                    UsersCurrentPhysicalPos[i] = currentPhysicalPos;
+                }
+
+                if (i < VirtualUsers.Count && VirtualUsers[i] != null && i < UsersPreVirtualPos.Count)
+                {
+                    Vector2 currentVirtualPos = ToPlanarPosition(VirtualUsers[i]);
+                    UsersPreVirtualPos[i] = currentVirtualPos;
+                    UsersCurrentVirtualPos[i] = currentVirtualPos;
                 }
             }
+        }
+
+        public void SyncPreAndCurrentToPhysicalUsers(int totalUserCount)
+        {
+            SyncPreAndCurrentToUsers(totalUserCount);
         }
 
         public bool HasReadyUsers(int totalUserCount)
@@ -104,24 +120,24 @@ namespace _GCM
 
         public void AccumulateDistanceStep(int totalUserCount, float maxAcceptedStepDistance)
         {
+            AccumulateVirtualDistanceStep(totalUserCount, maxAcceptedStepDistance);
+        }
+
+        public void AccumulateVirtualDistanceStep(int totalUserCount, float maxAcceptedStepDistance)
+        {
             if (!HasReadyUsers(totalUserCount))
                 return;
 
-            var units = RDWSimulationManager.instance.GetRedirectedUnits;
+            if (VirtualUsers.Count < totalUserCount)
+                return;
 
             for (int i = 0; i < totalUserCount; i++)
             {
-                if (PhysicalUsers[i] == null)
+                if (VirtualUsers[i] == null)
                     continue;
 
-                if (units != null && i < units.Length && units[i] != null && units[i].IsResetting)
-                {
-                    UsersPrePhysicalPos[i] = new Vector2(PhysicalUsers[i].transform.position.x, PhysicalUsers[i].transform.position.z);
-                    continue;
-                }
-
-                Vector2 currentPos = new Vector2(PhysicalUsers[i].transform.position.x, PhysicalUsers[i].transform.position.z);
-                float dist = Vector2.Distance(currentPos, UsersPrePhysicalPos[i]);
+                Vector2 currentPos = ToPlanarPosition(VirtualUsers[i]);
+                float dist = Vector2.Distance(currentPos, UsersPreVirtualPos[i]);
 
                 if (dist < maxAcceptedStepDistance)
                 {
@@ -132,12 +148,18 @@ namespace _GCM
                     }
                 }
 
-                UsersPrePhysicalPos[i] = currentPos;
-                if (i < UsersCurrentPhysicalPos.Count)
+                UsersPreVirtualPos[i] = currentPos;
+                if (i < UsersCurrentVirtualPos.Count)
                 {
-                    UsersCurrentPhysicalPos[i] = currentPos;
+                    UsersCurrentVirtualPos[i] = currentPos;
                 }
             }
+        }
+
+        private static Vector2 ToPlanarPosition(GameObject user)
+        {
+            Vector3 position = user.transform.position;
+            return new Vector2(position.x, position.z);
         }
     }
 }

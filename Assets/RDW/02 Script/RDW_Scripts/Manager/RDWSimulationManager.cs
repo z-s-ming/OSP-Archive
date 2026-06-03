@@ -52,6 +52,13 @@ public class RDWSimulationManager : MonoBehaviour
     [SerializeField] private float virtualTrailMaxLengthMeters = 210f;
     [SerializeField] private float virtualTrailReferenceSpeedMps = 1f;
     [SerializeField] private float virtualTrailUnlimitedTimeSeconds = 100000f;
+    [Header("Movement Controller")]
+    [SerializeField] private MonoBehaviour movementControllerOverride;
+
+    private readonly SimulationMovementController simulationMovementController = new SimulationMovementController();
+    private readonly NoOpMovementController noOpMovementController = new NoOpMovementController();
+    private IMovementController activeMovementController;
+    private ExperimentProfile activeMovementProfile = ExperimentProfile.Simulation;
 
     public void GenerateUnitObjects()
     {
@@ -107,7 +114,23 @@ public class RDWSimulationManager : MonoBehaviour
 
     public void GenerateRealSpace()
     {
-        realSpace = simulationSetting.realSpaceSetting.GetSpace();
+        LiveSpaceProfile liveSpaceProfile;
+        Space2D liveSpace;
+        if (ShouldUseLivePhysicalSpace() &&
+            LiveSpaceProfileProvider.Instance != null &&
+            LiveSpaceProfileProvider.Instance.TryBuildActiveSpace(out liveSpace, out liveSpaceProfile))
+        {
+            realSpace = liveSpace;
+            Debug.Log(string.Format(
+                "[LiveVR] Using LiveSpaceProfile '{0}' with {1} boundary vertices as RDW realSpace.",
+                liveSpaceProfile.ProfileId,
+                liveSpaceProfile.BoundaryPolygon.Count));
+        }
+        else
+        {
+            realSpace = simulationSetting.realSpaceSetting.GetSpace();
+        }
+
         realSpace.spaceObject.transform2D.parent = this.transform;
 
         //InitObstacleInfo();
@@ -121,6 +144,94 @@ public class RDWSimulationManager : MonoBehaviour
         // 2) predefined-composite mode where root has no mesh and geometry is built from settings.
         if (!simulationSetting.realSpaceSetting.usePredefinedSpace || !hasRealMesh)
             realSpace.GenerateSpace(simulationSetting.prefabSetting.realMaterial, simulationSetting.prefabSetting.obstacleMaterial, 3, 2);
+    }
+
+    private bool ShouldUseLivePhysicalSpace()
+    {
+        return simulationSetting != null &&
+               (simulationSetting.experimentProfile == ExperimentProfile.LiveUser ||
+                simulationSetting.useLiveVRPhysicalUserInput);
+    }
+
+    public bool TryGetRealSpaceHalfExtents(out float halfWidth, out float halfHeight)
+    {
+        halfWidth = 0.0f;
+        halfHeight = 0.0f;
+
+        Vector2 min;
+        Vector2 max;
+        if (TryGetRealSpaceBounds(out min, out max))
+        {
+            halfWidth = Mathf.Abs(max.x - min.x) * 0.5f;
+            halfHeight = Mathf.Abs(max.y - min.y) * 0.5f;
+            return halfWidth > 0.0f && halfHeight > 0.0f;
+        }
+
+        return TryGetConfiguredRealSpaceHalfExtents(out halfWidth, out halfHeight);
+    }
+
+    private bool TryGetRealSpaceBounds(out Vector2 min, out Vector2 max)
+    {
+        min = Vector2.zero;
+        max = Vector2.zero;
+
+        if (realSpace == null || realSpace.spaceObject == null)
+            return false;
+
+        Polygon2D polygon = realSpace.spaceObject as Polygon2D;
+        if (polygon != null && polygon.GetVertices() != null && polygon.GetVertices().Count > 0)
+        {
+            Vector2 first = polygon.GetVertex(0, Space.World);
+            min = first;
+            max = first;
+            for (int i = 1; i < polygon.GetVertices().Count; i++)
+            {
+                Vector2 point = polygon.GetVertex(i, Space.World);
+                min = Vector2.Min(min, point);
+                max = Vector2.Max(max, point);
+            }
+            return true;
+        }
+
+        if (realSpace.spaceObject.gameObject == null)
+            return false;
+
+        MeshFilter meshFilter = realSpace.spaceObject.gameObject.GetComponent<MeshFilter>();
+        if (meshFilter == null || meshFilter.sharedMesh == null)
+            return false;
+
+        Bounds bounds = meshFilter.sharedMesh.bounds;
+        min = Utility.CastVector3Dto2D(bounds.min);
+        max = Utility.CastVector3Dto2D(bounds.max);
+        return true;
+    }
+
+    private bool TryGetConfiguredRealSpaceHalfExtents(out float halfWidth, out float halfHeight)
+    {
+        halfWidth = 0.0f;
+        halfHeight = 0.0f;
+
+        if (simulationSetting == null ||
+            simulationSetting.realSpaceSetting == null ||
+            simulationSetting.realSpaceSetting.spaceObjectSetting == null ||
+            simulationSetting.realSpaceSetting.spaceObjectSetting.vertices == null ||
+            simulationSetting.realSpaceSetting.spaceObjectSetting.vertices.Count == 0)
+        {
+            return false;
+        }
+
+        List<Vector2> vertices = simulationSetting.realSpaceSetting.spaceObjectSetting.vertices;
+        Vector2 min = vertices[0];
+        Vector2 max = vertices[0];
+        for (int i = 1; i < vertices.Count; i++)
+        {
+            min = Vector2.Min(min, vertices[i]);
+            max = Vector2.Max(max, vertices[i]);
+        }
+
+        halfWidth = Mathf.Abs(max.x - min.x) * 0.5f;
+        halfHeight = Mathf.Abs(max.y - min.y) * 0.5f;
+        return halfWidth > 0.0f && halfHeight > 0.0f;
     }
     public void UpdateObstacleVertexInfo(ref List<Vector2> vertices, Transform parent, int index)
     {
@@ -505,10 +616,62 @@ public class RDWSimulationManager : MonoBehaviour
 
     public void SimulateRDW()
     {
-        for (int i = 0; i < redirectedUnits.Length; i++)
+        ResolveMovementController().Step(this, redirectedUnits);
+    }
+
+    public void SetMovementControllerOverride(MonoBehaviour controllerComponent)
+    {
+        movementControllerOverride = controllerComponent;
+        activeMovementController = null;
+    }
+
+    private IMovementController ResolveMovementController()
+    {
+        ExperimentProfile requestedProfile = GetExperimentProfile();
+        if (activeMovementController != null && activeMovementProfile == requestedProfile)
+            return activeMovementController;
+
+        activeMovementProfile = requestedProfile;
+        if (requestedProfile == ExperimentProfile.LiveUser)
         {
-            redirectedUnits[i].Simulate(redirectedUnits);
+            activeMovementController = ResolveLiveUserMovementController();
+            if (activeMovementController != null)
+                return activeMovementController;
+
+            activeMovementController = noOpMovementController;
+            return activeMovementController;
         }
+
+        activeMovementController = simulationMovementController;
+        return activeMovementController;
+    }
+
+    private ExperimentProfile GetExperimentProfile()
+    {
+        if (simulationSetting == null)
+            return ExperimentProfile.Simulation;
+
+        if (simulationSetting.experimentProfile == ExperimentProfile.LiveUser)
+            return ExperimentProfile.LiveUser;
+
+        return ExperimentProfile.Simulation;
+    }
+
+    private IMovementController ResolveLiveUserMovementController()
+    {
+        IMovementController assignedController = movementControllerOverride as IMovementController;
+        if (assignedController != null)
+            return assignedController;
+
+        MonoBehaviour[] components = GetComponents<MonoBehaviour>();
+        for (int i = 0; i < components.Length; i++)
+        {
+            IMovementController controller = components[i] as IMovementController;
+            if (controller != null)
+                return controller;
+        }
+
+        return null;
     }
 
     public void DebugDraws()

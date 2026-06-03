@@ -179,10 +179,25 @@ namespace _GCM
                 if (centroids != null && i < centroids.Count)
                 {
                     Vector2 centroid = centroids[i];
+                    if (!IsFinite(centroid))
+                    {
+                        _centerPointers[i].SetActive(false);
+                        continue;
+                    }
+
+                    _centerPointers[i].SetActive(true);
                     _centerPointers[i].transform.position = new Vector3(centroid.x, 0.0f, centroid.y);
                     _centerPointers[i].name = "centroid for user" + i;
                 }
             }
+        }
+
+        private static bool IsFinite(Vector2 value)
+        {
+            return !float.IsNaN(value.x) &&
+                   !float.IsNaN(value.y) &&
+                   !float.IsInfinity(value.x) &&
+                   !float.IsInfinity(value.y);
         }
 
         private static void DestroyAll(List<GameObject> objects)

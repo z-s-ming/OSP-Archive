@@ -63,6 +63,22 @@ public class ArbitrationProactiveResetCandidateSelector : IProactiveResetCandida
             return false;
         }
 
+        float minExpectedImprovement = context.Settings.judgeMode == ProactiveUserResetJudgeMode.RecoveryMarginTrend
+            ? Mathf.Max(0.0f, settings.proactiveMinExpectedImprovementMeters)
+            : 0.0f;
+        if (minExpectedImprovement > 0.0f &&
+            arbitrationResult.SelectedM < arbitrationResult.KeepMargin + minExpectedImprovement)
+        {
+            rejection = new ProactiveResetRejection
+            {
+                UserAId = pairContext.UnitAId,
+                UserBId = pairContext.UnitBId,
+                SelectedUserId = arbitrationResult.SelectedUnitIndex,
+                Reason = "InsufficientExpectedImprovement"
+            };
+            return false;
+        }
+
         candidate = new ProactiveResetCandidate
         {
             SelectedUserId = arbitrationResult.SelectedUnitIndex,

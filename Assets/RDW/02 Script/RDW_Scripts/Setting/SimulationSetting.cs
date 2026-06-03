@@ -8,7 +8,8 @@ public enum ProactiveUserResetJudgeMode
     Recoverability = 0,
     Simple = 1,
     TTC = 2,
-    VoronoiBoundary = 3
+    VoronoiBoundary = 3,
+    RecoveryMarginTrend = 4
 }
 
 [System.Serializable]
@@ -16,6 +17,13 @@ public enum ProactiveUserResetUserSelectionMode
 {
     Arbitration = 0,
     None = 1
+}
+
+[System.Serializable]
+public enum ExperimentProfile
+{
+    Simulation = 0,
+    LiveUser = 1
 }
 
 [System.Serializable]
@@ -92,6 +100,34 @@ public class ProactiveUserResetSettings
     [HideInInspector]
     [Tooltip("Required decreasing samples inside the Voronoi boundary trend window.")]
     [Range(1, 30)] public int voronoiBoundaryTrendRequiredFrames = 4;
+
+    [HideInInspector]
+    [Tooltip("Lead time used by recovery-margin trend proactive trigger.")]
+    [Min(0.0f)] public float recoveryMarginLeadTimeSeconds = 0.30f;
+
+    [HideInInspector]
+    [Tooltip("Uncertainty buffer used by recovery-margin trend proactive trigger.")]
+    [Min(0.0f)] public float recoveryMarginBufferMeters = 0.05f;
+
+    [HideInInspector]
+    [Tooltip("Minimum proactive margin threshold for recovery-margin trend trigger.")]
+    [Min(0.0f)] public float recoveryMarginMinThresholdMeters = 0.15f;
+
+    [HideInInspector]
+    [Tooltip("Maximum proactive margin threshold for recovery-margin trend trigger.")]
+    [Min(0.0f)] public float recoveryMarginMaxThresholdMeters = 0.50f;
+
+    [HideInInspector]
+    [Tooltip("Frame window used to test whether recovery margin is decreasing.")]
+    [Range(2, 30)] public int recoveryMarginTrendWindowFrames = 5;
+
+    [HideInInspector]
+    [Tooltip("Required decreasing samples inside the recovery-margin trend window.")]
+    [Range(1, 30)] public int recoveryMarginTrendRequiredFrames = 3;
+
+    [HideInInspector]
+    [Tooltip("Minimum expected walking-distance improvement required after proactive arbitration.")]
+    [Min(0.0f)] public float proactiveMinExpectedImprovementMeters = 0.20f;
 }
 
 [System.Serializable]
@@ -106,6 +142,12 @@ public class SimulationSetting
     public SpaceSetting virtualSpaceSetting; // 기존 세팅과 동일하고자 할 때 적용.
     public UnitSetting[] unitSettings;
     public bool bAllowUserReset;
+
+    [Header("Experiment Profile")]
+    [Tooltip("Simulation keeps the original AutoPilot -> RDW -> Simulation Logger chain. LiveUser expects an external movement controller, such as HMD pose input, around the RDW core.")]
+    public ExperimentProfile experimentProfile = ExperimentProfile.Simulation;
+    [Tooltip("Legacy compatibility flag. Prefer experimentProfile = LiveUser for real-user headset experiments.")]
+    public bool useLiveVRPhysicalUserInput;
 
     [Header("Proactive User Reset")]
     public ProactiveUserResetSettings proactiveUserReset = new ProactiveUserResetSettings();

@@ -1,0 +1,2015 @@
+using System;
+using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using UnityEngine;
+using UnityEngine.XR;
+
+public enum LiveVRExperimentMode
+{
+    Disabled = 0,
+    HostOnly = 1,
+    ClientOnly = 2,
+    HostClient = 3
+}
+
+public struct LiveVRClientConnectionInfo
+{
+    public string EndpointKey;
+    public string DeviceKey;
+    public string DeviceName;
+    public string Address;
+    public int Port;
+    public int ReportedUserId;
+    public int AssignedUserId;
+    public string AssignmentStatus;
+    public bool ProactiveResetEnabled;
+    public long LastHelloReceiveUnixMilliseconds;
+    public long LastPoseReceiveUnixMilliseconds;
+
+    public float HelloAgeSeconds
+    {
+        get
+        {
+            if (LastHelloReceiveUnixMilliseconds <= 0)
+                return float.PositiveInfinity;
+
+            long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            return Mathf.Max(0.0f, (now - LastHelloReceiveUnixMilliseconds) / 1000.0f);
+        }
+    }
+
+    public float PoseAgeSeconds
+    {
+        get
+        {
+            if (LastPoseReceiveUnixMilliseconds <= 0)
+                return float.PositiveInfinity;
+
+            long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            return Mathf.Max(0.0f, (now - LastPoseReceiveUnixMilliseconds) / 1000.0f);
+        }
+    }
+}
+
+public class LiveVRNetworkManager : MonoBehaviour
+{
+    public static LiveVRNetworkManager Instance { get; private set; }
+
+    [HideInInspector]
+    [SerializeField] private LiveVRExperimentMode mode = LiveVRExperimentMode.Disabled;
+    [HideInInspector]
+    [SerializeField] private int localUserId = 0;
+
+    [HideInInspector]
+    [SerializeField] private string hostAddress = "192.168.1.100";
+    [HideInInspector]
+    [SerializeField] private int hostPosePort = 47770;
+    [HideInInspector]
+    [SerializeField] private float sendRateHz = 30.0f;
+    [HideInInspector]
+    [SerializeField] private bool enableHostDiscovery = true;
+    [HideInInspector]
+    [SerializeField] private float hostDiscoveryAckTimeoutSeconds = 3.0f;
+    [HideInInspector]
+    [SerializeField] private float hostDiscoveryIntervalSeconds = 2.0f;
+
+    [HideInInspector]
+    [SerializeField] private Transform headTransformOverride;
+    [HideInInspector]
+    [SerializeField] private bool useUnityXRHeadPose = true;
+    [HideInInspector]
+    [SerializeField] private bool calibrateOnStart = true;
+    [HideInInspector]
+    [SerializeField] private KeyCode recalibrateKey = KeyCode.C;
+    [HideInInspector]
+    [SerializeField] private bool useControllerPrimaryButtonForCalibration = true;
+    [HideInInspector]
+    [SerializeField] private bool requireManualCenterCalibration = true;
+
+    [HideInInspector]
+    [SerializeField] private Vector2 experimentOriginOffset = Vector2.zero;
+    [HideInInspector]
+    [SerializeField] private float experimentYawOffsetDegrees = 0.0f;
+    [HideInInspector]
+    [SerializeField] private float metersScale = 1.0f;
+
+    private readonly object posesLock = new object();
+    private readonly object endpointsLock = new object();
+    private readonly object assignmentLock = new object();
+    private readonly object clientStateLock = new object();
+    private readonly Dictionary<int, LiveVRPoseSample> latestPoses = new Dictionary<int, LiveVRPoseSample>();
+    private readonly Dictionary<int, IPEndPoint> clientEndpoints = new Dictionary<int, IPEndPoint>();
+    private readonly Dictionary<int, long> latestHelloReceiveUnixMs = new Dictionary<int, long>();
+    private readonly Dictionary<string, LiveVRClientConnectionInfo> clientConnectionsByEndpoint = new Dictionary<string, LiveVRClientConnectionInfo>();
+    private readonly Dictionary<int, string> assignedEndpointByUserId = new Dictionary<int, string>();
+    private readonly Dictionary<string, int> assignedUserIdByDeviceKey = new Dictionary<string, int>();
+    private readonly Dictionary<int, string> assignedDeviceKeyByUserId = new Dictionary<int, string>();
+
+    private UdpClient hostReceiver;
+    private UdpClient clientSender;
+    private IPEndPoint hostEndPoint;
+    private Thread receiverThread;
+    private Thread clientReceiverThread;
+    private volatile bool receiverRunning;
+    private volatile bool clientReceiverRunning;
+    private bool hasCalibration;
+    private Vector2 calibrationOriginPosition;
+    private float calibrationOriginYaw;
+    private float nextSendTime;
+    private uint sequence;
+    private LiveVRExperimentState experimentState = LiveVRExperimentState.Idle;
+    private int resetPromptEventId;
+    private uint lastAckSequence;
+    private long lastAckUnixMilliseconds;
+    private LiveVRExperimentState lastHostExperimentState = LiveVRExperimentState.Idle;
+    private bool hasResetPrompt;
+    private LiveVRResetPromptMessage latestResetPrompt;
+    private long lastResetPromptReceiveUnixMilliseconds;
+    private bool hasResetStart;
+    private LiveVRResetStartMessage latestResetStart;
+    private long lastResetStartReceiveUnixMilliseconds;
+    private readonly Dictionary<int, int> latestResetDoneEventByUserId = new Dictionary<int, int>();
+    private readonly Dictionary<int, LiveVRResetDoneMessage> latestResetDoneByUserId = new Dictionary<int, LiveVRResetDoneMessage>();
+    private bool hasVirtualPose;
+    private LiveVRVirtualPoseMessage latestVirtualPose;
+    private uint virtualPoseSequence;
+    private int centerCalibrationEventId;
+    private int clearCalibrationEventId;
+    private int lastCenterCalibrationCommandEventId = -1;
+    private long lastCenterCalibrationCommandUnixMs;
+    private long lastCenterCalibrationCompleteUnixMs;
+    private string lastCenterCalibrationStatus = "waiting for host command";
+    private bool wasControllerPrimaryButtonPressed;
+    private float nextHelloTime;
+    private float nextHostDiscoveryTime;
+    private uint sentPosePacketCount;
+    private uint sentHelloPacketCount;
+    private uint sentHostDiscoveryPacketCount;
+    private string lastClientSendError = string.Empty;
+    private string lastPoseSourceStatus = "not sampled";
+    private string hostDiscoveryStatus = "idle";
+    private uint hostRawPacketCount;
+    private uint hostPosePacketCount;
+    private uint hostHelloPacketCount;
+    private uint hostParseFailCount;
+    private string hostLastRawPacketPreview = string.Empty;
+    private string hostLastRemoteEndpoint = string.Empty;
+    private bool waitForClientStartupConfirmation;
+    private bool clientStartupConfirmed = true;
+    private bool clientProactiveResetEnabled = true;
+    private bool hasHostAssignment;
+    private bool autoAssignClientUserIds = true;
+    private int expectedUserCountForAssignment;
+    private string hostRunId = string.Empty;
+    private string clientDeviceKey = string.Empty;
+    private string clientDeviceName = string.Empty;
+    private string clientAssignmentStatus = "waiting for host assignment";
+    private LiveVRUserSource[] userSources = new LiveVRUserSource[0];
+    private readonly HashSet<int> runtimeSimulatedFallbackUsers = new HashSet<int>();
+
+    public LiveVRExperimentMode Mode { get { return mode; } }
+    public int LocalUserId { get { return localUserId; } }
+    public int HostPosePort { get { return hostPosePort; } }
+    public string HostAddress { get { return hostAddress; } }
+    public LiveVRExperimentState ExperimentState { get { return IsHost ? experimentState : lastHostExperimentState; } }
+    public bool HasCalibration { get { return hasCalibration; } }
+    public bool IsConnectedToHost { get { return LastAckAgeSeconds <= 1.5f; } }
+    public float LastAckAgeSeconds
+    {
+        get
+        {
+            lock (clientStateLock)
+            {
+                if (lastAckUnixMilliseconds <= 0)
+                    return float.PositiveInfinity;
+
+                long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                return Mathf.Max(0.0f, (now - lastAckUnixMilliseconds) / 1000.0f);
+            }
+        }
+    }
+    public uint LastAckSequence
+    {
+        get
+        {
+            lock (clientStateLock)
+            {
+                return lastAckSequence;
+            }
+        }
+    }
+    public bool IsHost { get { return mode == LiveVRExperimentMode.HostOnly || mode == LiveVRExperimentMode.HostClient; } }
+    public bool SendsLocalPose { get { return mode == LiveVRExperimentMode.ClientOnly || mode == LiveVRExperimentMode.HostClient; } }
+    public uint SentPosePacketCount { get { return sentPosePacketCount; } }
+    public uint SentHelloPacketCount { get { return sentHelloPacketCount; } }
+    public uint SentHostDiscoveryPacketCount { get { return sentHostDiscoveryPacketCount; } }
+    public string LastClientSendError { get { return lastClientSendError; } }
+    public string LastPoseSourceStatus { get { return lastPoseSourceStatus; } }
+    public string HostDiscoveryStatus { get { return hostDiscoveryStatus; } }
+    public uint HostRawPacketCount { get { return hostRawPacketCount; } }
+    public uint HostPosePacketCount { get { return hostPosePacketCount; } }
+    public uint HostHelloPacketCount { get { return hostHelloPacketCount; } }
+    public uint HostParseFailCount { get { return hostParseFailCount; } }
+    public string HostLastRawPacketPreview { get { return hostLastRawPacketPreview; } }
+    public string HostLastRemoteEndpoint { get { return hostLastRemoteEndpoint; } }
+    public int LastCenterCalibrationCommandEventId { get { return lastCenterCalibrationCommandEventId; } }
+    public string LastCenterCalibrationStatus { get { return lastCenterCalibrationStatus; } }
+    public bool HasReceivedCenterCalibrationCommand { get { return lastCenterCalibrationCommandEventId >= 0; } }
+    public bool HasHostAssignment { get { return mode != LiveVRExperimentMode.ClientOnly || hasHostAssignment; } }
+    public bool ClientProactiveResetEnabled { get { return clientProactiveResetEnabled; } }
+    public string ClientAssignmentStatus { get { return clientAssignmentStatus; } }
+    public bool IsWaitingForClientStartupConfirmation
+    {
+        get { return mode == LiveVRExperimentMode.ClientOnly && waitForClientStartupConfirmation && !clientStartupConfirmed; }
+    }
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Debug.LogWarning("[LiveVR] Multiple LiveVRNetworkManager instances detected. Keeping the newest one active.");
+        }
+
+        Instance = this;
+    }
+
+    private void Start()
+    {
+        if (mode == LiveVRExperimentMode.Disabled)
+            return;
+
+        if (IsHost)
+            StartHostReceiver();
+
+        if (mode == LiveVRExperimentMode.ClientOnly && clientStartupConfirmed)
+            EnsureClientTransportStarted();
+
+        if (calibrateOnStart && SendsLocalPose && !requireManualCenterCalibration)
+            CalibrateNow();
+    }
+
+    private void Update()
+    {
+        if (mode == LiveVRExperimentMode.Disabled)
+            return;
+
+        if (IsWaitingForClientStartupConfirmation)
+            return;
+
+        if (!requireManualCenterCalibration && IsRecalibrateRequested())
+            CalibrateNow();
+
+        if (mode == LiveVRExperimentMode.ClientOnly && Time.unscaledTime >= nextHelloTime)
+        {
+            nextHelloTime = Time.unscaledTime + 1.0f;
+            SendHelloToHost();
+        }
+
+        if (mode == LiveVRExperimentMode.ClientOnly)
+            TickHostDiscovery();
+
+        if (mode == LiveVRExperimentMode.ClientOnly && !hasHostAssignment)
+            return;
+
+        if (!SendsLocalPose || Time.unscaledTime < nextSendTime)
+            return;
+
+        float interval = sendRateHz > 0.0f ? 1.0f / sendRateHz : 0.033f;
+        nextSendTime = Time.unscaledTime + interval;
+
+        LiveVRPoseSample sample;
+        if (!TryBuildLocalPoseSample(out sample))
+            return;
+
+        StorePose(sample);
+
+        if (mode == LiveVRExperimentMode.ClientOnly)
+            SendPoseToHost(sample);
+    }
+
+    private void OnDestroy()
+    {
+        StopHostReceiver();
+        StopClientReceiver();
+
+        if (clientSender != null)
+        {
+            clientSender.Close();
+            clientSender = null;
+        }
+
+        if (Instance == this)
+            Instance = null;
+    }
+
+    public void Configure(
+        LiveVRExperimentMode newMode,
+        int newLocalUserId,
+        string newHostAddress,
+        int newHostPosePort,
+        float newSendRateHz,
+        Transform newHeadTransformOverride,
+        bool newUseUnityXRHeadPose,
+        bool newCalibrateOnStart,
+        bool newWaitForClientStartupConfirmation)
+    {
+        mode = newMode;
+        localUserId = newLocalUserId;
+        hostAddress = newHostAddress;
+        hostPosePort = newHostPosePort;
+        sendRateHz = newSendRateHz;
+        headTransformOverride = newHeadTransformOverride;
+        useUnityXRHeadPose = newUseUnityXRHeadPose;
+        calibrateOnStart = newCalibrateOnStart;
+        waitForClientStartupConfirmation = false;
+        clientStartupConfirmed = true;
+        hasHostAssignment = mode != LiveVRExperimentMode.ClientOnly;
+        clientAssignmentStatus = hasHostAssignment ? "host/local mode" : "waiting for host assignment";
+    }
+
+    public void ConfirmClientStartup()
+    {
+        if (mode != LiveVRExperimentMode.ClientOnly)
+            return;
+
+        clientStartupConfirmed = true;
+        EnsureClientTransportStarted();
+    }
+
+    public void SetClientStartupConfirmationRequired(bool required)
+    {
+        waitForClientStartupConfirmation = false;
+        clientStartupConfirmed = true;
+    }
+
+    public void SetClientProactiveResetEnabled(bool enabled)
+    {
+        clientProactiveResetEnabled = enabled;
+    }
+
+    public void ConfigureUserSources(int expectedUserCount, LiveVRUserSource[] configuredUserSources)
+    {
+        int count = Mathf.Max(0, expectedUserCount);
+        expectedUserCountForAssignment = count;
+        userSources = new LiveVRUserSource[count];
+        for (int i = 0; i < count; i++)
+            userSources[i] = ResolveConfiguredUserSource(configuredUserSources, i);
+
+        PruneAssignmentsToExpectedUserCount(count);
+    }
+
+    public void SetAutoAssignClientUserIds(bool enabled)
+    {
+        autoAssignClientUserIds = enabled;
+    }
+
+    public void ConfigureHostDiscovery(bool enabled, float ackTimeoutSeconds, float intervalSeconds)
+    {
+        enableHostDiscovery = enabled;
+        hostDiscoveryAckTimeoutSeconds = Mathf.Max(0.25f, ackTimeoutSeconds);
+        hostDiscoveryIntervalSeconds = Mathf.Max(0.25f, intervalSeconds);
+    }
+
+    private void PruneAssignmentsToExpectedUserCount(int expectedUserCount)
+    {
+        lock (assignmentLock)
+        {
+            lock (endpointsLock)
+            {
+                List<int> userIdsToRemove = new List<int>();
+                foreach (int userId in assignedEndpointByUserId.Keys)
+                {
+                    if (userId < 0 || userId >= expectedUserCount)
+                        userIdsToRemove.Add(userId);
+                }
+
+                for (int i = 0; i < userIdsToRemove.Count; i++)
+                {
+                    int userId = userIdsToRemove[i];
+                    string deviceKey;
+                    if (assignedDeviceKeyByUserId.TryGetValue(userId, out deviceKey))
+                        assignedUserIdByDeviceKey.Remove(deviceKey);
+
+                    assignedDeviceKeyByUserId.Remove(userId);
+                    assignedEndpointByUserId.Remove(userId);
+                    clientEndpoints.Remove(userId);
+                }
+
+                List<string> endpointKeys = new List<string>(clientConnectionsByEndpoint.Keys);
+                for (int i = 0; i < endpointKeys.Count; i++)
+                {
+                    LiveVRClientConnectionInfo info = clientConnectionsByEndpoint[endpointKeys[i]];
+                    if (info.AssignedUserId >= expectedUserCount)
+                    {
+                        info.AssignedUserId = -1;
+                        info.AssignmentStatus = "unassigned: user count changed";
+                        clientConnectionsByEndpoint[endpointKeys[i]] = info;
+                    }
+                }
+            }
+        }
+    }
+
+    public void ClearRuntimeSimulatedFallbacks()
+    {
+        runtimeSimulatedFallbackUsers.Clear();
+    }
+
+    public int ActivateSimulatedFallbackForMissingUsers(int expectedUserCount, float staleTimeoutSeconds, bool requireCalibratedPose)
+    {
+        int activatedCount = 0;
+        int count = Mathf.Max(0, expectedUserCount);
+        for (int userId = 0; userId < count; userId++)
+        {
+            if (GetConfiguredUserSource(userId) == LiveVRUserSource.SimulatedOnly)
+                continue;
+
+            if (IsLivePoseReady(userId, staleTimeoutSeconds, requireCalibratedPose))
+                continue;
+
+            if (runtimeSimulatedFallbackUsers.Add(userId))
+                activatedCount++;
+        }
+
+        if (activatedCount > 0)
+            Debug.Log(string.Format("[LiveVR] Activated simulated fallback for {0} missing live user(s).", activatedCount));
+
+        return activatedCount;
+    }
+
+    public LiveVRUserSource GetConfiguredUserSource(int userId)
+    {
+        if (userId < 0)
+            return LiveVRUserSource.RequiredLiveHmd;
+
+        if (userSources == null || userId >= userSources.Length)
+            return LiveVRUserSource.RequiredLiveHmd;
+
+        return userSources[userId];
+    }
+
+    public bool IsLivePoseReady(int userId, float staleTimeoutSeconds, bool requireCalibratedPose)
+    {
+        LiveVRPoseSample sample;
+        if (!TryGetPose(userId, out sample))
+            return false;
+
+        if (requireCalibratedPose && !sample.IsCalibrated)
+            return false;
+
+        return sample.AgeSeconds <= Mathf.Max(0.0f, staleTimeoutSeconds);
+    }
+
+    public bool RequiresLivePoseForStart(int userId)
+    {
+        return GetConfiguredUserSource(userId) != LiveVRUserSource.SimulatedOnly &&
+               !runtimeSimulatedFallbackUsers.Contains(userId);
+    }
+
+    public bool ShouldUseSimulatedUser(int userId, float staleTimeoutSeconds, bool requireCalibratedPose)
+    {
+        LiveVRUserSource source = GetConfiguredUserSource(userId);
+        if (source == LiveVRUserSource.SimulatedOnly)
+            return true;
+
+        return runtimeSimulatedFallbackUsers.Contains(userId);
+    }
+
+    public string GetUserSourceLabel(int userId, float staleTimeoutSeconds, bool requireCalibratedPose)
+    {
+        LiveVRUserSource source = GetConfiguredUserSource(userId);
+        if (runtimeSimulatedFallbackUsers.Contains(userId))
+            return "SIM_FALLBACK";
+
+        if (source == LiveVRUserSource.RequiredLiveHmd || source == LiveVRUserSource.OptionalLiveHmdFallbackSim)
+            return "LIVE_REQUIRED";
+
+        if (source == LiveVRUserSource.SimulatedOnly)
+            return "SIM_ONLY";
+
+        return "LIVE_REQUIRED";
+    }
+
+    public void SetRuntimeClientConfiguration(int newLocalUserId, string newHostAddress, int newHostPosePort)
+    {
+        int sanitizedUserId = Mathf.Max(0, newLocalUserId);
+        bool userChanged = localUserId != sanitizedUserId;
+        bool endpointChanged = !string.Equals(hostAddress, newHostAddress, StringComparison.OrdinalIgnoreCase) ||
+                               hostPosePort != newHostPosePort;
+
+        localUserId = sanitizedUserId;
+        hostAddress = string.IsNullOrEmpty(newHostAddress) ? hostAddress : newHostAddress;
+        hostPosePort = Mathf.Max(1, newHostPosePort);
+
+        if (userChanged)
+        {
+            hasCalibration = false;
+            lastCenterCalibrationCommandEventId = -1;
+            lastCenterCalibrationStatus = "user changed; waiting for host command";
+        }
+
+        if (mode == LiveVRExperimentMode.ClientOnly && endpointChanged)
+        {
+            try
+            {
+                hostEndPoint = new IPEndPoint(IPAddress.Parse(hostAddress), hostPosePort);
+                lock (clientStateLock)
+                {
+                    lastAckUnixMilliseconds = 0;
+                    lastAckSequence = 0;
+                }
+            }
+            catch (Exception e)
+            {
+                lastClientSendError = e.Message;
+                Debug.LogWarning("[LiveVR] Failed to update client host endpoint: " + e.Message);
+            }
+        }
+
+        Debug.Log(string.Format("[LiveVR] Runtime client configuration: user={0} host={1}:{2}", localUserId, hostAddress, hostPosePort));
+    }
+
+    private void EnsureClientTransportStarted()
+    {
+        if (mode != LiveVRExperimentMode.ClientOnly)
+            return;
+
+        if (clientSender == null)
+        {
+            clientSender = new UdpClient();
+            clientSender.EnableBroadcast = true;
+        }
+
+        if (hostEndPoint == null)
+            hostEndPoint = new IPEndPoint(IPAddress.Parse(hostAddress), hostPosePort);
+
+        StartClientReceiver();
+    }
+
+    public void SetControllerCalibrationInputEnabled(bool enabled)
+    {
+        useControllerPrimaryButtonForCalibration = enabled;
+    }
+
+    public void SetManualCenterCalibrationRequired(bool required)
+    {
+        requireManualCenterCalibration = required;
+        if (required)
+            hasCalibration = false;
+    }
+
+    public void CalibrateNow()
+    {
+        Vector3 position;
+        Quaternion rotation;
+        if (!TryReadHeadPose(out position, out rotation))
+        {
+            Debug.LogWarning("[LiveVR] Cannot calibrate because no head pose is available.");
+            return;
+        }
+
+        calibrationOriginPosition = new Vector2(position.x, position.z);
+        calibrationOriginYaw = ToProjectYaw(rotation);
+        hasCalibration = true;
+        lastCenterCalibrationCompleteUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        lastCenterCalibrationStatus = string.Format("calibrated at event {0}", lastCenterCalibrationCommandEventId);
+        Debug.Log(string.Format("[LiveVR] Calibrated user {0}: origin={1}, yaw={2:F2}", localUserId, calibrationOriginPosition, calibrationOriginYaw));
+    }
+
+    public bool TryGetPose(int userId, out LiveVRPoseSample sample)
+    {
+        lock (posesLock)
+        {
+            return latestPoses.TryGetValue(userId, out sample);
+        }
+    }
+
+    public LiveVRPoseSample[] GetAllPosesSnapshot()
+    {
+        lock (posesLock)
+        {
+            LiveVRPoseSample[] snapshot = new LiveVRPoseSample[latestPoses.Count];
+            latestPoses.Values.CopyTo(snapshot, 0);
+            return snapshot;
+        }
+    }
+
+    public LiveVRClientConnectionInfo[] GetClientConnectionsSnapshot()
+    {
+        lock (endpointsLock)
+        {
+            LiveVRClientConnectionInfo[] snapshot = new LiveVRClientConnectionInfo[clientConnectionsByEndpoint.Count];
+            clientConnectionsByEndpoint.Values.CopyTo(snapshot, 0);
+            Array.Sort(snapshot, delegate(LiveVRClientConnectionInfo a, LiveVRClientConnectionInfo b)
+            {
+                int assignedCompare = a.AssignedUserId.CompareTo(b.AssignedUserId);
+                if (assignedCompare != 0)
+                    return assignedCompare;
+
+                return string.Compare(a.EndpointKey, b.EndpointKey, StringComparison.Ordinal);
+            });
+            return snapshot;
+        }
+    }
+
+    public void AssignClientEndpoint(string endpointKey, int assignedUserId, bool proactiveResetEnabled)
+    {
+        if (!IsHost || string.IsNullOrEmpty(endpointKey))
+            return;
+
+        IPEndPoint endpoint = null;
+        LiveVRClientConnectionInfo info;
+        lock (assignmentLock)
+        {
+            lock (endpointsLock)
+            {
+                if (!clientConnectionsByEndpoint.TryGetValue(endpointKey, out info))
+                    return;
+
+                endpoint = BuildEndpoint(info);
+                info.AssignedUserId = Mathf.Max(0, assignedUserId);
+                info.ProactiveResetEnabled = proactiveResetEnabled;
+                info.AssignmentStatus = "assigned";
+                clientConnectionsByEndpoint[endpointKey] = info;
+                assignedEndpointByUserId[info.AssignedUserId] = endpointKey;
+                if (!string.IsNullOrEmpty(info.DeviceKey))
+                {
+                    assignedUserIdByDeviceKey[info.DeviceKey] = info.AssignedUserId;
+                    assignedDeviceKeyByUserId[info.AssignedUserId] = info.DeviceKey;
+                }
+                clientEndpoints[info.AssignedUserId] = endpoint;
+            }
+        }
+
+        LiveVRClientAssignmentMessage assignment = new LiveVRClientAssignmentMessage
+        {
+            UserId = Mathf.Max(0, assignedUserId),
+            ExpectedUserCount = expectedUserCountForAssignment,
+            ProactiveResetEnabled = proactiveResetEnabled,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            HostRunId = hostRunId
+        };
+        SendHostPacket(assignment.ToNetworkMessage(), endpoint);
+        Debug.LogFormat("[LiveVR] Assigned client {0} -> user {1}, proactiveReset={2}.", endpointKey, assignedUserId, proactiveResetEnabled);
+    }
+
+    public bool IsUserConnected(int userId, float staleTimeoutSeconds)
+    {
+        LiveVRPoseSample sample;
+        if (TryGetPose(userId, out sample) && sample.AgeSeconds <= staleTimeoutSeconds)
+            return true;
+
+        return IsClientHelloRecent(userId, staleTimeoutSeconds);
+    }
+
+    public bool IsUserCalibratedAndConnected(int userId, float staleTimeoutSeconds)
+    {
+        LiveVRPoseSample sample;
+        return TryGetPose(userId, out sample) && sample.IsCalibrated && sample.AgeSeconds <= staleTimeoutSeconds;
+    }
+
+    public void ClearHostCalibrationStateForAllUsers()
+    {
+        if (!IsHost)
+            return;
+
+        lock (posesLock)
+        {
+            List<int> userIds = new List<int>(latestPoses.Keys);
+            for (int i = 0; i < userIds.Count; i++)
+            {
+                LiveVRPoseSample sample = latestPoses[userIds[i]];
+                sample.IsCalibrated = false;
+                latestPoses[userIds[i]] = sample;
+            }
+        }
+    }
+
+    public bool IsClientHelloRecent(int userId, float staleTimeoutSeconds)
+    {
+        lock (posesLock)
+        {
+            long lastHello;
+            if (!latestHelloReceiveUnixMs.TryGetValue(userId, out lastHello) || lastHello <= 0)
+                return false;
+
+            long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            return (now - lastHello) / 1000.0f <= staleTimeoutSeconds;
+        }
+    }
+
+    public bool TryGetLatestResetPrompt(out LiveVRResetPromptMessage prompt)
+    {
+        lock (clientStateLock)
+        {
+            prompt = latestResetPrompt;
+            return hasResetPrompt;
+        }
+    }
+
+    public float LastResetPromptReceiveAgeSeconds
+    {
+        get
+        {
+            lock (clientStateLock)
+            {
+                if (lastResetPromptReceiveUnixMilliseconds <= 0)
+                    return float.PositiveInfinity;
+
+                long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                return Mathf.Max(0.0f, (now - lastResetPromptReceiveUnixMilliseconds) / 1000.0f);
+            }
+        }
+    }
+
+    public bool HasFreshResetPrompt(float maxAgeSeconds)
+    {
+        return LastResetPromptReceiveAgeSeconds <= Mathf.Max(0.0f, maxAgeSeconds);
+    }
+
+    public bool TryGetLatestResetStart(out LiveVRResetStartMessage resetStart)
+    {
+        lock (clientStateLock)
+        {
+            resetStart = latestResetStart;
+            return hasResetStart;
+        }
+    }
+
+    public float LastResetStartReceiveAgeSeconds
+    {
+        get
+        {
+            lock (clientStateLock)
+            {
+                if (lastResetStartReceiveUnixMilliseconds <= 0)
+                    return float.PositiveInfinity;
+
+                long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                return Mathf.Max(0.0f, (now - lastResetStartReceiveUnixMilliseconds) / 1000.0f);
+            }
+        }
+    }
+
+    public bool HasFreshResetStart(float maxAgeSeconds)
+    {
+        return LastResetStartReceiveAgeSeconds <= Mathf.Max(0.0f, maxAgeSeconds);
+    }
+
+    public bool HasClientReportedResetDone(int userId, int eventId)
+    {
+        lock (clientStateLock)
+        {
+            int completedEventId;
+            return latestResetDoneEventByUserId.TryGetValue(userId, out completedEventId) && completedEventId == eventId;
+        }
+    }
+
+    public bool TryGetClientResetDone(int userId, int eventId, out LiveVRResetDoneMessage resetDone)
+    {
+        lock (clientStateLock)
+        {
+            if (latestResetDoneByUserId.TryGetValue(userId, out resetDone) && resetDone.EventId == eventId)
+                return true;
+        }
+
+        resetDone = default(LiveVRResetDoneMessage);
+        return false;
+    }
+
+    public void ClearLatestResetPrompt()
+    {
+        lock (clientStateLock)
+        {
+            hasResetPrompt = false;
+        }
+    }
+
+    public void ClearLatestResetState(int eventId)
+    {
+        lock (clientStateLock)
+        {
+            if (hasResetPrompt && latestResetPrompt.EventId == eventId)
+                hasResetPrompt = false;
+            if (hasResetStart && latestResetStart.EventId == eventId)
+                hasResetStart = false;
+        }
+    }
+
+    public bool TryGetLatestVirtualPose(out LiveVRVirtualPoseMessage virtualPose)
+    {
+        lock (clientStateLock)
+        {
+            virtualPose = latestVirtualPose;
+            return hasVirtualPose;
+        }
+    }
+
+    public bool TryGetLocalPoseSample(out LiveVRPoseSample sample)
+    {
+        return TryBuildLocalPoseSample(out sample);
+    }
+
+    public void SetExperimentState(LiveVRExperimentState newState, bool broadcast = true)
+    {
+        if (!IsHost)
+            return;
+
+        experimentState = newState;
+        if (broadcast)
+            BroadcastState();
+    }
+
+    public void BroadcastState()
+    {
+        if (!IsHost)
+            return;
+
+        LiveVRStateMessage stateMessage = new LiveVRStateMessage
+        {
+            ExperimentState = experimentState,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+        SendToAllKnownClients(stateMessage.ToNetworkMessage());
+    }
+
+    public void SendResetPrompt(int userId, string resetType, Vector2 directionHint, int eventId)
+    {
+        SendResetPrompt(userId, resetType, directionHint, eventId, false, Vector2.zero);
+    }
+
+    public void SendResetPrompt(int userId, string resetType, Vector2 directionHint, int eventId, bool hasTargetPosition, Vector2 targetPosition)
+    {
+        SendResetPrompt(userId, resetType, directionHint, eventId, hasTargetPosition, targetPosition, false, 0, 0.0f, 0.0f, 0.0f);
+    }
+
+    public void SendResetPrompt(
+        int userId,
+        string resetType,
+        Vector2 directionHint,
+        int eventId,
+        bool hasTargetPosition,
+        Vector2 targetPosition,
+        bool hasTurnInstruction,
+        int turnDirectionSign,
+        float totalTurnDegrees,
+        float remainingTurnDegrees,
+        float progress01)
+    {
+        if (!IsHost)
+            return;
+
+        LiveVRResetPromptMessage prompt = new LiveVRResetPromptMessage
+        {
+            UserId = userId,
+            ResetType = resetType,
+            DirectionHint = directionHint,
+            HasTargetPosition = hasTargetPosition,
+            TargetPosition = targetPosition,
+            HasTurnInstruction = hasTurnInstruction,
+            TurnDirectionSign = turnDirectionSign,
+            TotalTurnDegrees = totalTurnDegrees,
+            RemainingTurnDegrees = remainingTurnDegrees,
+            Progress01 = progress01,
+            EventId = eventId,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+        SendToUser(userId, prompt.ToNetworkMessage());
+        Debug.Log(string.Format(
+            "[LiveVR] Sent RESET_PROMPT user={0} type={1} event={2} dir=({3:F2},{4:F2}) target={5} turn={6} total={7:F1} remaining={8:F1} progress={9:P0}",
+            userId,
+            resetType,
+            eventId,
+            directionHint.x,
+            directionHint.y,
+            hasTargetPosition ? string.Format("({0:F2},{1:F2})", targetPosition.x, targetPosition.y) : "none",
+            hasTurnInstruction ? turnDirectionSign.ToString() : "none",
+            totalTurnDegrees,
+            remainingTurnDegrees,
+            progress01));
+    }
+
+    public void SendResetPrompt(int userId, string resetType, Vector2 directionHint)
+    {
+        SendResetPrompt(userId, resetType, directionHint, ++resetPromptEventId);
+    }
+
+    public void SendResetStart(
+        int userId,
+        string resetType,
+        Vector2 directionHint,
+        int eventId,
+        bool hasTargetPosition,
+        Vector2 targetPosition,
+        int turnDirectionSign,
+        float physicalTurnDegrees,
+        float injectedTurnDegrees)
+    {
+        if (!IsHost)
+            return;
+
+        LiveVRResetStartMessage resetStart = new LiveVRResetStartMessage
+        {
+            UserId = userId,
+            ResetType = resetType,
+            DirectionHint = directionHint,
+            HasTargetPosition = hasTargetPosition,
+            TargetPosition = targetPosition,
+            TurnDirectionSign = turnDirectionSign,
+            PhysicalTurnDegrees = physicalTurnDegrees,
+            InjectedTurnDegrees = injectedTurnDegrees,
+            EventId = eventId,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+
+        SendToUser(userId, resetStart.ToNetworkMessage());
+        Debug.Log(string.Format(
+            "[LiveVR] Sent RESET_START user={0} type={1} event={2} physical={3:F1} injected={4:F1} turn={5}",
+            userId,
+            resetType,
+            eventId,
+            physicalTurnDegrees,
+            injectedTurnDegrees,
+            turnDirectionSign));
+    }
+
+    public void SendResetDone(int eventId, float finalPhysicalYawDegrees, float finalInjectedTurnDegrees)
+    {
+        if (!SendsLocalPose || IsHost || clientSender == null || hostEndPoint == null)
+            return;
+
+        try
+        {
+            LiveVRResetDoneMessage resetDone = new LiveVRResetDoneMessage
+            {
+                UserId = localUserId,
+                EventId = eventId,
+                ClientUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                FinalPhysicalYawDegrees = finalPhysicalYawDegrees,
+                FinalInjectedTurnDegrees = finalInjectedTurnDegrees
+            };
+            byte[] data = Encoding.UTF8.GetBytes(resetDone.ToNetworkMessage());
+            clientSender.Send(data, data.Length, hostEndPoint);
+            lastClientSendError = string.Empty;
+            Debug.Log(string.Format(
+                "[LiveVR] Client sent RESET_DONE user={0} event={1} yaw={2:F1} injected={3:F1}",
+                localUserId,
+                eventId,
+                finalPhysicalYawDegrees,
+                finalInjectedTurnDegrees));
+        }
+        catch (Exception e)
+        {
+            lastClientSendError = e.Message;
+            Debug.LogWarning("[LiveVR] Failed to send RESET_DONE: " + e.Message);
+        }
+    }
+
+    public void SendResetEnd(int userId, int eventId)
+    {
+        if (!IsHost)
+            return;
+
+        LiveVRResetEndMessage resetEnd = new LiveVRResetEndMessage
+        {
+            UserId = userId,
+            EventId = eventId,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+
+        SendToUser(userId, resetEnd.ToNetworkMessage());
+        Debug.Log(string.Format("[LiveVR] Sent RESET_END user={0} event={1}", userId, eventId));
+    }
+
+    public void SendCenterCalibrationCommand(int userId)
+    {
+        if (!IsHost)
+            return;
+
+        LiveVRCalibrateCenterMessage message = new LiveVRCalibrateCenterMessage
+        {
+            UserId = userId,
+            EventId = ++centerCalibrationEventId,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+
+        SendToUser(userId, message.ToNetworkMessage());
+    }
+
+    public void SendClearCalibrationCommand(int userId)
+    {
+        if (!IsHost)
+            return;
+
+        LiveVRClearCalibrationMessage message = new LiveVRClearCalibrationMessage
+        {
+            UserId = userId,
+            EventId = ++clearCalibrationEventId,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+
+        SendToUser(userId, message.ToNetworkMessage());
+    }
+
+    public void SendVirtualPose(int userId, Vector2 virtualPosition, float virtualYawDegrees)
+    {
+        if (!IsHost)
+            return;
+
+        LiveVRVirtualPoseMessage virtualPose = new LiveVRVirtualPoseMessage
+        {
+            UserId = userId,
+            Sequence = ++virtualPoseSequence,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            VirtualPosition = virtualPosition,
+            VirtualYawDegrees = virtualYawDegrees
+        };
+        SendToUser(userId, virtualPose.ToNetworkMessage());
+    }
+
+    private bool TryBuildLocalPoseSample(out LiveVRPoseSample sample)
+    {
+        sample = default(LiveVRPoseSample);
+        Vector3 rawPosition;
+        Quaternion rawRotation;
+        if (!TryReadHeadPose(out rawPosition, out rawRotation))
+        {
+            lastPoseSourceStatus = "no head pose";
+            return false;
+        }
+
+        if (!hasCalibration && !requireManualCenterCalibration)
+            CalibrateNow();
+
+        Vector2 raw2D = new Vector2(rawPosition.x, rawPosition.z);
+        float rawYaw = ToProjectYaw(rawRotation);
+        Vector2 experimentPosition = hasCalibration
+            ? Rotate2D(raw2D - calibrationOriginPosition, -calibrationOriginYaw) * metersScale + experimentOriginOffset
+            : raw2D * metersScale + experimentOriginOffset;
+
+        float experimentYaw = hasCalibration
+            ? NormalizeDegrees(rawYaw - calibrationOriginYaw + experimentYawOffsetDegrees)
+            : NormalizeDegrees(rawYaw + experimentYawOffsetDegrees);
+
+        sample.UserId = localUserId;
+        sample.Sequence = sequence++;
+        sample.ClientUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        sample.HostReceiveUnixMilliseconds = sample.ClientUnixMilliseconds;
+        sample.ExperimentPosition = experimentPosition;
+        sample.YawDegrees = experimentYaw;
+        sample.HeightMeters = rawPosition.y;
+        sample.IsCalibrated = hasCalibration;
+        lastPoseSourceStatus = string.Format("ok raw=({0:F2},{1:F2},{2:F2}) yaw={3:F1}", rawPosition.x, rawPosition.y, rawPosition.z, rawYaw);
+        return true;
+    }
+
+    private bool TryReadHeadPose(out Vector3 position, out Quaternion rotation)
+    {
+        if (headTransformOverride != null)
+        {
+            position = headTransformOverride.localPosition;
+            rotation = headTransformOverride.localRotation;
+            return true;
+        }
+
+        if (useUnityXRHeadPose)
+        {
+            position = InputTracking.GetLocalPosition(XRNode.Head);
+            rotation = InputTracking.GetLocalRotation(XRNode.Head);
+            return true;
+        }
+
+        position = Vector3.zero;
+        rotation = Quaternion.identity;
+        return false;
+    }
+
+    private bool IsRecalibrateRequested()
+    {
+        if (Input.GetKeyDown(recalibrateKey))
+            return true;
+
+        if (!useControllerPrimaryButtonForCalibration || !SendsLocalPose)
+            return false;
+
+        bool pressed = false;
+        InputDevice rightHand = InputDevices.GetDeviceAtXRNode(XRNode.RightHand);
+        InputDevice leftHand = InputDevices.GetDeviceAtXRNode(XRNode.LeftHand);
+
+        bool rightPressed;
+        bool leftPressed;
+        if (rightHand.isValid && rightHand.TryGetFeatureValue(CommonUsages.primaryButton, out rightPressed))
+            pressed |= rightPressed;
+        if (leftHand.isValid && leftHand.TryGetFeatureValue(CommonUsages.primaryButton, out leftPressed))
+            pressed |= leftPressed;
+
+        bool requested = pressed && !wasControllerPrimaryButtonPressed;
+        wasControllerPrimaryButtonPressed = pressed;
+        return requested;
+    }
+
+    private void StartHostReceiver()
+    {
+        try
+        {
+            hostReceiver = new UdpClient(hostPosePort);
+            hostReceiver.EnableBroadcast = true;
+            if (string.IsNullOrEmpty(hostRunId))
+                hostRunId = DateTimeOffset.UtcNow.ToString("yyyyMMdd_HHmmss");
+            receiverRunning = true;
+            receiverThread = new Thread(ReceiveLoop);
+            receiverThread.IsBackground = true;
+            receiverThread.Start();
+            Debug.Log(string.Format("[LiveVR] Host listening for pose packets on UDP port {0}.", hostPosePort));
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("[LiveVR] Failed to start host receiver: " + e.Message);
+        }
+    }
+
+    private void StopHostReceiver()
+    {
+        receiverRunning = false;
+
+        if (hostReceiver != null)
+        {
+            hostReceiver.Close();
+            hostReceiver = null;
+        }
+
+        if (receiverThread != null)
+        {
+            receiverThread.Join(100);
+            receiverThread = null;
+        }
+    }
+
+    private void StartClientReceiver()
+    {
+        if (clientSender == null)
+            return;
+
+        if (clientReceiverRunning)
+            return;
+
+        clientReceiverRunning = true;
+        clientReceiverThread = new Thread(ClientReceiveLoop);
+        clientReceiverThread.IsBackground = true;
+        clientReceiverThread.Start();
+    }
+
+    private void StopClientReceiver()
+    {
+        clientReceiverRunning = false;
+
+        if (clientSender != null)
+            clientSender.Close();
+
+        if (clientReceiverThread != null)
+        {
+            clientReceiverThread.Join(100);
+            clientReceiverThread = null;
+        }
+    }
+
+    private void ReceiveLoop()
+    {
+        IPEndPoint remote = new IPEndPoint(IPAddress.Any, 0);
+        while (receiverRunning)
+        {
+            try
+            {
+                byte[] data = hostReceiver.Receive(ref remote);
+                string message = Encoding.UTF8.GetString(data);
+                hostRawPacketCount++;
+                hostLastRemoteEndpoint = remote.ToString();
+                hostLastRawPacketPreview = message.Length > 96 ? message.Substring(0, 96) : message;
+
+                LiveVRPoseSample sample;
+                if (LiveVRPoseSample.TryParse(message, out sample))
+                {
+                    hostPosePacketCount++;
+                    if (!IsPoseSenderAllowed(sample.UserId, remote))
+                    {
+                        SendAssignmentForKnownEndpoint(remote);
+                        continue;
+                    }
+
+                    StorePose(sample);
+                    StoreClientConnection(remote, sample.UserId, clientProactiveResetEnabled, true, string.Empty, string.Empty);
+                    StoreClientEndpoint(sample.UserId, remote);
+                    SendAck(sample.UserId, sample.Sequence, remote);
+                    continue;
+                }
+
+                LiveVRHostDiscoveryRequestMessage discoveryRequest;
+                if (LiveVRHostDiscoveryRequestMessage.TryParse(message, out discoveryRequest))
+                {
+                    StoreClientConnection(remote, -1, true, false, discoveryRequest.DeviceKey, discoveryRequest.DeviceName);
+                    SendHostAdvertisement(remote);
+                    continue;
+                }
+
+                LiveVRHelloMessage hello;
+                if (LiveVRHelloMessage.TryParse(message, out hello))
+                {
+                    hostHelloPacketCount++;
+                    StoreClientConnection(remote, hello.UserId, hello.ProactiveResetEnabled, false, hello.DeviceKey, hello.DeviceName);
+                    int assignedUserId;
+                    if (TryAssignUserIdForHello(remote, hello, out assignedUserId))
+                    {
+                        StoreHello(assignedUserId, remote);
+                        SendAck(assignedUserId, 0, remote);
+                    }
+                    continue;
+                }
+
+                LiveVRResetDoneMessage resetDone;
+                if (LiveVRResetDoneMessage.TryParse(message, out resetDone))
+                {
+                    StoreResetDone(resetDone, remote);
+                    SendAck(resetDone.UserId, 0, remote);
+                    continue;
+                }
+
+                hostParseFailCount++;
+            }
+            catch (SocketException)
+            {
+                if (receiverRunning)
+                    Debug.LogWarning("[LiveVR] Host receiver socket interrupted.");
+            }
+            catch (ObjectDisposedException)
+            {
+                break;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[LiveVR] Failed to receive pose packet: " + e.Message);
+            }
+        }
+    }
+
+    private void ClientReceiveLoop()
+    {
+        IPEndPoint remote = new IPEndPoint(IPAddress.Any, 0);
+        while (clientReceiverRunning)
+        {
+            try
+            {
+                byte[] data = clientSender.Receive(ref remote);
+                string message = Encoding.UTF8.GetString(data);
+                HandleClientMessage(message, remote);
+            }
+            catch (SocketException)
+            {
+                if (clientReceiverRunning)
+                    Debug.LogWarning("[LiveVR] Client receiver socket interrupted.");
+            }
+            catch (ObjectDisposedException)
+            {
+                break;
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[LiveVR] Failed to receive host packet: " + e.Message);
+            }
+        }
+    }
+
+    private void SendPoseToHost(LiveVRPoseSample sample)
+    {
+        if (clientSender == null || hostEndPoint == null)
+            return;
+
+        try
+        {
+            byte[] data = Encoding.UTF8.GetBytes(sample.ToNetworkMessage());
+            clientSender.Send(data, data.Length, hostEndPoint);
+            sentPosePacketCount++;
+            lastClientSendError = string.Empty;
+        }
+        catch (Exception e)
+        {
+            lastClientSendError = e.Message;
+            Debug.LogWarning("[LiveVR] Failed to send pose packet: " + e.Message);
+        }
+    }
+
+    private void SendHelloToHost()
+    {
+        if (clientSender == null || hostEndPoint == null)
+            return;
+
+        try
+        {
+            EnsureClientIdentity();
+            LiveVRHelloMessage hello = new LiveVRHelloMessage
+            {
+                UserId = localUserId,
+                ClientUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                ProactiveResetEnabled = clientProactiveResetEnabled,
+                DeviceKey = clientDeviceKey,
+                DeviceName = clientDeviceName
+            };
+            byte[] data = Encoding.UTF8.GetBytes(hello.ToNetworkMessage());
+            clientSender.Send(data, data.Length, hostEndPoint);
+            sentHelloPacketCount++;
+            lastClientSendError = string.Empty;
+        }
+        catch (Exception e)
+        {
+            lastClientSendError = e.Message;
+            Debug.LogWarning("[LiveVR] Failed to send hello packet: " + e.Message);
+        }
+    }
+
+    private void TickHostDiscovery()
+    {
+        if (!enableHostDiscovery || clientSender == null)
+            return;
+
+        if (IsConnectedToHost)
+        {
+            hostDiscoveryStatus = string.Format("connected to {0}:{1}", hostAddress, hostPosePort);
+            return;
+        }
+
+        if (LastAckAgeSeconds < hostDiscoveryAckTimeoutSeconds)
+            return;
+
+        if (Time.unscaledTime < nextHostDiscoveryTime)
+            return;
+
+        nextHostDiscoveryTime = Time.unscaledTime + hostDiscoveryIntervalSeconds;
+        SendHostDiscoveryRequest();
+    }
+
+    private void SendHostDiscoveryRequest()
+    {
+        if (clientSender == null)
+            return;
+
+        try
+        {
+            EnsureClientIdentity();
+            LiveVRHostDiscoveryRequestMessage request = new LiveVRHostDiscoveryRequestMessage
+            {
+                DeviceKey = clientDeviceKey,
+                DeviceName = clientDeviceName,
+                ClientUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            };
+            byte[] data = Encoding.UTF8.GetBytes(request.ToNetworkMessage());
+            IPEndPoint broadcastEndpoint = new IPEndPoint(IPAddress.Broadcast, hostPosePort);
+            clientSender.Send(data, data.Length, broadcastEndpoint);
+            sentHostDiscoveryPacketCount++;
+            hostDiscoveryStatus = string.Format("broadcast discovery on UDP {0}", hostPosePort);
+            lastClientSendError = string.Empty;
+        }
+        catch (Exception e)
+        {
+            lastClientSendError = e.Message;
+            hostDiscoveryStatus = "discovery failed: " + e.Message;
+            Debug.LogWarning("[LiveVR] Failed to send host discovery request: " + e.Message);
+        }
+    }
+
+    private void SendAck(int userId, uint sampleSequence, IPEndPoint remote)
+    {
+        if (hostReceiver == null || remote == null)
+            return;
+
+        LiveVRAckMessage ack = new LiveVRAckMessage
+        {
+            UserId = userId,
+            LastSequence = sampleSequence,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            ExperimentState = experimentState
+        };
+        SendHostPacket(ack.ToNetworkMessage(), remote);
+    }
+
+    private void SendToAllKnownClients(string message)
+    {
+        List<IPEndPoint> endpoints = new List<IPEndPoint>();
+        lock (endpointsLock)
+        {
+            foreach (IPEndPoint endpoint in clientEndpoints.Values)
+            {
+                if (endpoint != null)
+                    endpoints.Add(endpoint);
+            }
+        }
+
+        for (int i = 0; i < endpoints.Count; i++)
+            SendHostPacket(message, endpoints[i]);
+    }
+
+    private void SendToUser(int userId, string message)
+    {
+        IPEndPoint endpoint = null;
+        lock (endpointsLock)
+        {
+            string endpointKey;
+            if (assignedEndpointByUserId.TryGetValue(userId, out endpointKey))
+            {
+                LiveVRClientConnectionInfo info;
+                if (clientConnectionsByEndpoint.TryGetValue(endpointKey, out info))
+                    endpoint = BuildEndpoint(info);
+            }
+
+            if (endpoint == null)
+                clientEndpoints.TryGetValue(userId, out endpoint);
+        }
+
+        if (endpoint != null)
+            SendHostPacket(message, endpoint);
+    }
+
+    private void SendHostPacket(string message, IPEndPoint endpoint)
+    {
+        if (hostReceiver == null || endpoint == null)
+            return;
+
+        try
+        {
+            byte[] data = Encoding.UTF8.GetBytes(message);
+            hostReceiver.Send(data, data.Length, endpoint);
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[LiveVR] Failed to send host packet: " + e.Message);
+        }
+    }
+
+    private void SendHostAdvertisement(IPEndPoint endpoint)
+    {
+        if (!IsHost || endpoint == null)
+            return;
+
+        LiveVRHostAdvertisementMessage advertisement = new LiveVRHostAdvertisementMessage
+        {
+            HostPosePort = hostPosePort,
+            ExpectedUserCount = expectedUserCountForAssignment,
+            HostRunId = hostRunId,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+        SendHostPacket(advertisement.ToNetworkMessage(), endpoint);
+    }
+
+    private void HandleClientMessage(string message, IPEndPoint remote)
+    {
+        LiveVRHostAdvertisementMessage advertisement;
+        if (LiveVRHostAdvertisementMessage.TryParse(message, out advertisement))
+        {
+            ApplyHostAdvertisement(advertisement, remote);
+            return;
+        }
+
+        LiveVRClientAssignmentMessage assignment;
+        if (LiveVRClientAssignmentMessage.TryParse(message, out assignment))
+        {
+            ApplyHostAssignment(assignment);
+            return;
+        }
+
+        LiveVRClientAssignmentRejectMessage assignmentReject;
+        if (LiveVRClientAssignmentRejectMessage.TryParse(message, out assignmentReject))
+        {
+            lock (clientStateLock)
+            {
+                hasHostAssignment = false;
+                lastAckUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                clientAssignmentStatus = string.Format(
+                    "assignment rejected: {0} ({1} expected users)",
+                    assignmentReject.Reason,
+                    assignmentReject.ExpectedUserCount);
+            }
+            return;
+        }
+
+        LiveVRAckMessage ack;
+        if (LiveVRAckMessage.TryParse(message, out ack))
+        {
+            lock (clientStateLock)
+            {
+                lastAckSequence = ack.LastSequence;
+                lastAckUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                lastHostExperimentState = ack.ExperimentState;
+            }
+            return;
+        }
+
+        LiveVRStateMessage stateMessage;
+        if (LiveVRStateMessage.TryParse(message, out stateMessage))
+        {
+            lock (clientStateLock)
+            {
+                lastHostExperimentState = stateMessage.ExperimentState;
+                lastAckUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            }
+            return;
+        }
+
+        LiveVRCalibrateCenterMessage calibrate;
+        if (LiveVRCalibrateCenterMessage.TryParse(message, out calibrate))
+        {
+            if (calibrate.UserId != localUserId)
+                return;
+
+            lock (clientStateLock)
+            {
+                lastCenterCalibrationCommandEventId = calibrate.EventId;
+                lastCenterCalibrationCommandUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                lastCenterCalibrationStatus = "host command received";
+                lastAckUnixMilliseconds = lastCenterCalibrationCommandUnixMs;
+            }
+
+            CalibrateNow();
+            return;
+        }
+
+        LiveVRClearCalibrationMessage clearCalibration;
+        if (LiveVRClearCalibrationMessage.TryParse(message, out clearCalibration))
+        {
+            if (clearCalibration.UserId != localUserId)
+                return;
+
+            hasCalibration = false;
+            lock (clientStateLock)
+            {
+                lastCenterCalibrationCommandEventId = -1;
+                lastCenterCalibrationCommandUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                lastCenterCalibrationStatus = "recalibration requested; waiting for host calibration";
+                lastAckUnixMilliseconds = lastCenterCalibrationCommandUnixMs;
+            }
+            return;
+        }
+
+        LiveVRResetStartMessage resetStart;
+        if (LiveVRResetStartMessage.TryParse(message, out resetStart))
+        {
+            if (resetStart.UserId != localUserId)
+                return;
+
+            lock (clientStateLock)
+            {
+                latestResetStart = resetStart;
+                hasResetStart = true;
+                lastResetStartReceiveUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                lastAckUnixMilliseconds = lastResetStartReceiveUnixMilliseconds;
+            }
+
+            Debug.Log(string.Format(
+                "[LiveVR] Client received RESET_START user={0} event={1} physical={2:F1} injected={3:F1}",
+                resetStart.UserId,
+                resetStart.EventId,
+                resetStart.PhysicalTurnDegrees,
+                resetStart.InjectedTurnDegrees));
+            return;
+        }
+
+        LiveVRResetPromptMessage resetPrompt;
+        if (LiveVRResetPromptMessage.TryParse(message, out resetPrompt))
+        {
+            if (resetPrompt.UserId != localUserId)
+                return;
+
+            lock (clientStateLock)
+            {
+                latestResetPrompt = resetPrompt;
+                hasResetPrompt = true;
+                lastResetPromptReceiveUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                lastAckUnixMilliseconds = lastResetPromptReceiveUnixMilliseconds;
+            }
+            return;
+        }
+
+        LiveVRResetEndMessage resetEnd;
+        if (LiveVRResetEndMessage.TryParse(message, out resetEnd))
+        {
+            if (resetEnd.UserId != localUserId)
+                return;
+
+            lock (clientStateLock)
+            {
+                if (hasResetPrompt && latestResetPrompt.EventId == resetEnd.EventId)
+                    hasResetPrompt = false;
+                if (hasResetStart && latestResetStart.EventId == resetEnd.EventId)
+                    hasResetStart = false;
+                lastAckUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            }
+
+            Debug.Log(string.Format(
+                "[LiveVR] Client received RESET_END user={0} event={1}",
+                resetEnd.UserId,
+                resetEnd.EventId));
+            return;
+        }
+
+        LiveVRVirtualPoseMessage virtualPose;
+        if (LiveVRVirtualPoseMessage.TryParse(message, out virtualPose))
+        {
+            if (virtualPose.UserId != localUserId)
+                return;
+
+            lock (clientStateLock)
+            {
+                latestVirtualPose = virtualPose;
+                hasVirtualPose = true;
+                lastAckUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            }
+        }
+    }
+
+    private void ApplyHostAdvertisement(LiveVRHostAdvertisementMessage advertisement, IPEndPoint remote)
+    {
+        if (mode != LiveVRExperimentMode.ClientOnly || remote == null)
+            return;
+
+        string discoveredAddress = remote.Address.ToString();
+        int discoveredPort = advertisement.HostPosePort > 0 ? advertisement.HostPosePort : hostPosePort;
+        bool changed = !string.Equals(hostAddress, discoveredAddress, StringComparison.OrdinalIgnoreCase) ||
+                       hostPosePort != discoveredPort;
+
+        hostAddress = discoveredAddress;
+        hostPosePort = discoveredPort;
+        hostEndPoint = new IPEndPoint(remote.Address, discoveredPort);
+        hostDiscoveryStatus = string.Format(
+            "found host {0}:{1} users={2}",
+            hostAddress,
+            hostPosePort,
+            advertisement.ExpectedUserCount);
+
+        lock (clientStateLock)
+        {
+            if (changed)
+            {
+                lastAckUnixMilliseconds = 0;
+                lastAckSequence = 0;
+                hasHostAssignment = false;
+                clientAssignmentStatus = "found host; waiting for assignment";
+            }
+        }
+
+        SendHelloToHost();
+        Debug.Log(string.Format("[LiveVR] Discovered host at {0}:{1}.", hostAddress, hostPosePort));
+    }
+
+    private bool TryAssignUserIdForHello(IPEndPoint endpoint, LiveVRHelloMessage hello, out int assignedUserId)
+    {
+        assignedUserId = -1;
+        if (endpoint == null)
+            return false;
+
+        string endpointKey = endpoint.ToString();
+        string deviceKey = BuildAssignmentDeviceKey(endpointKey, hello.DeviceKey);
+
+        lock (assignmentLock)
+        {
+            lock (endpointsLock)
+            {
+                LiveVRClientConnectionInfo info;
+                if (!clientConnectionsByEndpoint.TryGetValue(endpointKey, out info))
+                    return false;
+
+                if (!autoAssignClientUserIds)
+                {
+                    assignedUserId = Mathf.Max(0, hello.UserId);
+                    ApplyAssignmentLocked(endpointKey, deviceKey, assignedUserId, hello.ProactiveResetEnabled, ref info);
+                    SendAssignmentLocked(info);
+                    return true;
+                }
+
+                if (assignedUserIdByDeviceKey.TryGetValue(deviceKey, out assignedUserId))
+                {
+                    ApplyAssignmentLocked(endpointKey, deviceKey, assignedUserId, hello.ProactiveResetEnabled, ref info);
+                    SendAssignmentLocked(info);
+                    return true;
+                }
+
+                assignedUserId = FindSmallestFreeUserIdLocked();
+                if (assignedUserId < 0)
+                {
+                    info.AssignedUserId = -1;
+                    info.AssignmentStatus = "rejected: full";
+                    clientConnectionsByEndpoint[endpointKey] = info;
+                    SendAssignmentReject(BuildEndpoint(info), "FULL");
+                    return false;
+                }
+
+                ApplyAssignmentLocked(endpointKey, deviceKey, assignedUserId, hello.ProactiveResetEnabled, ref info);
+                SendAssignmentLocked(info);
+                Debug.LogFormat(
+                    "[LiveVR] Auto-assigned client {0} ({1}) -> user {2}.",
+                    endpointKey,
+                    string.IsNullOrEmpty(info.DeviceName) ? deviceKey : info.DeviceName,
+                    assignedUserId);
+                return true;
+            }
+        }
+    }
+
+    private void ApplyAssignmentLocked(
+        string endpointKey,
+        string deviceKey,
+        int assignedUserId,
+        bool proactiveResetEnabled,
+        ref LiveVRClientConnectionInfo info)
+    {
+        info.AssignedUserId = assignedUserId;
+        info.ProactiveResetEnabled = proactiveResetEnabled;
+        info.AssignmentStatus = "assigned";
+        if (string.IsNullOrEmpty(info.DeviceKey))
+            info.DeviceKey = deviceKey;
+
+        clientConnectionsByEndpoint[endpointKey] = info;
+        assignedEndpointByUserId[assignedUserId] = endpointKey;
+        assignedUserIdByDeviceKey[deviceKey] = assignedUserId;
+        assignedDeviceKeyByUserId[assignedUserId] = deviceKey;
+
+        IPEndPoint assignedEndpoint = BuildEndpoint(info);
+        if (assignedEndpoint != null)
+            clientEndpoints[assignedUserId] = assignedEndpoint;
+    }
+
+    private void SendAssignmentLocked(LiveVRClientConnectionInfo info)
+    {
+        IPEndPoint endpoint = BuildEndpoint(info);
+        if (endpoint == null)
+            return;
+
+        LiveVRClientAssignmentMessage assignment = new LiveVRClientAssignmentMessage
+        {
+            UserId = info.AssignedUserId,
+            ExpectedUserCount = expectedUserCountForAssignment,
+            ProactiveResetEnabled = info.ProactiveResetEnabled,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            HostRunId = hostRunId
+        };
+        SendHostPacket(assignment.ToNetworkMessage(), endpoint);
+    }
+
+    private void SendAssignmentReject(IPEndPoint endpoint, string reason)
+    {
+        if (endpoint == null)
+            return;
+
+        LiveVRClientAssignmentRejectMessage reject = new LiveVRClientAssignmentRejectMessage
+        {
+            Reason = reason,
+            ExpectedUserCount = expectedUserCountForAssignment,
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+        };
+        SendHostPacket(reject.ToNetworkMessage(), endpoint);
+        Debug.LogWarningFormat("[LiveVR] Rejected client assignment: {0}.", reason);
+    }
+
+    private int FindSmallestFreeUserIdLocked()
+    {
+        int count = Mathf.Max(0, expectedUserCountForAssignment);
+        for (int userId = 0; userId < count; userId++)
+        {
+            if (!assignedDeviceKeyByUserId.ContainsKey(userId))
+                return userId;
+        }
+
+        return -1;
+    }
+
+    private bool IsPoseSenderAllowed(int userId, IPEndPoint endpoint)
+    {
+        if (!autoAssignClientUserIds || endpoint == null)
+            return true;
+
+        lock (endpointsLock)
+        {
+            string assignedEndpointKey;
+            if (!assignedEndpointByUserId.TryGetValue(userId, out assignedEndpointKey))
+                return false;
+
+            LiveVRClientConnectionInfo info;
+            if (!clientConnectionsByEndpoint.TryGetValue(assignedEndpointKey, out info))
+                return false;
+
+            return string.Equals(info.Address, endpoint.Address.ToString(), StringComparison.OrdinalIgnoreCase) &&
+                   info.Port == endpoint.Port;
+        }
+    }
+
+    private void SendAssignmentForKnownEndpoint(IPEndPoint endpoint)
+    {
+        if (endpoint == null)
+            return;
+
+        lock (endpointsLock)
+        {
+            LiveVRClientConnectionInfo info;
+            if (!clientConnectionsByEndpoint.TryGetValue(endpoint.ToString(), out info))
+                return;
+
+            if (info.AssignedUserId >= 0)
+                SendAssignmentLocked(info);
+        }
+    }
+
+    private void StorePose(LiveVRPoseSample sample)
+    {
+        lock (posesLock)
+        {
+            latestPoses[sample.UserId] = sample;
+        }
+    }
+
+    private void StoreClientEndpoint(int userId, IPEndPoint endpoint)
+    {
+        if (endpoint == null)
+            return;
+
+        lock (endpointsLock)
+        {
+            clientEndpoints[userId] = new IPEndPoint(endpoint.Address, endpoint.Port);
+        }
+    }
+
+    private void StoreClientConnection(
+        IPEndPoint endpoint,
+        int reportedUserId,
+        bool proactiveResetEnabled,
+        bool posePacket,
+        string deviceKey,
+        string deviceName)
+    {
+        if (endpoint == null)
+            return;
+
+        string endpointKey = endpoint.ToString();
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+
+        lock (endpointsLock)
+        {
+            LiveVRClientConnectionInfo info;
+            if (!clientConnectionsByEndpoint.TryGetValue(endpointKey, out info))
+            {
+                info = new LiveVRClientConnectionInfo
+                {
+                    EndpointKey = endpointKey,
+                    Address = endpoint.Address.ToString(),
+                    Port = endpoint.Port,
+                    AssignedUserId = -1,
+                    AssignmentStatus = "seen"
+                };
+            }
+
+            info.ReportedUserId = reportedUserId;
+            if (!string.IsNullOrEmpty(deviceKey))
+                info.DeviceKey = BuildAssignmentDeviceKey(endpointKey, deviceKey);
+            if (!string.IsNullOrEmpty(deviceName))
+                info.DeviceName = deviceName;
+
+            if (posePacket)
+            {
+                info.LastPoseReceiveUnixMilliseconds = now;
+            }
+            else
+            {
+                info.ProactiveResetEnabled = proactiveResetEnabled;
+                info.LastHelloReceiveUnixMilliseconds = now;
+            }
+
+            clientConnectionsByEndpoint[endpointKey] = info;
+        }
+    }
+
+    private static string BuildAssignmentDeviceKey(string endpointKey, string reportedDeviceKey)
+    {
+        if (!string.IsNullOrEmpty(reportedDeviceKey))
+            return reportedDeviceKey;
+
+        return "endpoint:" + endpointKey;
+    }
+
+    private void EnsureClientIdentity()
+    {
+        if (!string.IsNullOrEmpty(clientDeviceKey))
+            return;
+
+        const string playerPrefsKey = "LiveVR.ClientDeviceKey";
+        clientDeviceKey = PlayerPrefs.GetString(playerPrefsKey, string.Empty);
+        if (string.IsNullOrEmpty(clientDeviceKey))
+        {
+            clientDeviceKey = Guid.NewGuid().ToString("N");
+            PlayerPrefs.SetString(playerPrefsKey, clientDeviceKey);
+            PlayerPrefs.Save();
+        }
+
+        clientDeviceName = SystemInfo.deviceName;
+        if (string.IsNullOrEmpty(clientDeviceName))
+            clientDeviceName = "LiveVRClient";
+    }
+
+    private static IPEndPoint BuildEndpoint(LiveVRClientConnectionInfo info)
+    {
+        IPAddress address;
+        if (!IPAddress.TryParse(info.Address, out address))
+            return null;
+
+        return new IPEndPoint(address, info.Port);
+    }
+
+    private void ApplyHostAssignment(LiveVRClientAssignmentMessage assignment)
+    {
+        if (mode != LiveVRExperimentMode.ClientOnly)
+            return;
+
+        int previousUserId = localUserId;
+        localUserId = Mathf.Max(0, assignment.UserId);
+        clientProactiveResetEnabled = assignment.ProactiveResetEnabled;
+        hasHostAssignment = true;
+        clientAssignmentStatus = string.Format(
+            "assigned user {0}/{1} run={2}",
+            localUserId,
+            assignment.ExpectedUserCount > 0 ? assignment.ExpectedUserCount.ToString() : "?",
+            string.IsNullOrEmpty(assignment.HostRunId) ? "unknown" : assignment.HostRunId);
+
+        if (previousUserId != localUserId)
+        {
+            hasCalibration = false;
+            lastCenterCalibrationCommandEventId = -1;
+            lastCenterCalibrationStatus = "host assigned user; waiting for calibration";
+        }
+
+        lock (clientStateLock)
+        {
+            lastAckUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        }
+
+        LiveVRClientPreferences.SaveHostConnection(hostAddress, hostPosePort);
+        Debug.LogFormat(
+            "[LiveVR] Host assignment received: user={0}, proactiveReset={1}.",
+            localUserId,
+            clientProactiveResetEnabled);
+    }
+
+    private void StoreHello(int userId, IPEndPoint endpoint)
+    {
+        lock (posesLock)
+        {
+            latestHelloReceiveUnixMs[userId] = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        }
+
+        StoreClientEndpoint(userId, endpoint);
+    }
+
+    private void StoreResetDone(LiveVRResetDoneMessage resetDone, IPEndPoint endpoint)
+    {
+        lock (clientStateLock)
+        {
+            latestResetDoneEventByUserId[resetDone.UserId] = resetDone.EventId;
+            latestResetDoneByUserId[resetDone.UserId] = resetDone;
+        }
+
+        StoreClientEndpoint(resetDone.UserId, endpoint);
+        Debug.Log(string.Format(
+            "[LiveVR] Host received RESET_DONE user={0} event={1} yaw={2:F1} injected={3:F1}",
+            resetDone.UserId,
+            resetDone.EventId,
+            resetDone.FinalPhysicalYawDegrees,
+            resetDone.FinalInjectedTurnDegrees));
+    }
+
+    private static LiveVRUserSource ResolveConfiguredUserSource(LiveVRUserSource[] configuredUserSources, int userId)
+    {
+        if (configuredUserSources == null || userId < 0 || userId >= configuredUserSources.Length)
+            return LiveVRUserSource.RequiredLiveHmd;
+
+        return configuredUserSources[userId];
+    }
+
+    private static float ToProjectYaw(Quaternion rotation)
+    {
+        return NormalizeDegrees(-rotation.eulerAngles.y);
+    }
+
+    private static Vector2 Rotate2D(Vector2 value, float degrees)
+    {
+        float radians = degrees * Mathf.Deg2Rad;
+        float cos = Mathf.Cos(radians);
+        float sin = Mathf.Sin(radians);
+        return new Vector2(value.x * cos - value.y * sin, value.x * sin + value.y * cos);
+    }
+
+    private static float NormalizeDegrees(float degrees)
+    {
+        degrees %= 360.0f;
+        if (degrees > 180.0f)
+            degrees -= 360.0f;
+        if (degrees < -180.0f)
+            degrees += 360.0f;
+        return degrees;
+    }
+}

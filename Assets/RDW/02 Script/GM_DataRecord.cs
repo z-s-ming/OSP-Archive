@@ -160,6 +160,34 @@ namespace _GCM
             return Path.Combine(runRawFolderPath, safeFileName);
         }
 
+        public string BeginNewRunSession(string reason)
+        {
+            Save_SteamingData_Batch();
+            Save_InterResetDistance_Batch();
+
+            runId = string.Empty;
+            runFolderPath = string.Empty;
+            runRawFolderPath = string.Empty;
+            runDerivedFolderPath = string.Empty;
+            runPlotsFolderPath = string.Empty;
+            runManifestPath = string.Empty;
+            runEpisodeSummaryFilePath = string.Empty;
+            runInterResetDistanceFilePath = string.Empty;
+
+            Queue_EX_DATA.Clear();
+            Queue_INTER_RESET_DIST.Clear();
+            isCategoryPrinted = false;
+            isInterResetDistCategoryPrinted = false;
+            str_DataCategory = string.Empty;
+            str_InterResetDistDataCategory = string.Empty;
+            ResetInterResetDistanceTracking();
+            startTime = currentTime = Time.time;
+
+            EnsureRunSession();
+            Debug.Log(string.Format("[LiveVR] Started new run session {0}. reason={1}", runId, string.IsNullOrEmpty(reason) ? "unspecified" : reason));
+            return runId;
+        }
+
         private void EnsureRunSession()
         {
             if (!string.IsNullOrEmpty(runFolderPath))
@@ -229,7 +257,8 @@ namespace _GCM
                 "raw/episode_summary.csv",
                 "raw/inter_reset_distance.csv",
                 "raw/proactive_trigger_frame.csv",
-                "raw/proactive_candidate_frame.csv"
+                "raw/proactive_candidate_frame.csv",
+                "raw/live_vr_network.csv"
             }, 1);
 
             sb.AppendLine(",");
@@ -261,6 +290,24 @@ namespace _GCM
                 sb.AppendLine();
             }
             sb.AppendLine("  },");
+            sb.AppendLine("  \"liveVR\": {");
+            LiveVRNetworkManager liveVR = LiveVRNetworkManager.Instance;
+            bool liveUserProfile = setting != null &&
+                                   (setting.experimentProfile == ExperimentProfile.LiveUser ||
+                                    setting.useLiveVRPhysicalUserInput);
+            AppendJsonProperty(sb, "enabled", liveUserProfile ? "true" : "false", false, 2);
+            sb.AppendLine(",");
+            AppendJsonProperty(sb, "experimentProfile", setting != null ? setting.experimentProfile.ToString() : "UNKNOWN", true, 2);
+            sb.AppendLine(",");
+            AppendJsonProperty(sb, "mode", liveVR != null ? liveVR.Mode.ToString() : "UNKNOWN", true, 2);
+            sb.AppendLine(",");
+            AppendJsonProperty(sb, "localUserId", liveVR != null ? liveVR.LocalUserId.ToString(CultureInfo.InvariantCulture) : "-1", false, 2);
+            sb.AppendLine(",");
+            AppendJsonProperty(sb, "hostAddress", liveVR != null ? liveVR.HostAddress : string.Empty, true, 2);
+            sb.AppendLine(",");
+            AppendJsonProperty(sb, "hostPort", liveVR != null ? liveVR.HostPosePort.ToString(CultureInfo.InvariantCulture) : "0", false, 2);
+            sb.AppendLine();
+            sb.AppendLine("  },");
             sb.AppendLine("  \"unitSettings\": [");
             if (setting != null && setting.unitSettings != null)
             {
@@ -269,6 +316,8 @@ namespace _GCM
                     UnitSetting unit = setting.unitSettings[i];
                     sb.AppendLine("    {");
                     AppendJsonProperty(sb, "logicalUserIndex", i.ToString(CultureInfo.InvariantCulture), false, 3);
+                    sb.AppendLine(",");
+                    AppendJsonProperty(sb, "liveVRUserSource", ResolveLiveVRUserSourceLabel(i), true, 3);
                     sb.AppendLine(",");
                     AppendJsonProperty(sb, "redirectType", unit != null ? unit.redirectType.ToString() : "UNKNOWN", true, 3);
                     sb.AppendLine(",");
@@ -376,6 +425,15 @@ namespace _GCM
             return SanitizePathSegment(firstUnit.redirectType + "-" + firstUnit.resetType);
         }
 
+        private static string ResolveLiveVRUserSourceLabel(int userId)
+        {
+            LiveVRNetworkManager liveVR = LiveVRNetworkManager.Instance;
+            if (liveVR == null)
+                return "UNKNOWN";
+
+            return liveVR.GetUserSourceLabel(userId, 0.75f, true);
+        }
+
         public void Enequeue_Data(string _data)
         {
             currentTime = Time.time;
@@ -470,7 +528,7 @@ namespace _GCM
 
         private string BuildInterResetDistDataCategory()
         {
-            return "Date,Timestamp,episodeObjectId,frame,simTime,userId,otherUserId,pairMinUserId,pairMaxUserId,resetEventType,isBidirectionalUserPair,interResetDistance,cumulativeDistance,triggerId,candidateId,decisionId,executionId,originTriggerId,originCandidateId,accepted,executed,rejectReason";
+            return "Date,Timestamp,episodeObjectId,frame,simTime,userId,userSource,isLiveUser,isFallbackSim,otherUserId,pairMinUserId,pairMaxUserId,resetEventType,isBidirectionalUserPair,interResetDistance,cumulativeDistance,triggerId,candidateId,decisionId,executionId,originTriggerId,originCandidateId,accepted,executed,rejectReason";
         }
 
         public void ResetInterResetDistanceTracking()
@@ -513,13 +571,19 @@ namespace _GCM
 
             string refinedResetEventType = string.IsNullOrEmpty(resetEventType) ? "UNKNOWN" : resetEventType.Replace(",", "_");
             string refinedRejectReason = string.IsNullOrEmpty(rejectReason) ? "NONE" : rejectReason.Replace(",", "_");
+            string userSource = ResolveLiveVRUserSourceLabel(userId);
+            bool isLiveUser = userSource == "LIVE_REQUIRED" || userSource == "LIVE_OPTIONAL";
+            bool isFallbackSim = userSource == "SIM_FALLBACK";
             string payload = string.Format(
                 CultureInfo.InvariantCulture,
-                "{0},{1},{2:F6},{3},{4},{5},{6},{7},{8},{9:F6},{10:F6},{11},{12},{13},{14},{15},{16},{17},{18},{19}",
+                "{0},{1},{2:F6},{3},{4},{5},{6},{7},{8},{9},{10},{11},{12:F6},{13:F6},{14},{15},{16},{17},{18},{19},{20},{21},{22}",
                 episodeObjectId,
                 Time.frameCount,
                 Time.time,
                 userId,
+                userSource,
+                isLiveUser ? 1 : 0,
+                isFallbackSim ? 1 : 0,
                 otherUserId,
                 pairMinUserId,
                 pairMaxUserId,

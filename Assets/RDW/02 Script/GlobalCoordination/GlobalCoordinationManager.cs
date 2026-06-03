@@ -573,6 +573,7 @@ namespace _GCM
 
             BidirectionalCollisionRecoverabilityEvaluator.ResetTemporalState();
             VoronoiBoundaryProactiveResetTriggerDetector.ResetTemporalState();
+            RecoveryMarginTrendProactiveResetTriggerDetector.ResetTemporalState();
             ProactiveResetEventIdTracker.ResetSession();
             ProactiveTriggerWindowLogger.ResetSession();
             ProactiveCandidateFrameLogger.ResetSession();
@@ -692,7 +693,7 @@ namespace _GCM
             if (!episodeService.ShouldEndEpisode(stateCollector))
                 return false;
 
-            Debug.Log($"Episode Finished. Total Dist: {stateCollector.CurrentEpisodeTotalDistance}");
+            Debug.Log($"Episode Finished. Total Virtual Dist: {stateCollector.CurrentEpisodeTotalDistance}");
 
             int endedEpisodeId = GetCurrentEpisodeId();
             bool isLastEpisodeInExperiment = endedEpisodeId >= SimulationCount_max;
@@ -752,6 +753,10 @@ namespace _GCM
             if (episodeService.IsExperimentCompleted)
             {
                 RDWSimulationManager.instance.BStart = false;
+                global::LiveVRNetworkManager liveVRNetworkManager = global::LiveVRNetworkManager.Instance;
+                if (liveVRNetworkManager != null && liveVRNetworkManager.IsHost)
+                    liveVRNetworkManager.SetExperimentState(global::LiveVRExperimentState.Completed);
+
                 Debug.Log($"Experiment completed at episode {episodeService.CurrentSimulationCount}/{episodeService.SimulationCountMax}. Simulation stopped.");
                 return true;
             }
@@ -1271,8 +1276,11 @@ namespace _GCM
                 Debug.Log($"[CompareExperiment] Episode {episodeService.CurrentSimulationCount + 1} uses seed {currentEpisodeSeed}.");
             }
 
-            physicalRoom_width_half = Mathf.Abs(RDWSimulationManager.instance.simulationSetting.realSpaceSetting.spaceObjectSetting.vertices[0].x);
-            physicalRoom_height_half = Mathf.Abs(RDWSimulationManager.instance.simulationSetting.realSpaceSetting.spaceObjectSetting.vertices[0].y);
+            if (!RDWSimulationManager.instance.TryGetRealSpaceHalfExtents(out physicalRoom_width_half, out physicalRoom_height_half))
+            {
+                physicalRoom_width_half = Mathf.Abs(RDWSimulationManager.instance.simulationSetting.realSpaceSetting.spaceObjectSetting.vertices[0].x);
+                physicalRoom_height_half = Mathf.Abs(RDWSimulationManager.instance.simulationSetting.realSpaceSetting.spaceObjectSetting.vertices[0].y);
+            }
 
             virtualRoom_width_half = Mathf.Abs(RDWSimulationManager.instance.simulationSetting.virtualSpaceSetting.spaceObjectSetting.vertices[0].x);
             virtualRoom_height_Half = Mathf.Abs(RDWSimulationManager.instance.simulationSetting.virtualSpaceSetting.spaceObjectSetting.vertices[0].y);
@@ -1315,8 +1323,8 @@ namespace _GCM
             voronoiPartitioner.ResetSeedsFromUsers(stateCollector.PhysicalUsers);
             SyncPartitionUpdateStatesWithCurrentSeeds();
 
-            // [FIX] Update pre-positions to actual user positions to avoid initial distance jump
-            stateCollector.SyncPreAndCurrentToPhysicalUsers(totalUserCount);
+            // Update pre-positions to actual user positions to avoid initial distance jump.
+            stateCollector.SyncPreAndCurrentToUsers(totalUserCount);
             episodeService.BeginEpisode(stateCollector);
 
             InitializeInfoQueues();

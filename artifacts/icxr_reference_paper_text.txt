@@ -1,0 +1,792 @@
+ 
+Contents lists available at ScienceDirect
+Computers & Graphics
+journal homepage: www.elsevier.com/locate/cag  
+Special Section on ICXR 2025
+Incorporating strafing gain into redirected walking with pose score 
+guidanceI
+Jin-Feng Li a
+ , Sen-Zhe Xu b, Qiang Tong a
+ ,∗, Peng-Hui Yuan a, Ling-Long Zou a, Er-Xia Luo a,
+Qi Wen Gan c, Song-Hai Zhang d,e
+a Beijing Information Science & Technology University, China
+b University of Science and Technology Beijing, China
+c University of Arizona, United States of America
+d BNRist, China
+e Tsinghua University, China
+A R T I C L E  I N F O
+Keywords:
+Virtual reality
+Redirected walking
+Trajectory planning
+Strafing gain
+ A B S T R A C T
+Redirected walking (RDW) is a virtual reality locomotion technique that enables users to explore large virtual 
+environments within a limited physical space. While state-of-the-art methods based on physical trajectory 
+planning make effective use of physical space, some of them often compromise user comfort due to frequent 
+directional reversals in curvature gain. To address this, this paper proposes a novel RDW method that 
+integrates strafing gain with pose score guidance. Our approach discretizes the physical space into a series 
+of standard poses, each with a long-term safety score, and redirects the user toward the optimal pose. The 
+main contribution is a path generation algorithm that decomposes redirection into two sequential stages to 
+ensure stable gains for each planned path: it first uses the curvature gain to steer the user along an arc for 
+orientation alignment, and then inserts a straight path segment with constant strafing gain to achieve positional 
+alignment with the target pose. Simulation experiments demonstrate a reduction in resets, while the user study 
+shows lower Simulator Sickness Questionnaire scores compared to previous methods. Our work explores the 
+potential of combining novel gains with state-of-the-art methods to create a more effective and comfortable 
+RDW controller algorithm.
+1. Introduction
+Virtual Reality (VR) technology provides immersive and realistic 
+content, owing to significant advancements in technologies such as 
+three-dimensional content generation and wearable interactive devices. 
+It is now widely integrated into a variety of domains, including ed-
+ucation, healthcare, and entertainment. However, a major challenge 
+for VR technology is overcoming the conflict between a vast virtual 
+environment (VE) and the limited physical space (PE). To this end, a 
+variety of virtual locomotion techniques have been proposed, such as 
+teleportation [1], walking-in-place [2,3], omnidirectional treadmill [4], 
+and Redirected Walking (RDW) [5,6]. Among these, RDW holds a 
+unique advantage as it enables users to walk naturally, providing a 
+higher sense of immersion and spatial presence.
+Redirected Walking leverages the complexities of the human percep-
+tual system to apply imperceptible manipulations to the virtual scene. 
+This remapping of physical walking to virtual movement is known as 
+I This article is part of a Special issue entitled: ‘CAG_ICXR 2025’ published in Computers & Graphics.
+∗ Corresponding author.
+E-mail address: tongq85@bistu.edu.cn (Q. Tong).
+redirection gains. To effectively implement these gains and maximize 
+physical space utilization, researchers have developed various RDW 
+controllers that calculate and apply gains according to the user’s cur-
+rent state and environmental limitations, redirecting them away from 
+physical boundaries. However, many widely used controllers, including 
+Steer-to-Center (S2C) [7], Steer-to-Orbit (S2O) [7], and Artificial Po-
+tential Fields (APF) [8–10], derive their decisions exclusively from the 
+user’s present state, a limitation that often traps them in local optima 
+and degrades their performance in complex physical environments.
+In recent years, advanced physical trajectory planning methods 
+have been introduced to address this limitation. Among this class of 
+methods, optimal pose guided (OPG) [11] is a fundamental method and 
+has outstanding performance in complex physical environments, as it 
+simultaneously considers the user’s current and future pose (defined by 
+a position and an orientation). However, the transfer path generation 
+in OPG primarily depends on iteratively inserting ‘S’-turns to connect 
+https://doi.org/10.1016/j.cag.2025.104492
+Received 17 October 2025; Received in revised form 16 November 2025; Accepted 17 November 2025
+Computers & Graphics 134 (2026) 104492 
+Available online 19 November 2025 
+0097-8493/© 2025 Elsevier Ltd. All rights are reserved, including those for text and data mining, AI training, and similar technologies. 
+J.-F. Li et al.
+the current and target poses. These ‘S’-turns require curvature gain 
+to frequently switch from a maximum value in one direction to the 
+maximum in the opposite, which can be more perceptible to users and 
+potentially lead to discomfort such as dizziness.
+Consequently, it is logical to explore whether the user’s walking 
+path can be adjusted without frequently steering their turn. A potential 
+solution is strafing gain [12], a novel type of gain that applies a subtle 
+lateral displacement as the user walks forward, causing them to move 
+along a diagonal path while maintaining their intended orientation. 
+However, effective integration of strafing gain into advanced RDW 
+controllers remains an underexplored problem.
+This paper proposes a novel RDW method that incorporates strafing 
+gain to address a specific issue in existing trajectory planning methods, 
+where curvature gain frequently switches between opposite directions, 
+which can be more perceptible to users and potentially lead to dis-
+comfort. We adopt the method of optimal pose guidance, discretizing 
+the physical space into a series of standard poses, each comprising a 
+position and an orientation, and pre-calculating a score for each pose 
+that represents its long-term safety. With the highest-scoring pose set 
+as the target, we introduce an innovative path generation algorithm 
+to redirect the user. This algorithm decomposes the complex task of 
+pose alignment into two distinct stages: first, it utilizes the maximum 
+curvature gain to guide the user along a single circular arc to achieve 
+orientation alignment. Subsequently, at a suitable tangent point on the 
+arc, it inserts a straight path applied constant strafing gain to align the 
+user’s position. This design ensures that the direction of applied gains 
+remains stable within a single guidance maneuver, thereby effectively 
+decreasing the number of resets while significantly enhancing user 
+comfort.
+The main contributions of the paper are as follows:
+1. We propose a novel path generation algorithm that combines 
+curvature and strafing gains to stably redirect the user to the 
+target pose.
+2. Based on this algorithm, we implement a novel RDW controller. 
+To the best of our knowledge, this work is the first to integrate 
+strafing gain into RDW controllers.
+3. The results of simulation experiments demonstrate that our 
+method reduces the number of resets, while the user study shows 
+that it improves user comfort with lower SSQ scores.
+2. Related work
+2.1. Redirection gains
+Redirected Walking [5] was first proposed by Razzaque et al. in 
+2001. It leverages the complexities of the human perceptual system 
+to apply imperceptible manipulations to the virtual scene, thereby 
+remapping the relationship between physical and virtual movements. 
+This technique allows users to experience large-scale virtual locomotion 
+within a limited physical space. The mapping between physical and 
+virtual motion is defined by redirection gains, which were initially 
+classified by Steinicke et al. [6] into three categories: translation gain 
+scales the user’s virtual movement, rotation gain alters the angle of the 
+user rotations, and curvature gain bends straight paths into curves.
+Subsequent research has defined and measured more novel types 
+of gains. These include bending gain [13], a variant of curvature 
+gain; deviation gain [14], which converts stationary rotations into 
+translational shifts; bidirectional rotation difference (BiRD) gain [15], 
+which uses the user back-and-forth head movements to deflect their 
+path. Furthermore, research has extended into the vertical dimension, 
+introducing slope gain [16,17], vertical gain [18], and jumping gain 
+that manipulate jumping actions.
+Early research generally avoided applying gains during non-forward 
+movements like sideward walking. However, the work of Cho et al. [19] 
+revealed that users are actually less sensitive to gains during non-
+forward motion, which results in wider perceptual thresholds. Build-
+ing on this, Dong et al. [20] developed FREE-RDW, a method that 
+integrates these thresholds into a multi-user collision avoidance strat-
+egy. Collectively, these studies explored the potential of lateral mo-
+tion, establishing its viability for enhancing RDW without significantly 
+increasing simulator sickness.
+While the aforementioned studies apply gains to a user’s lateral 
+movements, the strafing gain proposed by You et al. [12] explores 
+a different but related concept. It applies a lateral displacement to a 
+forward-walking user, causing them to move along a diagonal path in 
+the physical world while their virtual path remains straight (Fig.  1a). 
+Unlike curvature gains that induce rotation, their study confirmed that 
+users maintain their heading and respond to the lateral shift with a 
+diagonal path, rather than a rotational adjustment. This characteristic 
+gives strafing gain significant potential in various scenarios, such as 
+subtly adjusting the user’s physical position to avoid obstacles, com-
+bining with other gains for complex path planning, or assisting in 
+aligning physical and virtual environments. However, although the 
+perceptual thresholds for strafing gain have been measured, its effective 
+integration into advanced RDW controllers remains a direction that 
+requires further exploration.
+2.2. RDW controller algorithms
+Recent advances in RDW have pushed the field toward several 
+challenging directions, aiming to overcome physical space limitations 
+while providing more natural virtual experiences. As summarized in a 
+recent comprehensive survey by Liu et al. [21], these directions include 
+the development of more sophisticated controller algorithms, the cre-
+ation of coordination strategies to support multi-user environments, the 
+integration of multisensory cues, and the design of methods capable of 
+adapting to dynamic physical spaces and obstacles, among others.
+Among these, to effectively manage redirection gains and prevent 
+users from colliding with physical boundaries, researchers have pro-
+posed a series of RDW algorithms. Razzaque proposed several al-
+gorithms in his pioneering work, including S2C, S2O, and Steer-to-
+Multiple-Targets (S2MT) [7], designed to guide users toward specific 
+targets or regions within the physical space to minimize collisions. 
+To handle more complex physical environments, the APF method is 
+introduced to RDW, placing the user in a virtual force field of attractive 
+and repulsive forces to guide them away from obstacles and toward 
+open areas [8–10]. More recently, Chen et al. introduced the APF 
+Steer-to-Target (APF-S2T) [22] to address the problem of traditional 
+APF vectors in narrow corridors being directed toward opposing walls, 
+instead guiding users toward more open spaces.
+In recent years, Reinforcement Learning (RL) has provided a new 
+direction for RDW algorithm design, differing from traditional rule-
+based methods. For instance, the Steer-to-Optimal-Target (S2OT) [23] 
+method by Lee et al. uses RL to determine the optimal steering target; 
+the Steering via Reinforcement Learning (SRL) [24] method by Strauss 
+et al. utilizes RL to directly predict redirection gain values; and the 
+Selective Redirection Controller (SRC) [25] by Lee et al. employs RL to 
+dynamically switch between different controllers.
+Concurrently, advanced methods based on physical trajectory plan-
+ning have also been developed, which demonstrate superior perfor-
+mance in complex environments by evaluating the reachability of 
+physical paths to optimize redirection decisions.
+2.3. Physical trajectory planning for RDW
+RDW algorithms based on physical trajectory planning address 
+many constraints that previous methods could not handle by modeling 
+and evaluating future physical paths. Xu et al. proposed optimal pose 
+guided [11], which discretizes the physical space into a series of 
+standard poses containing both position and orientation. It scores these 
+Computers & Graphics 134 (2026) 104492 
+2 
+J.-F. Li et al.
+Fig. 1. Illustration of strafing gain and standard poses. (a) 𝑔s refers to the angle to which a user is redirected. (b) The spacing between standard positions is set 
+to 0.5 m and the number of standard orientations is set to 12.
+poses based on the likelihood of their reachable paths colliding with 
+obstacles and redirects the user to the optimal pose with the highest 
+score among all reachable poses. However, its path generation algo-
+rithm, designed to connect poses, relies on iteratively inserting ‘S’-turns, 
+which may cause frequent changes in the direction of curvature gain 
+and lead to user discomfort. POI-aware RDW [26] introduced a method 
+that controls the location of resets to avoid them occurring near points 
+of interest, which could disrupt the user immersive experience. It guides 
+the user to any specified physical location within a reachable area by 
+changing the steering direction only once per path. Fan et al. [27] 
+proposed an RDW method based on user historical walking data to 
+dynamically update the scores of different accessible poses in the 
+physical space. SafeRDW [28] dynamically adjusts the physical path 
+length to ensure that users are guided to a pre-defined safe area when 
+jumping. Luo et al. [29] proposed an RDW method based on user 
+intention prediction, which calculates a future virtual pose and aligns 
+it with a physical pose to plan user trajectory.
+We believe that there is still significant potential for innovation 
+in redirection methods that use optimal pose guidance. Strafing gain 
+could offer new possibilities for both algorithmic performance and user 
+experience by subtly adjusting users physical position while maintain-
+ing their intended orientation. Therefore, this paper proposes a novel 
+path generation algorithm that integrates strafing gain into physical 
+trajectory planning, aiming to explore this potential to further enhance 
+the performance and experience of RDW controllers.
+3. Method
+3.1. Pose discretization and scoring
+Following the pose discretization and evaluation method of Xu 
+et al. [11], we discretize the continuous physical space into a set of 
+standard poses (Fig.  1b), each defined by a position and an orientation 
+and denoted as 𝑃 = ( 𝑥, 𝑦, 𝜃). Accessibility between any two standard 
+poses is defined by the existence of a collision-free path that satisfies 
+the gain thresholds, which is precomputed using a path generation 
+algorithm detailed in Section 3.2. Based on the Bellman equation, the 
+score 𝑄(𝑃𝑖) for each standard pose 𝑃𝑖 is calculated from the scores of all 
+its accessible poses in the previous iteration, incorporating the distance 
+to the target pose as a reward and resets as a penalty.
+At runtime, the controller utilizes these precomputed scores to select 
+a target pose with the highest score from all accessible poses according 
+to the following formula: 
+𝑃target = arg max
+𝑃𝑖∈𝑃accessible
+( dist(𝑃 , 𝑃𝑖) + 𝛾 ⋅ 𝑄(𝑃𝑖) − 𝜂 ⋅ 𝑟𝑒𝑠𝑒𝑡) (1)
+Where dist(𝑃,𝑃𝑖) represents the physical distance from the current pose 
+to the accessible pose. 𝑄(𝑃𝑖) is the precomputed score of the standard 
+pose 𝑃𝑖, reflecting its long-term safety. 𝛾 is an attenuation coefficient. 
+During the inference phase of the redirection controller, 𝛾 is set to 0.1 to 
+avoid getting trapped in local optima, while during score precomputed 
+phase it is set to 0.9 to enhance the impact of future reset penalties 
+on the current decision. 𝑟𝑒𝑠𝑒𝑡 is a boolean variable indicating whether 
+reaching 𝑃𝑖 needs to be reset. If it does, a fixed penalty 𝜂 is applied, 
+with its value set to the area of the physical space.
+3.2. Path generation algorithm
+Given a starting pose and a target pose, our objective is to generate a 
+smooth, collision-free path that satisfies the gain thresholds. To ensure 
+the redirection remains imperceptible to users, our path generation 
+algorithm applies only one of the two types of gain (curvature or 
+strafing) one at a time.
+As shown in Fig.  2, our approach first utilizes curvature gain to align 
+the user orientation, followed by a path with only strafing gain, guiding 
+users to the target pose without altering their intended orientation. Let 
+the starting pose be 𝑃 and the target pose be 𝑃 ∗. We denote the position 
+of a pose as pos(𝑃 ) and its orientation as 𝜃(𝑃 ). A path is considered a 
+set of continuous poses C.
+First, a circular arc path Ccurv is generated from 𝑃 , with its turning 
+direction chosen to follow the shorter arc. To maximize the utilization 
+of the physical space, we consistently apply the maximum gain that 
+satisfies the curvature gain threshold. The path ends at an endpoint 𝑃 ′
+that satisfies the following: 
+𝜃(𝑃 ′) = 𝜃(𝑃 ∗) (2)
+The next step is to insert a strafing path Cstraf into the arc path 
+Ccurv so that the final position 𝑃 ′ matches that of the target 𝑃 ∗, while 
+ensuring that the orientation of 𝑃 ′ remains unchanged. Suppose the 
+insertion point is 𝑃𝑖, at which the user’s orientation is 𝜃𝑖. Since the 
+actual path with strafing gain is a straight line that deviates from the 
+user’s facing direction, it is necessary to modify the orientation of Cstraf
+as follows: 
+𝜃straf = 𝜃𝑖 + 𝑔s (3)
+Where 𝑔s is the value of strafing gain. To prevent abrupt changes caused 
+by a mismatch between the two gain directions, we align its direction 
+with that of the curvature gain. Similarly, to produce the maximum 
+possible path offset, we prioritize using the maximum absolute value 
+|𝑔s| that satisfies the strafing gain threshold. After the insertion of 
+Cstraf, the original arc path Ccurv is split into two segments: an initial, 
+unchanged segment and a second segment that is displaced by a vector 
+shift. For the end 𝑃 ′ of the path to coincide with the target 𝑃 ∗, the 
+length and direction of Cstraf must satisfy: 
+𝐿straf = ‖𝒔𝒉𝒊𝒇 𝒕‖ = dist(pos(𝑃 ′), pos(𝑃 ∗))
+𝜃straf = arg(𝒔𝒉𝒊𝒇 𝒕) = arg(pos(𝑃 ∗) − pos(𝑃 ′))
+(4)
+Computers & Graphics 134 (2026) 104492 
+3 
+J.-F. Li et al.
+Fig. 2. Illustration of our path generation algorithm. (a) Applying curvature gain to steer the path until its final orientation at 𝑃 ′ matches that of the target pose 
+𝑃 ∗. (b) The red dashed line represents the shift between 𝑃 ′ and 𝑃 ∗, while the red solid arrow indicates the user actual direction 𝜃𝑖. The insertion point is the 
+point of tangency on the arc corresponding to 𝜃𝑖. (c) Inserting the strafing path into the curvature path to make 𝑃 ′ coincide with 𝑃 ∗.
+Where 𝒔𝒉𝒊𝒇 𝒕 represents the spatial offset required to get from P’ to 
+P*. Its magnitude determines the length of the strafing path, while 
+its direction is that of the path itself. The required orientation 𝜃𝑖 is 
+calculated using Eqs.  (3) and (4). If this orientation falls within the 
+angular range of the arc, 𝜃𝑖 ∈ [ 𝜃(𝑃 ), 𝜃(𝑃 ′)], then the continuity of 
+Ccurv guarantees that a corresponding insertion point 𝑃𝑖 exists, and its 
+position and orientation are calculated as follows:
+(𝑥𝑖, 𝑦𝑖) = pos(𝑃 ) ± 𝑅
+( sin(𝜃𝑖) − sin(𝜃(𝑃 ))
+cos(𝜃(𝑃 )) − cos(𝜃𝑖)
+)
+(5)
+𝑃𝑖 = (𝑥𝑖, 𝑦𝑖, 𝜃𝑖) (6)
+Where R is the minimum arc radius that satisfies the curvature gain 
+threshold, and the ± sign is determined by the turning direction of 
+Ccurv. Although Eqs.  (5) and (6) provide the theoretical coordinates of 
+𝑃𝑖, in our discretized implementation (as shown in Algorithm 1), we 
+determine the insertion point 𝑃𝑖 by iterating through all poses in Ccurv
+to find the one whose orientation is closest to the target orientation 𝜃𝑖.
+If the condition for 𝜃𝑖 ∈ [ 𝜃(𝑃 ), 𝜃(𝑃 ′)] is not met, an attempt can be 
+made to set 𝜃𝑖 = 𝜃(𝑃 ) and solve for smaller absolute gain value |𝑔s|. If 
+a valid value for 𝑔𝑠 can be found, then the initial pose 𝑃 is designated 
+as the insertion point. If no path exists, or if the finally generated path 
+C collides with boundaries or obstacles, the path from pose 𝑃 to 𝑃 ∗ is 
+considered non-existent. When a path exists, it is denoted as C(𝑃 , 𝑃∗). 
+The complete implementation process of the path generation described 
+above is detailed in Algorithm 1.
+3.3. RDW controller strategy
+At runtime, our primary goal is to guide the user toward a standard 
+pose with the highest long-term safety score. When the user walks 
+forward, the controller first selects an accessible standard pose with 
+the highest score as the target and generates a guidance path based 
+on the algorithm in Section 3.2. For implementation purposes, this 
+path is discretized into a set of path points at 0.1-meter intervals, 
+where each point contains information on position, orientation, and the 
+corresponding gain (i.e., whether to apply curvature or strafing gain, 
+and its direction and value). During locomotion, in each frame, the 
+controller matches the user current state to the nearest point on the 
+path and applies the gain associated with that point, thereby ensuring 
+the user follows the planned path under the gain constraints. To timely 
+adjust the guidance path, we set thresholds. When the user’s distance 
+or orientation relative to the nearest point exceeds the thresholds, we 
+consider the user rotates or deviates from the path, and the controller 
+re-selects a target pose and generates a new path.
+Algorithm 1: Path Generation Algorithm
+Data: 𝑃 , 𝑃∗
+Result: path C(𝑃0, 𝑃1, … , 𝑃𝑛) from 𝑃 to 𝑃 ∗ which satisfies gains 
+threshold
+/* step 1: generate curvature path  */
+1 if 𝜃(𝑃 ) ≠ 𝜃(𝑃 ∗) then
+2 C𝑐𝑢𝑟𝑣 ← ⟨𝑃0, 𝑃1, … , 𝑃𝑛⟩;
+/* with a 𝛥𝑠 step size, sample a curvature path that 
+starts at 𝑃 and ends once its orientation 
+matches 𝑃 ∗.  */
+3 𝑃0 = 𝑃 , 𝜃(𝑃𝑛) = 𝜃(𝑃 ∗);
+4 else
+5 C𝑐𝑢𝑟𝑣 ← ⟨𝑃 ⟩;
+/* curvature path not required.  */
+6 end 
+7 ⃗𝑠ℎ𝑖𝑓 𝑡 ← ⃗𝑃𝑛𝑃 ∗;
+8 if ‖ ⃗𝑠ℎ𝑖𝑓 𝑡‖ < 𝜖 then
+9 return C𝑐𝑢𝑟𝑣 ;
+10 end 
+/* step 2: insert strafing path  */
+11 𝜃𝑠𝑡𝑟𝑎𝑓 = 𝜃( ⃗𝑠ℎ𝑖𝑓 𝑡), 𝐿𝑠𝑡𝑟𝑎𝑓 = ‖ ⃗𝑠ℎ𝑖𝑓 𝑡‖;
+12 if 𝜃𝑠𝑡𝑟𝑎𝑓 is in [𝜃(𝑃0), 𝜃(𝑃0) + 𝑆𝑇 𝑅𝐴𝐹 _𝑀𝐴𝑋 ] then
+13 𝑖 ← 0;
+14 𝑔𝑠 ← 𝜃𝑠𝑡𝑟𝑎𝑓 − 𝜃(𝑃0);
+15 else if 𝜃𝑠𝑡𝑟𝑎𝑓 is in [𝜃(𝑃0) + 𝑆𝑇 𝑅𝐴𝐹 _𝑀𝐴𝑋, 𝜃 (𝑃𝑛) + 𝑆𝑇 𝑅𝐴𝐹 _𝑀𝐴𝑋 ] then
+16 𝑔𝑠 ← 𝑆𝑇 𝑅𝐴𝐹 _𝑀𝐴𝑋 ;
+17 𝑖 ← 𝑖𝑛𝑑𝑒𝑥(𝑃𝑖);
+/* find pose in 𝐶𝑐𝑢𝑟𝑣 where 𝜃(𝑃𝑖) is closest to 
+𝜃𝑠𝑡𝑟𝑎𝑓 − 𝑔𝑠.  */
+18 else
+19 return no path found;
+20 end 
+21 C𝑠𝑡𝑟𝑎𝑓 ← ⟨𝑃𝑖+1, 𝑃𝑖+2, … , 𝑃𝑖+𝑘⟩;
+/* generate the straight-line path of length 𝐿𝑠𝑡𝑟𝑎𝑓 with 
+strafing gain 𝑔𝑠 sampled at a step size of 𝛥𝑠.  */
+22 C ← ⟨𝑃0, 𝑃1, … , 𝑃𝑖⟩ ⊕ C𝑠𝑡𝑟𝑎𝑓 ⊕ ⟨𝑃 ′
+𝑖+𝑘+1, 𝑃 ′
+𝑖+𝑘+2, … , 𝑃 ′
+𝑛+𝑘⟩;
+/* 𝑃 ′ denotes the post-path poses, translated to 
+follow C𝑠𝑡𝑟𝑎𝑓 .  */
+Rotation gain is applied when the user rotates. The controller selects 
+an accessible standard pose with the highest score from the current 
+position and sets the initial orientation of its guidance path as the target 
+orientation. If the user turns toward the target orientation, maximum 
+rotation gain is applied to encourage the turn; conversely, minimum 
+Computers & Graphics 134 (2026) 104492 
+4 
+J.-F. Li et al.
+Fig. 3. Environment layouts used for simulation. Environment A is a control environment with no physical obstacles. Environment B is a moderately complex 
+environment with a single square obstacle in the center. Environment C is a highly complex environment that simulates a real indoor room layout. We set a 
+0.5 meter buffer zone for obstacles and boundaries.
+rotation gain is applied to discourage turning away. We consider stan-
+dard poses that can only be reached via a reset as unreachable. When 
+the controller cannot generate a path that requires no resets under the 
+gain constraints, the system will only apply translation gain to help the 
+user exit the current state quickly, after which regular path guidance is 
+resumed.
+The reset strategy adopts a traditional method similar to reset to 
+gradient (R2G) [10]. When the user enters the buffer zone of a physical 
+boundary, the controller selects a standard pose with the highest score 
+that is reachable after a reset from the user’s current position. It then 
+generates a path and resets the user to the initial orientation of this 
+new path.
+4. Simulation experiment
+4.1. Simulation design
+Although research [30] indicates that generated paths may not 
+accurately reflect the natural walking patterns of real users, simulation 
+is still considered an effective way to evaluate RDW methods [31], 
+as it allows a large number of tests to be conducted in various envi-
+ronments. As a preliminary evaluation of our proposed algorithm, we 
+first conducted a series of simulation experiments with the OpenRDW 
+platform [32]. We did not make any modifications to the source code 
+of the existing baseline methods provided within the platform and 
+implemented our algorithm as a new redirector by extending the base 
+Redirector class. All experiments used the default gain parameters.
+In the simulation experiments, a simulated user walks along prede-
+fined virtual paths. Upon reaching a waypoint, the user turns to face 
+the next waypoint and then walks straight toward it. We generate 100 
+independent random virtual paths, each with a total length of 400 m. 
+Waypoints are randomly generated within a range of 5 to 15 m from 
+the previous one. To ensure fairness, all algorithms are tested on the 
+same set of virtual paths.
+We evaluated the RDW algorithms in three physical environments 
+with different obstacle layouts, as shown in Fig.  3, representing a range 
+of application scenarios from simple to complex. The obstacle-free Envi-
+ronment A represents the most common and ideal layout, applicable to 
+scenarios where users have a clear, open tracking space. Environments 
+B and C simulate some indoor physical settings, such as a furnished 
+room, in order to test an algorithm’s performance in reducing the 
+spatial restrictions imposed on the user. The motivation for including 
+these layouts is to explore the potential of RDW when a large, clear area 
+is not available. Furthermore, this set of physical layouts is similar to 
+prior work, allowing for a fair and direct comparison. All three layouts 
+are tested in two sizes of square physical environments: 10 m × 10 m 
+and 15 m × 15 m, resulting in a total of six simulated PEs. We set the 
+virtual space as an obstacle-free open area, allowing the simulated user 
+to walk freely within it.
+Table 1
+Post hoc pairwise comparisons of the number of resets between our method 
+and other methods, showing adjusted p-values.
+ S2C S2O TAPF SRL OPG  
+ Env A 10 m <.001*** <.001*** 0.081 <.001*** 0.005**  
+ 15 m <.001*** <.001*** 0.036* 0.009** 0.405  
+ Env B 10 m <.001*** <.001*** <.001*** <.001*** 0.635  
+ 15 m <.001*** 1.000 <.001*** <.001*** 0.004**  
+ Env C 10 m <.001*** <.001*** <.001*** <.001*** <.001*** 
+ 15 m <.001*** <.001*** <.001*** <.001*** 0.042*  
+Note: Significance levels are denoted by asterisks: * 𝑝 ≤ .05, ** 𝑝 ≤ .01, *** 𝑝 ≤ .001.
+Table 2
+Post hoc pairwise comparisons of average virtual distance between resets 
+between our method and other methods, showing adjusted p-values.
+ S2C S2O TAPF SRL OPG  
+ Env A 10 m <.001*** <.001*** 0.013* <.001*** <.001*** 
+ 15 m 0.089 <.001*** 0.140 <.001*** 0.590  
+ Env B 10 m <.001*** <.001*** <.001*** <.001*** 1.000  
+ 15 m <.001*** <.001*** <.001*** <.001*** <.001*** 
+ Env C 15 m <.001*** <.001*** <.001*** <.001*** 0.780  
+ 15 m <.001*** <.001*** <.001*** <.001*** 0.008**  
+4.2. Results and discussion
+Fig.  4 presents a performance comparison of our algorithm (Ours) 
+with five state-of-the-art RDW methods including S2C [7], S2O [7], 
+TAPF [10], SRL [24], and OPG [11], across three physical environments 
+(Environments A, B, and C) and two sizes (10 m × 10 m and 15 m 
+× 15 m). For methods lacking a reset strategy, such as S2C and S2O, 
+we employ two-one-turn as the default reset strategy. We analyzed the 
+number of resets and average virtual distance between resets in all six 
+environments.
+As Shapiro–Wilk tests showed that not all results followed normal 
+distribution, we employed the non-parametric Kruskal–Wallis H test to 
+analyze the overall differences among the algorithm groups, followed 
+by Dunn’s post hoc test with Bonferroni correction to specifically com-
+pare the performance between our method and the others. Statistical 
+analysis revealed statistically significant differences in the number of 
+resets and average virtual distance between resets among the algo-
+rithms in all six environments (𝑝 < . 001). Post hoc pairwise comparisons 
+between our method and other methods are shown in Tables  1 and
+2. Statistically, our algorithm demonstrated a significant improvement 
+over all other algorithms except OPG in most tested environments. The 
+only non-significant comparisons are with TAPF in Environment A at 
+both 10 m × 10 m, and with S2O in Environment B at 15 m × 15 m. 
+Compared to OPG, our algorithm was better at reducing resets in four 
+environments except for the 10 m × 10 m Environment A and 15 m ×
+15 m Environment B.
+Analysis of the experimental results demonstrates certain advan-
+tages of our method and the specific applicable scenarios for different 
+Computers & Graphics 134 (2026) 104492 
+5 
+J.-F. Li et al.
+Fig. 4. The box plots of the results of experiments in the six environment-size combinations.
+algorithms. For obstacle-free space like Environment A, our method’s 
+performance is comparable to several other algorithms and particularly 
+shows no statistically advantage over TAPF, as APF-based methods can 
+effectively utilize various gains based on the user’s current position. 
+For the more complex Environments B and C, our method and OPG 
+hold a advantage. This is because these two methods guide users to 
+the safest accessible future pose, helping them to effectively avoid 
+obstacles and better utilize the physical space. The one exception is 
+S2O in the 15 m × 15 m Environment B, as its steering orbit is 
+designed to specifically bypass the central obstacle. Compared to OPG, 
+the integration of strafing gain in our method enhances path planning 
+flexibility while reducing computational complexity. These, combined 
+with the modified rotation gain and reset strategy, allow our method to 
+outperform OPG in most environments. It should be noted that while 
+these differences are statistically significant, their practical impact may 
+be more modest.
+5. User study
+5.1. User study design
+To further evaluate the effectiveness and subjective comfort of 
+our method, we conducted a user study following the simulation ex-
+periments. We recruited 23 participants (13 male, 10 female, aged 
+22–26), all of whom were right-handed, with 17 stating they had VR 
+experiences. The experiment used an HTC VIVE Focus Vision head-
+mounted display (HMD), connected via wireless streaming to a laptop 
+equipped with an AMD Ryzen 7 5800H processor, 16 GB of RAM, 
+and an NVIDIA GeForce RTX 3060 GPU. Similar to the simulation, we 
+conducted user study experiments using OpenRDW.
+To ensure a stable and low-latency wireless stream between the 
+HMD and the host computer, the physical tracking space is a 7 m × 7 m 
+area. While the layout is a simplified version of Environment C with a 
+0.5 m buffer zone as shown in Fig.  5b, no actual obstacles were placed 
+in the area to ensure the safety of participants. The virtual scene is an 
+open forest environment (Fig.  5a), following the experimental setup of 
+previous work [29]. The participants task is to collect orange spheres, 
+Table 3
+Post hoc pairwise comparisons of the number of resets, average 
+distance between resets, and SSQ scores between our method and 
+other two methods, showing adjusted p-values.
+ TAPF OPG  
+ Number of Resets 0.626 0.002**  
+ Avg Distance 0.069 <.001*** 
+ SSQ Score 0.023* 0.019*  
+which served as waypoints, in the virtual scene. At the start of each 
+trial, the initial waypoint is created at a distance ranging from 2 to 8 m 
+from the participant’s current location, with a random angle between 
+−𝜋 and 𝜋 radians. Upon reaching the waypoint, it disappears, and a 
+new one is immediately generated based on the participant’s current 
+position. This process continues until a cumulative virtual distance of 
+80 m is reached for each trial.
+We selected three RDW controller algorithms for the user study: 
+TAPF, OPG, and our proposed method, as they demonstrated the best 
+performance in the preceding simulation experiments. To ensure fair-
+ness, the same sequence of random waypoints was reused for each 
+participant across the three conditions, while different participants 
+were assigned different random seeds. Before the experiment began, 
+participants filled out a pre-exposure Simulator Sickness Questionnaire 
+(SSQ) [33]. A short training session with no redirection gains was 
+then conducted to demonstrate task rules. Each participant completed 
+three experimental sessions in an order counterbalanced by a Latin 
+Square design [34]. Each session lasted approximately 7–8 min and 
+was followed by a 5-minute break, during which participants filled out 
+the SSQ again to assess their level of simulator sickness. The system 
+automatically recorded the number of resets and the average virtual 
+distance between resets. After all three sessions were completed, a 
+brief interview was conducted to collect subjective feedback on walking 
+naturalness and comfort. The entire experiment lasted approximately 
+40 min per participant.
+Computers & Graphics 134 (2026) 104492 
+6 
+J.-F. Li et al.
+Fig. 5. The user study.
+Fig. 6. Violin plot of the number of resets, average distance between resets, and SSQ scores in the user study.
+5.2. Results
+Fig.  6 shows a comparison of our method with TAPF and OPG on the 
+number of resets, the average distance between resets, and SSQ scores. 
+As some of the data failed the Shapiro–Wilk normality test, we used the 
+non-parametric Friedman test to compare the three methods, showing 
+that there are statistically significant differences in the number of resets 
+(𝑝 = .001), the average distance between resets (𝑝 = .001), and SSQ 
+scores (𝑝 = .021). The results of the post hoc analysis using the Wilcoxon 
+signed-rank test with Bonferroni correction are detailed in Table  3.
+As the violin plot and Table  3 show, the difference in the number 
+of resets between our method and TAPF is not statistically significant. 
+However, while our method performed slightly better than OPG in 
+simulation environments, it showed a clear improvement in the user 
+study. A possible reason is that real users do not move with perfectly 
+smooth translation as in simulations. Their natural stride length may 
+be too long to follow the short ‘S’-turns in the path planned by OPG, 
+which results in difficulty in replicating the simulated performance. In 
+contrast, our method provides more constant gains, making the path 
+easier for real users to follow. On SSQ scores, our method outperforms 
+the other two because its generated paths are simple, consisting of 
+only a circular arc and a straight line with constant gains. In contrast, 
+the curvature gain in the TAPF method changes continuously with the 
+potential field, and the strategy of inserting ‘S’-turns in OPG causes 
+frequent changes in the direction of the curvature gain. Such frequent 
+directional changes in curvature gain likely caused user dizziness.
+5.3. Discussion
+One unexpected finding is that the performance of both our method 
+and OPG is not as good in the user study as in the simulation. For 
+comparable simulation environment C, both OPG and our method 
+outperform TAPF. However, in the user study, our method does not 
+show a statistically significant advantage over TAPF, while OPG per-
+forms worse than TAPF. We attribute this performance drop to the 
+inherent imprecision of human locomotion. Unlike simulated agents 
+which follow an idealized trajectory, real users naturally produce small 
+but constant deviations in their walking patterns. These errors may 
+cause more frequent path replanning than in the simulation, which 
+led to instability in the guidance path. Furthermore, this also triggered 
+additional resets for OPG due to its reset in advance strategy.
+To validate this hypothesis and quantify this behavioral difference, 
+we conducted a supplementary experiment (N=8). Participants were 
+asked to walk 5 m in a straight line toward a virtual target under 
+five conditions: no gain, curvature gain (left/right), and strafing gain 
+(left/right). We compared their final pose error (defined as the devi-
+ation from a calculated ideal pose) against those of simulated avatars 
+performing the same task.
+As shown in Fig.  7, the position deviations of the simulated avatars’ 
+are entirely within 0.05 m, while the orientation deviation was near 
+0◦. In contrast, after real users walking 5 m, their position deviations 
+are concentrated between 0.1 m and 0.3m — but the deviations for 
+the strafing path are smaller — while the orientation deviations are 
+between 0◦ and 20◦. In the previous experiment, the path deviation 
+thresholds were set at 0.2 m and 10◦ to ensure accurate guidance and 
+timely adjustments. The results from this supplementary experiment 
+suggest to some extent that real users’ natural walking produces devi-
+ations that sometimes exceed our thresholds, leading to more frequent 
+path replanning.
+6. Limitation and future work
+There are several limitations of our method. Firstly, our user study 
+was limited to the complex environment to assess algorithm perfor-
+mance under challenging conditions. We did not conduct real user 
+study in the obstacle-free environment, which represents a more com-
+mon scenario. Future work should extend the user evaluation to include 
+such open settings for a more comprehensive analysis. Another lim-
+itation is that our evaluation was conducted with OpenRDW. The 
+platform’s implementation of existing methods may include practi-
+cal adjustments like variations in how gains are applied, which may 
+not perfectly align with the methods’ original theoretical descriptions. 
+However, our comparison remains valid, as all compared algorithms 
+utilize the same underlying gain implementation, ensuring a consistent 
+Computers & Graphics 134 (2026) 104492 
+7 
+J.-F. Li et al.
+Fig. 7. Box plots of supplementary experiment, comparing the position and orientation deviations of real users against simulation.
+and fair comparison. The authors of OpenRDW also acknowledged that 
+while reproducing exact quantitative results is impossible, their bench-
+mark was ‘‘generally consistent to literature’’ and confirmed similar 
+relative performance conclusions.
+Our work can be improved in the future. We observed that real 
+users naturally produce small but constant deviations in their walking 
+patterns, leading to walking errors and random deviations. Future 
+work could involve not only designing algorithms for ideal paths, but 
+also considering their performance and robustness when subjected to 
+user-generated deviations. Developing adaptive strategies would be a 
+viable approach to reduce the gap between simulation and real users. 
+Additionally, although our method provides an initial validation for 
+integrating strafing gain, its full potential remains untapped. Future 
+research could aim to explore more applications for strafing gain, 
+such as its deeper integration into more complex RDW controllers for 
+multi-user or dynamic environments.
+7. Conclusion
+This paper introduced a novel RDW method that mitigates the 
+increased perceptibility and user discomfort caused when state-of-the-
+art trajectory planning controllers frequently switch curvature gain 
+between opposite directions. Our main contribution is a novel path 
+generation algorithm, integrating strafing gain with pose score guid-
+ance strategy, that ensures the direction of redirection gains constant 
+within each guidance maneuver. The simulation results validate that 
+our approach effectively reduces the number of resets while the user 
+study shows lower SSQ scores, enhancing user comfort.
+CRediT authorship contribution statement
+Jin-Feng Li: Writing – review & editing, Writing – original draft, Vi-
+sualization, Validation, Methodology, Investigation. Sen-Zhe Xu: Writ-
+ing – review & editing, Conceptualization. Qiang Tong: Writing – 
+review & editing. Peng-Hui Yuan: Validation, Investigation. Ling-Long 
+Zou: Methodology, Investigation. Er-Xia Luo: Investigation. Qi Wen 
+Gan: Writing – review & editing. Song-Hai Zhang: Supervision.
+Declaration of competing interest
+The authors declare that there are no conflicts of interest.
+Acknowledgments
+This work was supported by the National Natural Science Founda-
+tion of China (62402281, 62361146854), the Fundamental Research 
+Funds for the Central Universities, China (FRF-TP-25-036), the Young 
+Backbone Teacher Support Plan of Beijing Information Science & Tech-
+nology University (YBT 202426), and the Tsinghua-Tencent Joint Lab-
+oratory for Internet Innovation Technology.
+Appendix A. Supplementary data
+Supplementary material related to this article can be found online 
+at https://doi.org/10.1016/j.cag.2025.104492.
+Data availability
+Data will be made available on request.
+References
+[1] Liu J, Parekh H, Al-Zayer M, Folmer E. Increasing walking in vr using redirected 
+teleportation. In: Proceedings of the 31st annual ACM symposium on user 
+interface software and technology. 2018, p. 521–9.
+[2] Nilsson NC, Serafin S, Laursen MH, Pedersen KS, Sikström E, Nordahl R. Tapping-
+in-place: Increasing the naturalness of immersive walking-in-place locomotion 
+through novel gestural input. In: 2013 IEEE symposium on 3D user interfaces. 
+IEEE; 2013, p. 31–8.
+[3] Wendt JD, Whitton MC, Brooks FP. Gud wip: Gait-understanding-driven 
+walking-in-place. In: 2010 IEEE virtual reality conference. IEEE; 2010, p. 51–8.
+[4] Warren LE, Bowman DA. User experience with semi-natural locomotion tech-
+niques in virtual reality: the case of the virtuix omni. In: Proceedings of the 5th 
+symposium on spatial user interaction. 2017, p. 163–163.
+[5] Razzaque S, Kohn Z, Whitton MC. Redirected walking. In: Eurographics 2001. 
+2001, http://dx.doi.org/10.2312/egs.20011036.
+[6] Steinicke F, Bruder G, Jerald J, Frenz H, Lappe M. Estimation of detection 
+thresholds for redirected walking techniques. IEEE Trans Vis Comput Graphics 
+2009;16(1):17–27.
+[7] Razzaque S. Redirected walking. The University of North Carolina at Chapel Hill; 
+2005.
+[8] Bachmann ER, Hodgson E, Hoffbauer C, Messinger J. Multi-user redirected 
+walking and resetting using artificial potential fields. IEEE Trans Vis Comput 
+Graphics 2019;25(5):2022–31.
+[9] Messinger J, Hodgson E, Bachmann ER. Effects of tracking area shape and size on 
+artificial potential field redirected walking. In: 2019 IEEE conference on virtual 
+reality and 3D user interfaces. IEEE; 2019, p. 72–80.
+[10] Thomas J, Rosenberg ES. A general reactive algorithm for redirected walking 
+using artificial potential functions. In: 2019 IEEE conference on virtual reality 
+and 3D user interfaces. IEEE; 2019, p. 56–62.
+[11] Xu S-Z, Lv T, He G, Chen C-H, Zhang F-L, Zhang S-H. Optimal pose guided 
+redirected walking with pose score precomputation. In: 2022 IEEE conference 
+on virtual reality and 3D user interfaces. IEEE; 2022, p. 655–63.
+Computers & Graphics 134 (2026) 104492 
+8 
+J.-F. Li et al.
+[12] You C, Benda B, Rosenberg ES, Ragan E, Lok B, Thomas J. Strafing gain: 
+Redirecting users one diagonal step at a time. In: 2022 IEEE international 
+symposium on mixed and augmented reality. IEEE; 2022, p. 603–11.
+[13] Langbehn E, Lubos P, Bruder G, Steinicke F. Bending the curve: Sensitivity to 
+bending of curved paths and application in room-scale vr. IEEE Trans Vis Comput 
+Graphics 2017;23(4):1389–98.
+[14] Mayor J, Raya L, Bayona S, Sanchez A. Multi-technique redirected walking 
+method. IEEE Trans Emerg Top Comput 2021;10(2):997–1008.
+[15] Xu S-Z, Chen FXY, Gong R, Zhang F-L, Zhang S-H. Bird: Using bidirectional 
+rotation gain differences to redirect users during back-and-forth head turns in 
+walking. IEEE Trans Vis Comput Graphics 2024;30(5):2693–702.
+[16] Hu L, Zhang Y, Wang R, Gao Z, Bao H, Hua W. Human sensitivity to slopes of 
+slanted paths. In: 2019 IEEE conference on virtual reality and 3D user interfaces. 
+IEEE; 2019, p. 984–5.
+[17] Matsumoto K, Narumi T, Tanikawa T, Hirose M. Walking uphill and downhill: 
+redirected walking in the vertical direction. In: ACM SIGGRAPH 2017 posters. 
+2017, p. 1–2.
+[18] Matsumoto K, Langbehn E, Narumi T, Steinicke F. Detection thresholds for 
+vertical gains in vr and drone-based telepresence systems. In: 2020 IEEE 
+conference on virtual reality and 3D user interfaces. IEEE; 2020, p. 101–7.
+[19] Cho Y-H, Min D-H, Huh J-S, Lee S-H, Yoon J-S, Lee I-K. Walking outside the box: 
+Estimation of detection thresholds for non-forward steps. In: 2021 IEEE virtual 
+reality and 3D user interfaces. IEEE; 2021, p. 448–54.
+[20] Dong T, Gao T, Dong Y, Wang L, Hu K, Fan J. Free-rdw: A multi-user redirected 
+walking method for supporting non-forward steps. IEEE Trans Vis Comput 
+Graphics 2023;29(5):2315–25.
+[21] Liu J-H, Ren Y-F, Gan QW, Huang K, Chen FXY, Luo E-X, Tang KY, Fu Y-Y, Fan C-
+W, Xu S-Z, et al. Overcoming spatial constraints in VR: A survey of redirected 
+walking techniques. J Comput Sci Tech 2024;39(4):841–70.
+[22] Chen J-J, Hung H-C, Sun Y-R, Chuang J-H. APF-S2T: Steering to target redirec-
+tion walking based on artificial potential fields. IEEE Trans Vis Comput Graphics 
+2024;30(5):2464–73.
+[23] Lee D-Y, Cho Y-H, Lee I-K. Real-time optimal planning for redirected walking 
+using deep q-learning. In: 2019 IEEE conference on virtual reality and 3D user 
+interfaces. IEEE; 2019, p. 63–71.
+[24] Strauss RR, Ramanujan R, Becker A, Peck TC. A steering algorithm for redi-
+rected walking using reinforcement learning. IEEE Trans Vis Comput Graphics 
+2020;26(5):1955–63.
+[25] Lee HJ, Jeon S-B, Cho Y-H, Lee I-K. Redirection strategy switching: Selective 
+redirection controller for dynamic environment adaptation. IEEE Trans Vis 
+Comput Graphics 2024;30(5):2474–84.
+[26] Xu S-Z, Liu T-Q, Liu J-H, Zollmann S, Zhang S-H. Making resets away 
+from targets: Poi aware redirected walking. IEEE Trans Vis Comput Graphics 
+2022;28(11):3778–87.
+[27] Fan C-W, Xu S-Z, Yu P, Zhang F-L, Zhang S-H. Redirected walking based on 
+historical user walking data. In: 2023 IEEE conference virtual reality and 3D 
+user interfaces. IEEE; 2023, p. 53–62.
+[28] Xu S-Z, Huang K, Fan C-W, Zhang S-H. SafeRDW: Keep VR users safe when 
+jumping using redirected walking. In: 2024 IEEE conference virtual reality and 
+3D user interfaces. IEEE; 2024, p. 365–75.
+[29] Luo E-X, Tong Q, Zou L-L, Liu X-T. Predicting user intention as next direction 
+in redirected walking. In: International conference on extended reality. Springer; 
+2024, p. 264–80.
+[30] Hirt C, Kompis Y, Holz C, Kunz A. The chaotic behavior of redirection–revisiting 
+simulations in redirected walking. In: 2022 IEEE conference on virtual reality 
+and 3D user interfaces. IEEE; 2022, p. 524–33.
+[31] Azmandian M, Yahata R, Grechkin T, Thomas J, Rosenberg ES. Validating 
+simulation-based evaluation of redirected walking systems. IEEE Trans Vis 
+Comput Graphics 2022;28(5):2288–98.
+[32] Li Y-J, Wang M, Steinicke F, Zhao Q. Openrdw: A redirected walking library 
+and benchmark with multi-user, learning-based functionalities and state-of-the-
+art algorithms. In: 2021 IEEE international symposium on mixed and augmented 
+reality. IEEE; 2021, p. 21–30.
+[33] Kennedy RS, Lane NE, Berbaum KS, Lilienthal MG. Simulator sickness ques-
+tionnaire: An enhanced method for quantifying simulator sickness. Int J Aviat 
+Psychol 1993;3(3):203–20.
+[34] Grant DA. The latin square principle in the design and analysis of psychological 
+experiments. Psychol Bull 1948;45(5):427.
+Computers & Graphics 134 (2026) 104492 
+9 

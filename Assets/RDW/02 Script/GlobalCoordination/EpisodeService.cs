@@ -36,7 +36,7 @@ namespace _GCM
             if (stateCollector == null)
                 return;
 
-            stateCollector.AccumulateDistanceStep(_totalUserCount, 2.0f);
+            stateCollector.AccumulateVirtualDistanceStep(_totalUserCount, 2.0f);
         }
 
         public bool ShouldEndEpisode(StateCollector stateCollector)

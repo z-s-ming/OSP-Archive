@@ -34,9 +34,22 @@ public class APF_R_Resetter_OSP : RotationResetter
 
 
         int RedirectedUnitIndex = 0;
-        for (int i = 0; i < RDWSimulationManager.instance.GetRedirectedUnits.Length; i++)
+        RedirectedUnit[] redirectedUnits = RDWSimulationManager.instance != null
+            ? RDWSimulationManager.instance.GetRedirectedUnits
+            : null;
+
+        int redirectedUnitCount = redirectedUnits != null ? redirectedUnits.Length : 0;
+        if (redirectedUnitCount <= 1)
         {
-            if (RDWSimulationManager.instance.GetRedirectedUnits[i].realUser == realUser)
+            realPolygonObject = (Polygon2D)realSpace.spaceObject;
+            middleVertices = realPolygonObject.middleVertices;
+            edgeNormalVectors = realPolygonObject.edgeNormalVectors;
+            return GetW(realUser, realSpace);
+        }
+
+        for (int i = 0; i < redirectedUnitCount; i++)
+        {
+            if (redirectedUnits[i].realUser == realUser)
             {
                 RedirectedUnitIndex = i;
             }
@@ -44,13 +57,17 @@ public class APF_R_Resetter_OSP : RotationResetter
 
         List<Vector2> partitionedSpaceVertices = new List<Vector2>();
 
-        _GCM.GlobalCoordinationManager.instance.dic_AreaSegmentsVertex.TryGetValue(RedirectedUnitIndex, out partitionedSpaceVertices);
+        _GCM.GlobalCoordinationManager gcm = _GCM.GlobalCoordinationManager.instance;
+        if (gcm != null && gcm.dic_AreaSegmentsVertex != null)
+            gcm.dic_AreaSegmentsVertex.TryGetValue(RedirectedUnitIndex, out partitionedSpaceVertices);
+
+        if (partitionedSpaceVertices == null)
+            partitionedSpaceVertices = new List<Vector2>();
 
         List<Vector2> partitionedSpaceVertices2 = new List<Vector2>(partitionedSpaceVertices);
         if (partitionedSpaceVertices2.Count == 0)
         {
-            Debug.LogWarning("count 0");
-            _GCM.GlobalCoordinationManager.instance.ResetEpisode();
+            Debug.LogWarning("[LiveVR] APF_R_Resetter_OSP has no partition vertices; using full realSpace for wall reset.");
             realPolygonObject = (Polygon2D)realSpace.spaceObject;
         }
         else
@@ -192,11 +209,23 @@ public class APF_R_Resetter_OSP : RotationResetter
 
     public override string ApplyWallReset(Object2D realUser, Object2D virtualUser, Space2D realSpace)
     {
+        if (realUser == null || realUser.transform2D == null || realUser.transform2D.transform == null ||
+            virtualUser == null || virtualUser.transform2D == null || virtualUser.transform2D.transform == null ||
+            realSpace == null || realSpace.spaceObject == null)
+        {
+            Debug.LogWarning("[LiveVR] APF_R_Resetter_OSP skipped wall reset because realUser, virtualUser, or realSpace is not initialized.");
+            isFirst = true;
+            return "WALL_RESET_DONE";
+        }
+
         Vector2 w = Vector2.zero;
 
         if (isFirst)
         {
             w = GetOldW(realUser, realSpace);
+            if (w.sqrMagnitude <= Mathf.Epsilon)
+                w = realUser.transform2D.forward;
+
             targetAngle = Vector2.SignedAngle(realUser.transform2D.forward, w);
 
             //Debug.Log("w: " + w);

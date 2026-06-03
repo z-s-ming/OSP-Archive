@@ -11,6 +11,8 @@ public static class ProactiveResetTriggerDetectorFactory
             return new TtcProactiveResetTriggerDetector();
         if (judgeMode == ProactiveUserResetJudgeMode.VoronoiBoundary)
             return new VoronoiBoundaryProactiveResetTriggerDetector();
+        if (judgeMode == ProactiveUserResetJudgeMode.RecoveryMarginTrend)
+            return new RecoveryMarginTrendProactiveResetTriggerDetector();
 
         return new RecoverabilityProactiveResetTriggerDetector();
     }
@@ -393,6 +395,127 @@ public class VoronoiBoundaryProactiveResetTriggerDetector : IProactiveResetTrigg
     private static float Cross(Vector2 lhs, Vector2 rhs)
     {
         return lhs.x * rhs.y - lhs.y * rhs.x;
+    }
+}
+
+public class RecoveryMarginTrendProactiveResetTriggerDetector : IProactiveResetTriggerDetector
+{
+    private const float EPSILON = 0.0001f;
+    private static readonly Dictionary<long, PairMarginTrendState> trendStatesByPair =
+        new Dictionary<long, PairMarginTrendState>();
+
+    private struct PairMarginTrendState
+    {
+        public bool HasLastMargin;
+        public float LastMargin;
+        public int DecreaseMask;
+        public int SampleCount;
+        public int LastFrameIndex;
+    }
+
+    public bool TryCreateTrigger(
+        ProactiveResetFrameContext context,
+        ProactiveResetPairContext pairContext,
+        out ProactiveResetTriggerEvent triggerEvent)
+    {
+        triggerEvent = default;
+        BidirectionalCollisionRecoverabilityAssessment assessment =
+            BidirectionalCollisionRecoverabilityEvaluator.Evaluate(
+                pairContext.UnitA,
+                pairContext.UnitB,
+                pairContext.PredictionHorizonSeconds,
+                pairContext.PredictionSampleCount,
+                true);
+
+        ProactiveUserResetSettings settings = context.Settings;
+        int trendWindow = Mathf.Clamp(settings.recoveryMarginTrendWindowFrames, 2, 30);
+        int requiredTrendHits = Mathf.Clamp(settings.recoveryMarginTrendRequiredFrames, 1, trendWindow);
+        UpdateTrendState(
+            pairContext.UnitAId,
+            pairContext.UnitBId,
+            assessment.MaxSeparationMargin,
+            trendWindow,
+            context.FrameIndex,
+            out int trendHitCount,
+            out int trendWindowFrames);
+
+        float minThreshold = Mathf.Max(0.0f, settings.recoveryMarginMinThresholdMeters);
+        float maxThreshold = Mathf.Max(minThreshold, settings.recoveryMarginMaxThresholdMeters);
+        float leadTime = Mathf.Max(0.0f, settings.recoveryMarginLeadTimeSeconds);
+        float buffer = Mathf.Max(0.0f, settings.recoveryMarginBufferMeters);
+        float rawThreshold = Mathf.Max(0.0f, assessment.ClosingSpeedNow) * leadTime + buffer;
+        float proactiveMarginThreshold = Mathf.Clamp(rawThreshold, minThreshold, maxThreshold);
+
+        bool hasRemainingMargin = assessment.MaxSeparationMargin > EPSILON;
+        bool marginInProactiveWindow = assessment.MaxSeparationMargin <= proactiveMarginThreshold;
+        bool trendConfirmed = trendWindowFrames >= trendWindow &&
+                              trendHitCount >= requiredTrendHits;
+
+        if (!assessment.IsAdjacentCellCandidate ||
+            !hasRemainingMargin ||
+            !marginInProactiveWindow ||
+            !assessment.IsApproachingCandidate ||
+            !trendConfirmed)
+        {
+            return false;
+        }
+
+        triggerEvent = RecoverabilityProactiveResetTriggerDetector.BuildTriggerEvent(context, pairContext);
+        triggerEvent.HorizonSeconds = pairContext.PredictionHorizonSeconds;
+        return true;
+    }
+
+    public static void ResetTemporalState()
+    {
+        trendStatesByPair.Clear();
+    }
+
+    private static void UpdateTrendState(
+        int unitAId,
+        int unitBId,
+        float margin,
+        int trendWindow,
+        int frameIndex,
+        out int trendHitCount,
+        out int trendWindowFrames)
+    {
+        long key = BuildPairKey(unitAId, unitBId);
+        PairMarginTrendState state;
+        if (!trendStatesByPair.TryGetValue(key, out state))
+            state = new PairMarginTrendState();
+        else if (state.LastFrameIndex > 0 && frameIndex - state.LastFrameIndex > 1)
+            state = new PairMarginTrendState();
+
+        bool decreased = state.HasLastMargin && margin < state.LastMargin - EPSILON;
+        int windowMask = (1 << trendWindow) - 1;
+        state.DecreaseMask = ((state.DecreaseMask << 1) | (decreased ? 1 : 0)) & windowMask;
+        state.SampleCount = Mathf.Min(state.SampleCount + 1, trendWindow);
+        state.LastMargin = margin;
+        state.HasLastMargin = true;
+        state.LastFrameIndex = frameIndex;
+        trendStatesByPair[key] = state;
+
+        trendHitCount = CountBits(state.DecreaseMask);
+        trendWindowFrames = state.SampleCount;
+    }
+
+    private static int CountBits(int value)
+    {
+        int count = 0;
+        while (value != 0)
+        {
+            count += value & 1;
+            value >>= 1;
+        }
+
+        return count;
+    }
+
+    private static long BuildPairKey(int idA, int idB)
+    {
+        int min = Mathf.Min(idA, idB);
+        int max = Mathf.Max(idA, idB);
+        return ((long)min << 32) ^ (uint)max;
     }
 }
 

@@ -52,6 +52,9 @@ public class RedirectedUnit
 
     private bool isResetting = false;
     public bool IsResetting { get { return isResetting; } }
+    private bool isExternalResetActive = false;
+    private ResetPlan externalResetPlan;
+    private static int nextResetPlanId = 1;
 
     public RedirectedUnit() // 기본 생성자
     {
@@ -122,6 +125,7 @@ public class RedirectedUnit
                   (status == "USER_RESET" && previousStatus == "USER_RESET_DONE")    )
           )
         {
+            isExternalResetActive = false;
             if(showResetLocator)
             {
                 resetLocObjects.Add(GameObject.Instantiate(resetLocPrefab, Vector3.zero, Quaternion.identity, GameObject.Find("Virtual Space").transform));
@@ -194,9 +198,11 @@ public class RedirectedUnit
                 // Debug.LogError($"[Wall Reset Triggered] User ID: {id} | 触发墙壁重置！暂停中...");
                 // Debug.Break(); // 暂停 Unity 编辑器，方便观察碰撞现场
 
+                int userId = ResolveUserIdByRealUser(realUser);
+                ResetPlanType resetPlanType = item.Item2 ? ResetPlanType.ShutterReset : ResetPlanType.WallReset;
+                Vector2 resetTargetDirection = ResolveWallResetTargetDirection();
                 if (item.Item2)
                 {
-                    int userId = ResolveUserIdByRealUser(realUser);
                     resultData.AddShutterReset();
                     _GCM.GM_DataRecord.instance?.LogInterResetDistance(
                         userId,
@@ -208,7 +214,6 @@ public class RedirectedUnit
                 }
                 else
                 {
-                    int userId = ResolveUserIdByRealUser(realUser);
                     resultData.AddWallReset();
                     _GCM.GM_DataRecord.instance?.LogInterResetDistance(
                         userId,
@@ -220,6 +225,15 @@ public class RedirectedUnit
                 }
 
                 status = "WALL_RESET";
+                TryBeginExternalReset(BuildResetPlan(
+                    resetPlanType,
+                    userId,
+                    -1,
+                    resetTargetDirection,
+                    "WALL_RESET",
+                    "WALL_RESET_DONE",
+                    false,
+                    false));
                 //Debug.LogError(realUser.gameObject.tag.ToString() + " AddWallReset");
             }
             else if (RDWSimulationManager.instance.simulationSetting.bAllowUserReset &&
@@ -264,6 +278,15 @@ public class RedirectedUnit
                     true,
                     true,
                     "NONE");
+                TryBeginExternalReset(BuildResetPlan(
+                    ResetPlanType.ProactiveUserReset,
+                    userId,
+                    otherUserId,
+                    cachedUserResetDirection,
+                    "USER_RESET",
+                    "USER_RESET_DONE",
+                    isBidirectionalResetEvent,
+                    true));
                 Debug.Log(
                     $"[主动重置] triggerId={originTriggerId}, candidateId={originCandidateId}, decisionId={decisionId}, executionId={executionId}, dangerPair=({userId},{otherUserId}), userId={userId} 执行主动USER_RESET, other={(intersectedUser != null ? intersectedUser.gameObject.name : "null")}, " +
                     $"resetSignedAngle={proactiveResetSignedAngle:F2}deg, resetAbsAngle={proactiveResetAbsAngle:F2}deg");
@@ -286,6 +309,7 @@ public class RedirectedUnit
                 bool countedUserResetEvent = RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, isBidirectionalResetEvent, false);
                 int userId = ResolveUserIdByRealUser(realUser);
                 int otherUserId = ResolveUserIdByRealUser(intersectedUser);
+                Vector2 resetTargetDirection = UserResetDirectionResolver.ResolveDirection(this, intersectedUser);
                 _GCM.GM_DataRecord.instance?.LogInterResetDistance(
                     userId,
                     controller != null ? controller.GetEpisodeID() : -1,
@@ -294,6 +318,15 @@ public class RedirectedUnit
                     realUser.transform2D.localPosition,
                     otherUserId);
                 hasCachedUserResetDirection = false;
+                TryBeginExternalReset(BuildResetPlan(
+                    ResetPlanType.UserReset,
+                    userId,
+                    otherUserId,
+                    resetTargetDirection,
+                    "USER_RESET",
+                    "USER_RESET_DONE",
+                    isBidirectionalResetEvent,
+                    false));
                 if (isBidirectionalResetEvent)
                 {
                     TrySynchronizeBidirectionalUserReset(intersectedUser);
@@ -392,6 +425,7 @@ public class RedirectedUnit
         RDWSimulationManager.instance.RegisterUserResetEvent(id, intersectedUser, true, false);
         int userId = ResolveUserIdByRealUser(realUser);
         int otherUserId = ResolveUserIdByRealUser(intersectedUser);
+        Vector2 resetTargetDirection = UserResetDirectionResolver.ResolveDirection(this, intersectedUser);
         _GCM.GM_DataRecord.instance?.LogInterResetDistance(
             userId,
             controller != null ? controller.GetEpisodeID() : -1,
@@ -399,6 +433,15 @@ public class RedirectedUnit
             true,
             realUser.transform2D.localPosition,
             otherUserId);
+        TryBeginExternalReset(BuildResetPlan(
+            ResetPlanType.UserReset,
+            userId,
+            otherUserId,
+            resetTargetDirection,
+            "USER_RESET",
+            "USER_RESET_DONE",
+            true,
+            false));
     }
 
     public void Simulate(RedirectedUnit[] otherUnits)
@@ -413,13 +456,13 @@ public class RedirectedUnit
                 isResetting = false;
                 break;
             case "WALL_RESET":
-                previousStatus = ApplyWallReset();
+                previousStatus = isExternalResetActive ? "IDLE" : ApplyWallReset();
                 isResetting = true;
                 break;
             case "USER_RESET":
                 if (previousStatus != "USER_RESET_DONE")
                 {
-                    previousStatus = ApplyUserReset(intersectedUser, ref truc);
+                    previousStatus = isExternalResetActive ? "IDLE" : ApplyUserReset(intersectedUser, ref truc);
                     isResetting = true;
                 }
                 break;
@@ -428,6 +471,155 @@ public class RedirectedUnit
         }
 
         //Debug.Log(id + " isResetting " + isResetting);
+    }
+
+    public void ApplyExternalRealUserPose(Vector2 localPosition, float localRotation)
+    {
+        if (realUser == null || realUser.transform2D == null)
+            return;
+
+        Vector2 previousPosition = realUser.transform2D.localPosition;
+        Vector2 displacement = localPosition - previousPosition;
+        float deltaTime = Mathf.Max(Time.fixedDeltaTime, 0.0001f);
+
+        lastInstantaneousSpeed = displacement.magnitude / deltaTime;
+        if (displacement.sqrMagnitude > Mathf.Epsilon)
+        {
+            lastMovementDirection = displacement.normalized;
+        }
+        else
+        {
+            Vector2 nextForward = Utility.RotateVector2(Vector2.up, localRotation);
+            if (nextForward.sqrMagnitude > Mathf.Epsilon)
+                lastMovementDirection = nextForward.normalized;
+        }
+
+        hasSpeedAnchor = true;
+        realUser.transform2D.localPosition = localPosition;
+        realUser.transform2D.localRotation = localRotation;
+    }
+
+    public bool CompleteExternalReset(int planId)
+    {
+        if (!isExternalResetActive || externalResetPlan.PlanId != planId)
+            return false;
+
+        previousStatus = externalResetPlan.DoneStatus;
+        isExternalResetActive = false;
+        isResetting = false;
+
+        if (string.Equals(externalResetPlan.DoneStatus, "USER_RESET_DONE", StringComparison.Ordinal))
+        {
+            hasCachedUserResetDirection = false;
+            resetter.isFirst = true;
+            RDWSimulationManager.instance.Enqueue_UserResetFilter(DateTime.Now);
+        }
+
+        return true;
+    }
+
+    public bool CommitLiveExternalReset(
+        int planId,
+        Vector2 finalPhysicalPosition,
+        float finalPhysicalYawDegrees,
+        Vector2 frozenVirtualPosition,
+        float frozenVirtualYawDegrees)
+    {
+        if (!isExternalResetActive || externalResetPlan.PlanId != planId)
+            return false;
+
+        if (virtualUser != null && virtualUser.transform2D != null)
+        {
+            virtualUser.transform2D.localPosition = frozenVirtualPosition;
+            virtualUser.transform2D.localRotation = frozenVirtualYawDegrees;
+            controller.ResetCurrentState(virtualUser.transform2D);
+        }
+
+        ApplyExternalRealUserPose(finalPhysicalPosition, finalPhysicalYawDegrees);
+
+        previousStatus = "IDLE";
+        status = "IDLE";
+        isExternalResetActive = false;
+        isResetting = false;
+
+        if (string.Equals(externalResetPlan.DoneStatus, "USER_RESET_DONE", StringComparison.Ordinal))
+        {
+            hasCachedUserResetDirection = false;
+            resetter.isFirst = true;
+            RDWSimulationManager.instance.Enqueue_UserResetFilter(DateTime.Now);
+        }
+
+        return true;
+    }
+
+    public bool TryGetExternalResetPlan(out ResetPlan plan)
+    {
+        plan = externalResetPlan;
+        return isExternalResetActive;
+    }
+
+    private ResetPlan BuildResetPlan(
+        ResetPlanType type,
+        int userId,
+        int otherUserId,
+        Vector2 targetDirection,
+        string activeStatus,
+        string doneStatus,
+        bool bidirectional,
+        bool proactive)
+    {
+        Vector2 fallbackDirection = realUser != null && realUser.transform2D != null
+            ? realUser.transform2D.forward
+            : Vector2.up;
+        Vector2 normalizedDirection = NormalizeOrFallback(targetDirection, fallbackDirection);
+        Vector2 targetPosition = realUser != null && realUser.transform2D != null
+            ? realUser.transform2D.localPosition
+            : Vector2.zero;
+
+        return new ResetPlan
+        {
+            PlanId = nextResetPlanId++,
+            UserId = userId,
+            OtherUserId = otherUserId,
+            Type = type,
+            TargetDirection = normalizedDirection,
+            TargetPosition = targetPosition,
+            HasTargetPosition = true,
+            IsBidirectional = bidirectional,
+            IsProactive = proactive,
+            ActiveStatus = activeStatus,
+            DoneStatus = doneStatus
+        };
+    }
+
+    private bool TryBeginExternalReset(ResetPlan plan)
+    {
+        if (!RdwResetExecutionRegistry.TryBeginReset(this, plan))
+            return false;
+
+        externalResetPlan = plan;
+        isExternalResetActive = true;
+        return true;
+    }
+
+    private Vector2 ResolveWallResetTargetDirection()
+    {
+        if (realUser == null || realUser.transform2D == null)
+            return Vector2.up;
+
+        Vector2 directionToCenter = -realUser.transform2D.localPosition;
+        return NormalizeOrFallback(directionToCenter, realUser.transform2D.forward);
+    }
+
+    private static Vector2 NormalizeOrFallback(Vector2 value, Vector2 fallback)
+    {
+        if (value.sqrMagnitude > Mathf.Epsilon)
+            return value.normalized;
+
+        if (fallback.sqrMagnitude > Mathf.Epsilon)
+            return fallback.normalized;
+
+        return Vector2.up;
     }
 
     public string ApplyUserReset(Object2D otherUser, ref int truc)

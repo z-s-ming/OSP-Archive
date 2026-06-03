@@ -1,19 +1,18 @@
 # Experiment Log System
 
-This document describes the current experiment log organization after adding run-based log folders. The goal is to make every experiment run easy to find, audit, and postprocess without relying on memory or manually matching timestamps across separate folders.
+This document describes the current experiment log layout and field semantics after the proactive reset log refactor. The runtime log layer is intentionally limited to raw facts and stable join IDs. Event-level classifications and recovery outcomes should be produced by postprocess scripts.
 
 ## 1. Design Goals
 
-- One experiment run should have one stable folder.
-- Raw runtime logs should be grouped under that folder.
-- Postprocess scripts should read from the run folder, not from scattered module folders.
-- Legacy log paths are still written for compatibility with older scripts.
-- Runtime CSV row semantics are not changed by the folder refactor.
-- Derived analysis outputs should stay separate from raw logs.
+- One experiment run has one stable run folder.
+- Runtime logs are raw evidence, not final analysis conclusions.
+- User IDs are consistent across runtime debug output and raw CSV rows.
+- Proactive reset stages can be joined by explicit IDs instead of by row order or time-window guessing.
+- Derived event-level tables stay separate from raw logs, so merge windows and recovery rules can be changed later.
 
-## 2. Top-Level Layout
+## 2. Run Folder Layout
 
-New run-based logs are written under:
+Run-based logs are written under:
 
 ```text
 CGnA_DataLog/
@@ -37,52 +36,121 @@ Example:
 CGnA_DataLog/runs/20260507_154525__scene-RDW_Square_400_4users_RL__users-4__method-APF_OSP-APF_R_Turn_OSP/
 ```
 
-The exact scene and method labels are sanitized so they are safe as folder names.
+## 3. Raw Files
 
-## 3. Run Folder Structure
+Current runtime logs are:
 
-Each run folder is intended to contain:
+| File | Producer | Grain | Meaning |
+| --- | --- | --- | --- |
+| `raw/episode_summary.csv` | `GM_DataRecord.WriteSteamingData_Batch` | episode summary | Per-episode reset/action counters. |
+| `raw/inter_reset_distance.csv` | `GM_DataRecord.WriteInterResetDistanceData_Batch` | reset/action row | Actual reset actions and inter-reset distance. |
+| `raw/proactive_trigger_frame.csv` | `ProactiveTriggerWindowLogger` | proactive trigger row | Trigger/risk condition fired for one user pair. |
+| `raw/proactive_candidate_frame.csv` | `ProactiveCandidateFrameLogger` | proactive decision row | Candidate accepted/rejected after selection, cooldown, and safety checks. |
 
-```text
-<run-directory>/
-  manifest.json
-  raw/
-    episode_summary.csv
-    inter_reset_distance.csv
-    proactive_trigger_frame.csv
-    proactive_candidate_frame.csv
-  derived/
-    normalized_reset_events.csv
-    proactive_trigger_outcomes.csv
-    episode_metrics.csv
-  plots/
-    *.png
-    *.pdf
-```
+The `derived/` and `plots/` folders are reserved for postprocess scripts.
 
-Current implementation writes these raw files:
+## 4. User ID Rule
 
-| File | Producer | Notes |
-| --- | --- | --- |
-| `raw/episode_summary.csv` | `GM_DataRecord.WriteSteamingData_Batch` | Run-scoped copy of the episode summary rows. |
-| `raw/inter_reset_distance.csv` | `GM_DataRecord.WriteInterResetDistanceData_Batch` | Run-scoped copy of reset event detail rows. |
-| `raw/proactive_trigger_frame.csv` | `ProactiveTriggerWindowLogger` | Run-scoped proactive trigger frame log. |
-| `raw/proactive_candidate_frame.csv` | `ProactiveCandidateFrameLogger` | Run-scoped candidate-stage outcome log after a proactive trigger. |
-
-The `derived/` and `plots/` folders are created automatically but are reserved for postprocess scripts.
-
-`proactive_trigger_frame.csv` means the risk/trigger rule fired; it does not mean a reset was selected or executed.
-`proactive_candidate_frame.csv` records the next stage: whether the trigger produced an accepted candidate or was rejected by selection, cooldown, or safety policy. The true execution event remains `resetEventType == PROACTIVE_USER_RESET` in `inter_reset_distance.csv`.
-
-## 4. Manifest
-
-Each run folder contains:
+Runtime raw logs and proactive debug output use one canonical user ID:
 
 ```text
-manifest.json
+userId = logical user index = units[] index = 0, 1, 2, ...
 ```
 
-The manifest is written when the run session is first needed by a logger. It records:
+Do not use `RedirectedUnit.GetID()` as an analysis user key for the current log schema. That old runtime ID can drift across object creation and episodes. If a method still needs array access, call it `unitIndex` in code; CSV and debug output should expose it as `userId` only when it is the logical `units[]` index.
+
+Pair fields follow the same rule:
+
+```text
+pairMinUserId = min(userId, otherUserId)
+pairMaxUserId = max(userId, otherUserId)
+```
+
+## 5. Proactive Stage IDs
+
+The proactive reset chain is:
+
+```text
+trigger -> candidate -> decision -> intent dispatch -> execution
+```
+
+The runtime writes explicit IDs so stages can be joined:
+
+| Field | Meaning |
+| --- | --- |
+| `triggerId` | ID assigned when a proactive trigger is created. |
+| `candidateId` | ID assigned to a candidate evaluation attempt. |
+| `decisionId` | ID assigned to the accepted/rejected candidate decision. |
+| `executionId` | ID assigned only when a proactive reset is actually executed. |
+| `originTriggerId` | The trigger that produced the later candidate/execution. |
+| `originCandidateId` | The candidate that produced the later execution. |
+| `accepted` | Candidate-stage decision result. |
+| `executed` | Actual proactive reset execution result. |
+| `rejectReason` | Stage reason such as `NONE`, `Cooldown`, `PairCooldown`, `ArbitrationFailed`, or `InPlaceSafetyCheck`. |
+
+`accepted=1` does not necessarily mean `executed=1`; execution still depends on dispatch and the selected user's state when `RedirectedUnit` consumes the intent.
+
+## 6. Current Raw Headers
+
+### 6.1 `inter_reset_distance.csv`
+
+```csv
+Date,Timestamp,episodeObjectId,frame,simTime,userId,otherUserId,pairMinUserId,pairMaxUserId,resetEventType,isBidirectionalUserPair,interResetDistance,cumulativeDistance,triggerId,candidateId,decisionId,executionId,originTriggerId,originCandidateId,accepted,executed,rejectReason
+```
+
+Important semantics:
+
+| Field | Meaning |
+| --- | --- |
+| `resetEventType` | `WALL_RESET`, `SHUTTER_RESET`, `USER_RESET`, or `PROACTIVE_USER_RESET`. |
+| `interResetDistance` | Distance walked by `userId` since that user's previous reset. |
+| `cumulativeDistance` | Cumulative distance for `userId`. |
+| `otherUserId` | Pair counterpart; `-1` for boundary resets. |
+| `triggerId/candidateId/decisionId/executionId` | Populated for proactive execution rows, otherwise `-1`. |
+| `accepted/executed` | For proactive execution rows these should both be `1`; non-proactive rows use default values. |
+
+Current limitation: this row stores distance for `userId`, not a simultaneous distance snapshot for `otherUserId`. Postprocess scripts can count events from this file, but exact secondary-user recovery distance requires either reconstructing from per-frame state or adding an `otherUserCumulativeDistance` field later.
+
+### 6.2 `proactive_trigger_frame.csv`
+
+```csv
+triggerId,episodeObjectId,triggerFrame,triggerTime,pairMinUserId,pairMaxUserId,userId,otherUserId,judgeMode,horizonSeconds,triggerDistance,triggerClosingSpeed,unitMinStatus,unitMaxStatus,predictedPairType,conflictBoundaryDistanceA,conflictBoundaryDistanceB,conflictBoundaryDistancePair,reverseWallDistanceA,reverseWallDistanceB,conflictBoundaryTrendHitCount,conflictBoundaryTrendWindowFrames
+```
+
+Important semantics:
+
+| Field | Meaning |
+| --- | --- |
+| `triggerId` | Unique within the current run/session after tracker reset. |
+| `triggerDistance` | Pair distance at trigger time. |
+| `triggerClosingSpeed` | Pair closing speed at trigger time. |
+| `predictedPairType` | Trigger-time risk classification, not actual collision outcome. |
+| `conflictBoundary*` / `reverseWall*` | Voronoi-boundary trigger diagnostics; `-1` when not applicable. |
+
+### 6.3 `proactive_candidate_frame.csv`
+
+```csv
+Date,Timestamp,episodeObjectId,frame,simTime,originTriggerId,candidateId,decisionId,executionId,userId,otherUserId,pairMinUserId,pairMaxUserId,judgeMode,selectionMode,candidateStatus,accepted,executed,resetDirectionX,resetDirectionY,keepMargin,selectedM,selectedCSelf,rejectReason
+```
+
+Important semantics:
+
+| Field | Meaning |
+| --- | --- |
+| `originTriggerId` | Trigger that produced this candidate/decision row. |
+| `candidateId` | Candidate evaluation ID. |
+| `decisionId` | Accepted/rejected decision ID. |
+| `executionId` | Currently `-1` in candidate rows; execution is recorded in `inter_reset_distance.csv`. |
+| `candidateStatus` | `ACCEPTED`, `REJECTED`, or `SELECTION_DISABLED`. |
+| `accepted` | `1` only for candidate decisions accepted by the pipeline. |
+| `executed` | Usually `0` in candidate rows; join to inter-reset execution rows for actual execution. |
+| `keepMargin/selectedM/selectedCSelf` | Arbitration diagnostics. |
+
+Current limitation: the candidate row records pair users as `userId/otherUserId`. If later analysis needs the selected reset user explicitly for every candidate row, add `selectedUserId` and `counterpartUserId` rather than inferring them from pair order.
+
+## 7. Manifest
+
+Each run folder contains `manifest.json`. It records:
 
 - `runId`
 - creation time
@@ -92,87 +160,97 @@ The manifest is written when the run session is first needed by a logger. It rec
 - run folder path
 - expected raw files
 - proactive reset settings
-- per-user `redirectType`, `resetType`, and `episodeType`
+- per-user `logicalUserIndex`, `redirectType`, `resetType`, and `episodeType`
 
-Postprocess scripts should use `manifest.json` as the entry point for a run. If multiple run folders exist, select the run folder first, then load its manifest and raw files.
+Postprocess scripts should use the manifest as the entry point for a run.
 
-## 5. Active Output Path
+## 8. Runtime vs Derived Fields
 
-The runtime now writes experiment logs only under the run-scoped folder:
+Runtime logs should write facts that are true at the time of the row:
 
-```text
-CGnA_DataLog/runs/<run-directory>/raw/
-```
+- IDs, users, pair IDs
+- frame/time
+- reset action type
+- proactive trigger/candidate/decision/execution IDs
+- accepted/executed/rejectReason
+- trigger and arbitration diagnostics
+- inter-reset distance for the acting user
 
-Legacy root-level outputs such as `Experiment_01_DataLog_*.txt`, `Experiment_01_InterResetDistance_*.csv`, `proactiveResetPairDistance/`, and `proactiveResetCandidate/` are no longer produced.
+Postprocess scripts should derive fields that depend on merge windows or future events:
 
-Legacy files should be treated as compatibility copies, not the primary data source.
+- `eventId`
+- `eventType`
+- `PROACTIVE_INTERVENTION_EVENT`
+- `MIXED_USER_EVENT`
+- `PASSIVE_USER_COLLISION_EVENT`
+- `sourceRowIds`
+- `sourceResetTypes`
+- `recoveryOutcome`
+- `nextRelatedEventId`
+- `stableRecoveryShare`
+- `samePairRepeatCount`
+- `involvedUserToWallCount`
+- `involvedUserToOtherPairCount`
 
-## 6. Raw CSV Semantics
+This split keeps experiment conclusions reproducible. If the merge window changes from 5 frames to 10 frames, raw logs do not need to be rerun.
 
-The run folder does not change row meanings. It only changes file organization.
-
-Important fields:
-
-| Field | Meaning |
-| --- | --- |
-| `episodeObjectId` | Runtime `Episode.getID()`, not experiment episode index. |
-| `runtimeUnitId` | Runtime `RedirectedUnit.GetID()`, not stable logical user index. |
-| `runtimePairMinId/runtimePairMaxId` | Runtime pair key for matching within a run. |
-| `resetEventType` | `WALL_RESET`, `SHUTTER_RESET`, `USER_RESET`, or `PROACTIVE_USER_RESET`. |
-| `isBidirectionalUserPair` | Pair-level bidirectional user-risk/reset semantics, not necessarily two executed actions. |
-| `triggerIdInLog` | Unique only within one trigger CSV file. In run-scoped raw logs this is usually sufficient, but scripts may still build `triggerGlobalKey`. |
-| `predictedPairType` | Trigger-time predicted pair type, not actual collision outcome. |
-
-For detailed postprocess semantics, see:
-
-```text
-docs/proactive-reset-log-postprocess-guide.md
-```
-
-## 7. Recommended Postprocess Workflow
+## 9. Recommended Postprocess Workflow
 
 1. Choose a run folder under `CGnA_DataLog/runs/`.
 2. Read `manifest.json`.
-3. Load `raw/episode_summary.csv`.
-4. Load `raw/inter_reset_distance.csv`.
-5. Load `raw/proactive_trigger_frame.csv` if present.
-6. Normalize fields and derive stable analysis keys:
-   - `runtimeEpisodeIndex`
-   - `logicalUserIndex`
-   - `logicalPairMinIndex`
-   - `logicalPairMaxIndex`
-   - `triggerGlobalKey`
-7. Write derived tables to `derived/`.
-8. Write figures to `plots/`.
+3. Load the four raw CSV files when present.
+4. Filter duplicated header rows if any append operation produced them.
+5. Join proactive rows by `originTriggerId`, `candidateId`, `decisionId`, and `executionId`.
+6. Build reset/action rows from `inter_reset_distance.csv`.
+7. Merge rows into event-level records by episode, frame/time window, pair, and reset type.
+8. Classify event type:
+   - `BOUNDARY_EVENT`
+   - `PASSIVE_USER_COLLISION_EVENT`
+   - `PROACTIVE_INTERVENTION_EVENT`
+   - `MIXED_USER_EVENT`
+9. Compute recovery outcomes from following related events.
+10. Write derived tables to `derived/` and figures to `plots/`.
 
 Recommended derived outputs:
 
 ```text
-derived/normalized_reset_events.csv
-derived/proactive_trigger_outcomes.csv
-derived/episode_metrics.csv
+derived/event_level_events.csv
+derived/event_recovery_outcomes.csv
+derived/event_level_summary.csv
 ```
 
-## 8. Implementation Notes
+## 10. Consistency Checks
 
-The current implementation is intentionally small:
+Useful checks for one run:
 
-- `GM_DataRecord` owns the run session folder and manifest.
-- `GM_DataRecord.GetRunRawLogPath(fileName)` exposes run-scoped raw paths to other loggers.
-- Core summary and inter-reset logs are dual-written to legacy paths and run raw paths.
-- `ProactiveTriggerWindowLogger` writes to `raw/proactive_trigger_frame.csv` and also mirrors to its legacy folder.
+```text
+candidateStatus == REJECTED => accepted == 0 and executed == 0
+accepted == 1 in candidate rows => decisionId > 0 and originTriggerId > 0
+resetEventType == PROACTIVE_USER_RESET => executionId > 0 and originTriggerId > 0 and originCandidateId > 0
+resetEventType == PROACTIVE_USER_RESET => accepted == 1 and executed == 1
+pairMinUserId <= pairMaxUserId when otherUserId >= 0
+```
 
-This avoids adding a larger logging framework before the analysis workflow proves what extra structure is truly needed.
+Recommended sanity summaries:
 
-## 9. Future Extensions
+- trigger count
+- candidate accepted count
+- candidate rejected count by `rejectReason`
+- proactive execution count
+- accepted-but-not-executed count
 
-Good next steps, in order:
+Final paper/report metrics should come from derived event-level tables, not directly from raw stage counters.
 
-1. Move risk, partition update, and prediction logs into the same run `raw/` folder.
-2. Add a small postprocess script that reads one run folder and writes `derived/`.
-3. Add a `notes.md` template per run if manual experiment notes are needed.
-4. Add a user-specified experiment tag to the run directory name.
-5. Add a config snapshot for all module config values that affect baseline fairness.
+## 11. Known Gaps
 
-Avoid changing CSV metric definitions while doing these folder organization changes.
+The current raw schema is sufficient for basic event counts and proactive stage auditing. These fields are not yet fully represented online:
+
+| Missing or partial field | Why it matters |
+| --- | --- |
+| `rowId` | CSV line number can be used, but an explicit raw row ID is more robust after filtering/sorting. |
+| `selectedUserId` / `counterpartUserId` | Candidate rows currently expose pair users; selected reset user may be useful as a separate semantic field. |
+| `otherUserCumulativeDistance` | Needed for exact secondary-user recovery distance. |
+| user position/heading/velocity snapshots | Needed for detailed failure explanation, not basic counts. |
+| `dispatchFrame` / `dispatchSkipReason` | Needed to diagnose accepted candidates that never execute. |
+
+Add these only when the corresponding analysis is needed; do not expand runtime logs just because a derived table can contain the field.
