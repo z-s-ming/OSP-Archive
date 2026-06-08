@@ -558,6 +558,18 @@ public class RedirectedUnit
         return isExternalResetActive;
     }
 
+    public void CancelExternalResetForLiveRestart()
+    {
+        isExternalResetActive = false;
+        isResetting = false;
+        status = "IDLE";
+        previousStatus = "IDLE";
+        hasCachedUserResetDirection = false;
+        ClearProactiveUserResetIntent();
+        if (resetter != null)
+            resetter.isFirst = true;
+    }
+
     private ResetPlan BuildResetPlan(
         ResetPlanType type,
         int userId,

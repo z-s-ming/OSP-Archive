@@ -220,11 +220,18 @@ public class LiveVRHostExperimentController : MonoBehaviour
             return;
 
         StopRdwRuntime();
+        ClearLiveResetRuntime(true);
+        manager.BeginRestartEpoch();
         BeginNewRunSession("soft_restart");
+        manager.SetHostRunId(hostRunId);
+        manager.BroadcastClientResetClear("soft_restart");
+        ClearLivePoseCache();
         ResetRdwRuntimeForNextRun();
         manager.ClearRuntimeSimulatedFallbacks();
 
-        LiveVRExperimentState nextState = AreExpectedUsersReady()
+        LiveVRExperimentState nextState = manager.HasPendingReliableControlType("CLIENT_RESET_CLEAR")
+            ? LiveVRExperimentState.WaitingForUsers
+            : AreExpectedUsersReady()
             ? LiveVRExperimentState.Ready
             : LiveVRExperimentState.WaitingForUsers;
         manager.SetExperimentState(nextState);
@@ -238,10 +245,16 @@ public class LiveVRHostExperimentController : MonoBehaviour
             return;
 
         StopRdwRuntime();
+        ClearLiveResetRuntime(true);
+        manager.BeginRestartEpoch();
         BeginNewRunSession("recalibrate_restart");
+        manager.SetHostRunId(hostRunId);
+        manager.BroadcastClientResetClear("recalibrate_restart");
+        ClearLivePoseCache();
         ResetRdwRuntimeForNextRun();
         manager.ClearRuntimeSimulatedFallbacks();
         manager.ClearHostCalibrationStateForAllUsers();
+        manager.IncrementCalibrationVersion();
         manager.SetExperimentState(LiveVRExperimentState.WaitingForUsers);
 
         for (int userId = 0; userId < expectedUserCount; userId++)
@@ -525,6 +538,29 @@ public class LiveVRHostExperimentController : MonoBehaviour
             simulationManager.BStart = false;
     }
 
+    private void ClearLiveResetRuntime(bool notifyClients)
+    {
+        LiveVRResetCoordinator resetCoordinator = GetComponent<LiveVRResetCoordinator>();
+        if (resetCoordinator == null)
+            resetCoordinator = FindObjectOfType<LiveVRResetCoordinator>();
+        if (resetCoordinator != null)
+            resetCoordinator.ClearActiveResets(notifyClients);
+
+        RDWSimulationManager simulationManager = RDWSimulationManager.instance;
+        if (simulationManager == null)
+            return;
+
+        RedirectedUnit[] units = simulationManager.GetRedirectedUnits;
+        if (units == null)
+            return;
+
+        for (int i = 0; i < units.Length; i++)
+        {
+            if (units[i] != null)
+                units[i].CancelExternalResetForLiveRestart();
+        }
+    }
+
     private void ResetRdwRuntimeForNextRun()
     {
         if (_GCM.GlobalCoordinationManager.instance != null)
@@ -553,6 +589,15 @@ public class LiveVRHostExperimentController : MonoBehaviour
             hostRunId = _GCM.GM_DataRecord.instance.BeginNewRunSession(reason);
         else
             hostRunId = string.Empty;
+    }
+
+    private void ClearLivePoseCache()
+    {
+        LiveVRHmdMovementController movementController = GetComponent<LiveVRHmdMovementController>();
+        if (movementController == null)
+            movementController = FindObjectOfType<LiveVRHmdMovementController>();
+        if (movementController != null)
+            movementController.ClearPreviousPoseCache();
     }
 
     private void EnsureHostRunId()

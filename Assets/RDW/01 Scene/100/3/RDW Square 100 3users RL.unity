@@ -613,6 +613,7 @@ MonoBehaviour:
   hostExperimentController: {fileID: 0}
   networkLogger: {fileID: 0}
   virtualPoseBroadcaster: {fileID: 0}
+  clientPresentationState: {fileID: 0}
   clientVirtualViewBinder: {fileID: 0}
   clientCameraIsolation: {fileID: 0}
   clientEnvironmentLoader: {fileID: 0}
@@ -650,16 +651,18 @@ MonoBehaviour:
   minimumUserDistanceBeforeStartMeters: 0.75
   enableLiveResetCoordinator: 1
   resetYawErrorThresholdDegrees: 15
-  requireResetPositionAlignment: 1
+  requireResetPositionAlignment: 0
   resetPositionToleranceMeters: 0.75
-  requireInsideRealSpaceForResetCompletion: 0
+  requireInsideRealSpaceForResetCompletion: 1
   resetStableDurationSeconds: 0.3
-  resetTimeoutSeconds: 0
+  resetTimeoutSeconds: 8
+  resetMeaningfulProgressThreshold: 0.02
+  resetMeaningfulTurnThresholdDegrees: 2
   resetPromptRepeatSeconds: 0.5
   enableNetworkLogging: 1
   networkLogEveryNFrames: 5
   enableVirtualPoseSync: 1
-  sendVirtualPoseOnlyWhileRunning: 0
+  sendVirtualPoseOnlyWhileRunning: 1
   clientVirtualViewRoot: {fileID: 1168563574}
   clientHmdCamera: {fileID: 1464236768}
   preserveTrackedHeadLocalOffset: 1
@@ -681,6 +684,20 @@ MonoBehaviour:
   clientVisualEnvironmentLayerName: VirtualWall
   applyVirtualSpaceSettingTransformToClientEnvironment: 1
   disableClientEnvironmentCameras: 1
+  keepOnlyClientWalkableEnvironment: 1
+  clientWalkableEnvironmentRootNamesToKeep:
+  - walkingArea
+  - Floor_Tiles
+  clientWalkableEnvironmentRootNamesToHideInside:
+  - Trees
+  - Rocks
+  - Props
+  - Mushrooms
+  - Plants
+  - Water
+  - Mountains
+  - obstacle_*
+  - Cube*
   enableClientTargetGuide: 1
   suppressHostEpisodeTargetsInLiveUser: 1
   showClientTargetOnlyWhileRunning: 1
@@ -696,13 +713,16 @@ MonoBehaviour:
   clientTargetRadiusMeters: 0.18
   clientTargetReachDistanceMeters: 0.65
   clientTargetMinDistanceFromUserMeters: 2
+  clientTargetMinSpawnDistanceMeters: 4
+  clientTargetMaxSpawnDistanceMeters: 8
+  clientTargetCountPerRun: 1
   clientTargetBaseSeed: 1000
   useSavedClientHostConnection: 1
   saveClientHostConnectionOnStart: 1
   enableLiveSpaceProfile: 1
   liveSpaceSource: 0
-  liveSpaceRectangleWidthMeters: 2
-  liveSpaceRectangleDepthMeters: 2
+  liveSpaceRectangleWidthMeters: 8
+  liveSpaceRectangleDepthMeters: 8
   liveSpaceManualBoundaryPolygon: []
   liveSpaceName: Live Physical Space
 --- !u!4 &1103816472
@@ -717,7 +737,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 8
+  m_RootOrder: 7
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1103816473
 MonoBehaviour:
@@ -775,6 +795,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   networkManager: {fileID: 0}
+  targetGuide: {fileID: 0}
   showHud: 1
   screenPosition: {x: 12, y: 160}
   panelSize: {x: 520, y: 34}
@@ -802,9 +823,12 @@ MonoBehaviour:
   requireInsideRealSpaceForCompletion: 0
   stableDurationSeconds: 0.3
   timeoutSeconds: 0
+  meaningfulProgressThreshold: 0.02
+  meaningfulTurnThresholdDegrees: 2
   promptRepeatSeconds: 0.5
   resetVirtualRotationScale: 1
   minimumPhysicalTurnDegreesForVirtualReset: 3
+  minimumLiveResetPhysicalTurnDegrees: 30
 --- !u!114 &1103816477
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -915,6 +939,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   networkManager: {fileID: 0}
+  targetGuide: {fileID: 0}
   hmdCamera: {fileID: 0}
   showHud: 1
   distanceMeters: 1.25
@@ -940,6 +965,7 @@ MonoBehaviour:
   enableGuide: 1
   showOnlyWhileRunning: 1
   guideMode: 0
+  useSimulationEpisodeTargetMode: 1
   targetLayerName: VirtualWall
   useAreaAnchorBounds: 1
   areaAnchorName: walkingArea
@@ -949,6 +975,9 @@ MonoBehaviour:
   targetRadiusMeters: 0.18
   reachDistanceMeters: 0.65
   minDistanceFromUserMeters: 2
+  minSpawnDistanceMeters: 4
+  maxSpawnDistanceMeters: 8
+  targetsPerRun: 1
   baseSeed: 1000
   resetPromptSuppressSeconds: 1
 --- !u!114 &1103816484
@@ -972,6 +1001,20 @@ MonoBehaviour:
   applyVirtualSpaceSettingTransform: 1
   disableEnvironmentCameras: 1
   walkableAreaAnchorName: walkingArea
+  keepOnlyWalkableEnvironment: 1
+  walkableEnvironmentRootNamesToKeep:
+  - walkingArea
+  - Floor_Tiles
+  walkableEnvironmentRootNamesToHideInside:
+  - Trees
+  - Rocks
+  - Props
+  - Mushrooms
+  - Plants
+  - Water
+  - Mountains
+  - obstacle_*
+  - Cube*
 --- !u!114 &1103816485
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -981,9 +1024,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 1103816467}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 6cbafbf71f9d4de4a841a035411bda78, type: 3}
+  m_Script: {fileID: 11500000, guid: 2a2349bbc695e42458763f1b81cb27c6, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  networkManager: {fileID: 0}
+  virtualViewBinder: {fileID: 0}
+  clientHud: {fileID: 0}
+  worldHud: {fileID: 0}
+  targetGuide: {fileID: 0}
 --- !u!1 &1168563573
 GameObject:
   m_ObjectHideFlags: 0
@@ -1209,7 +1257,7 @@ PrefabInstance:
     - target: {fileID: 5168157814384017450, guid: 8d7d80fd881fa9c4cbb8fd4d8c986877,
         type: 3}
       propertyPath: m_RootOrder
-      value: 7
+      value: 8
       objectReference: {fileID: 0}
     - target: {fileID: 5168157814384017450, guid: 8d7d80fd881fa9c4cbb8fd4d8c986877,
         type: 3}
@@ -1743,7 +1791,7 @@ MonoBehaviour:
   userRadius: 0.5
   shutterWidth: 0.5
   SimulationCount_max: 100
-  TargetDistancePerUser: 200
+  TargetDistancePerUser: 100
   bMixedExploration: 0
   bUseCompareExperiment: 1
   bEnable_InitPhyUserPosUni: 0

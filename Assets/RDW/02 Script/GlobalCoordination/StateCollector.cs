@@ -51,12 +51,17 @@ namespace _GCM
 
                 if (units[i].realUser != null)
                 {
-                    PhysicalUsers.Add(units[i].realUser.gameObject);
+                    GameObject physicalUser = units[i].realUser.gameObject;
+                    if (physicalUser != null)
+                        PhysicalUsers.Add(physicalUser);
                 }
 
                 if (units[i].virtualUser != null)
                 {
                     GameObject virtualUser = units[i].virtualUser.gameObject;
+                    if (virtualUser == null)
+                        continue;
+
                     CapsuleCollider collider = virtualUser.GetComponent<CapsuleCollider>();
                     if (collider != null)
                     {
@@ -95,7 +100,16 @@ namespace _GCM
 
         public bool HasReadyUsers(int totalUserCount)
         {
-            return PhysicalUsers.Count >= totalUserCount;
+            if (PhysicalUsers.Count < totalUserCount)
+                return false;
+
+            for (int i = 0; i < totalUserCount; i++)
+            {
+                if (PhysicalUsers[i] == null)
+                    return false;
+            }
+
+            return true;
         }
 
         public FrameState CaptureFrameState(int totalUserCount)
@@ -105,7 +119,14 @@ namespace _GCM
                 return new FrameState(new List<GameObject>());
             }
 
-            return new FrameState(PhysicalUsers);
+            List<GameObject> snapshot = new List<GameObject>(totalUserCount);
+            for (int i = 0; i < totalUserCount; i++)
+            {
+                if (PhysicalUsers[i] != null)
+                    snapshot.Add(PhysicalUsers[i]);
+            }
+
+            return new FrameState(snapshot);
         }
 
         public void ResetEpisodeDistance()
@@ -158,6 +179,9 @@ namespace _GCM
 
         private static Vector2 ToPlanarPosition(GameObject user)
         {
+            if (user == null)
+                return Vector2.zero;
+
             Vector3 position = user.transform.position;
             return new Vector2(position.x, position.z);
         }

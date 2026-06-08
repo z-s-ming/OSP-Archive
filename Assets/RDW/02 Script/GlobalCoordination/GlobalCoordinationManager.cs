@@ -601,9 +601,15 @@ namespace _GCM
             }
 
             // Safety Check: ensure users are initialized before processing calculation
-            if (stateCollector == null || !stateCollector.HasReadyUsers(totalUserCount)) 
+            if (stateCollector == null)
                 return;
 
+            if (!stateCollector.HasReadyUsers(totalUserCount))
+                stateCollector.RefreshUsersFromSimulation(totalUserCount);
+
+            if (!stateCollector.HasReadyUsers(totalUserCount))
+                return;
+  
             FrameState frameState = stateCollector.CaptureFrameState(totalUserCount);
             VelocityModuleConfig velocityConfig = moduleConfig.Velocity;
             PredictionModuleConfig predictionConfig = moduleConfig.Prediction;

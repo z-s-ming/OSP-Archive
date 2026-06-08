@@ -1,4 +1,7 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using UnityEngine;
 
 public enum LiveVRClientTargetGuideMode
@@ -17,6 +20,7 @@ public class LiveVRClientTargetGuide : MonoBehaviour
     [SerializeField] private bool enableGuide = true;
     [SerializeField] private bool showOnlyWhileRunning = true;
     [SerializeField] private LiveVRClientTargetGuideMode guideMode = LiveVRClientTargetGuideMode.Random;
+    [SerializeField] private bool useSimulationEpisodeTargetMode = true;
     [SerializeField] private string targetLayerName = "VirtualWall";
     [SerializeField] private bool useAreaAnchorBounds = true;
     [SerializeField] private string areaAnchorName = "walkingArea";
@@ -26,6 +30,9 @@ public class LiveVRClientTargetGuide : MonoBehaviour
     [SerializeField] private float targetRadiusMeters = 0.18f;
     [SerializeField] private float reachDistanceMeters = 0.65f;
     [SerializeField] private float minDistanceFromUserMeters = 2.0f;
+    [SerializeField] private float minSpawnDistanceMeters = 4.0f;
+    [SerializeField] private float maxSpawnDistanceMeters = 8.0f;
+    [SerializeField] private int targetsPerRun = 1;
     [SerializeField] private int baseSeed = 1000;
     [SerializeField] private float resetPromptSuppressSeconds = 1.0f;
 
@@ -33,8 +40,25 @@ public class LiveVRClientTargetGuide : MonoBehaviour
     private System.Random random;
     private int targetIndex = -1;
     private Vector2 currentTarget;
+    private float currentTargetPathStartDistanceMeters;
+    private Vector2 previousVirtualPosition;
+    private bool hasPreviousVirtualPosition;
     private bool hasTarget;
     private bool wasSuppressedByReset;
+    private bool runCompletedLocally;
+    private string completedRunId = string.Empty;
+    private float cumulativeTargetDistanceMeters;
+    private readonly List<Vector2> predefinedTargets = new List<Vector2>();
+
+    public bool IsLocalRunComplete
+    {
+        get
+        {
+            LiveVRNetworkManager manager = ResolveNetworkManager();
+            string currentRunId = manager != null ? manager.CurrentRunId : string.Empty;
+            return runCompletedLocally && string.Equals(completedRunId, currentRunId, StringComparison.Ordinal);
+        }
+    }
 
     public void Configure(
         LiveVRNetworkManager newNetworkManager,
@@ -53,6 +77,9 @@ public class LiveVRClientTargetGuide : MonoBehaviour
         float newTargetRadiusMeters,
         float newReachDistanceMeters,
         float newMinDistanceFromUserMeters,
+        float newMinSpawnDistanceMeters,
+        float newMaxSpawnDistanceMeters,
+        int newTargetsPerRun,
         int newBaseSeed)
     {
         networkManager = newNetworkManager;
@@ -71,8 +98,16 @@ public class LiveVRClientTargetGuide : MonoBehaviour
         targetRadiusMeters = Mathf.Max(0.05f, newTargetRadiusMeters);
         reachDistanceMeters = Mathf.Max(0.1f, newReachDistanceMeters);
         minDistanceFromUserMeters = Mathf.Max(0.0f, newMinDistanceFromUserMeters);
+        minSpawnDistanceMeters = Mathf.Max(0.0f, newMinSpawnDistanceMeters);
+        maxSpawnDistanceMeters = Mathf.Max(minSpawnDistanceMeters + 0.1f, newMaxSpawnDistanceMeters);
+        targetsPerRun = Mathf.Max(1, newTargetsPerRun);
         baseSeed = newBaseSeed;
         ResetGuide();
+    }
+
+    public void ClearResetSuppression()
+    {
+        wasSuppressedByReset = false;
     }
 
     private void LateUpdate()
@@ -82,35 +117,48 @@ public class LiveVRClientTargetGuide : MonoBehaviour
         bool active = ShouldGuideBeActive(manager) && !suppressedByReset;
         EnsureTargetObject();
 
+        string currentRunId = manager != null ? manager.CurrentRunId : string.Empty;
+        if (runCompletedLocally && !string.Equals(completedRunId, currentRunId, StringComparison.Ordinal))
+            ResetGuide();
+
         if (targetObject != null)
-            targetObject.SetActive(active);
+            targetObject.SetActive(active && !runCompletedLocally);
 
         if (suppressedByReset)
         {
             wasSuppressedByReset = true;
+            hasPreviousVirtualPosition = false;
             return;
         }
 
         if (wasSuppressedByReset)
-        {
             wasSuppressedByReset = false;
-            ResetGuide();
-        }
 
         if (!active)
+        {
+            hasPreviousVirtualPosition = false;
+            return;
+        }
+
+        if (runCompletedLocally)
+            return;
+
+        Vector2 userPosition = GetUserVirtualPosition();
+        UpdateCumulativeVirtualDistance(userPosition);
+
+        if (TryCompleteByVirtualDistance(manager, userPosition))
             return;
 
         if (!hasTarget)
-            SelectNextTarget(GetUserVirtualPosition());
+            SelectNextTarget(userPosition);
 
         if (!hasTarget)
             return;
 
         ApplyTargetTransform();
 
-        Vector2 userPosition = GetUserVirtualPosition();
         if (Vector2.Distance(userPosition, currentTarget) <= reachDistanceMeters)
-            SelectNextTarget(userPosition);
+            HandleTargetReached(manager, userPosition);
     }
 
     private bool ShouldGuideBeActive(LiveVRNetworkManager manager)
@@ -165,12 +213,45 @@ public class LiveVRClientTargetGuide : MonoBehaviour
         EnsureRandom();
         targetIndex++;
 
-        if (guideMode == LiveVRClientTargetGuideMode.LoopRectangle)
+        bool usedEpisodeTarget = useSimulationEpisodeTargetMode &&
+                                 TryGetSimulationEpisodeTarget(userPosition, targetIndex, out currentTarget);
+        if (!usedEpisodeTarget && guideMode == LiveVRClientTargetGuideMode.LoopRectangle)
             currentTarget = GetLoopRectangleTarget(targetIndex);
-        else
+        else if (!usedEpisodeTarget)
             currentTarget = GetRandomTargetAwayFromUser(userPosition);
 
+        if (!IsTargetInsideArea(currentTarget))
+            currentTarget = GetRandomTargetAwayFromUser(userPosition);
+
+        currentTargetPathStartDistanceMeters = cumulativeTargetDistanceMeters;
         hasTarget = true;
+    }
+
+    private bool TryGetSimulationEpisodeTarget(Vector2 userPosition, int index, out Vector2 target)
+    {
+        target = Vector2.zero;
+        UnitSetting unitSetting = ResolveUnitSetting();
+        if (unitSetting == null)
+            return false;
+
+        Vector2 forward = ResolveCurrentForward();
+        switch (unitSetting.episodeType)
+        {
+            case EpisodeType.LongWalk:
+                return TryFindTargetByDistanceRange(userPosition, forward, 12.0f, 12.0f, -180.0f, 180.0f, 10.0f, out target);
+            case EpisodeType.Random:
+                return TryFindTargetByDistanceRange(userPosition, forward, minSpawnDistanceMeters, maxSpawnDistanceMeters, -90.0f, 90.0f, 10.0f, out target);
+            case EpisodeType.NaturalTouring:
+                return TryFindNaturalTouringTarget(userPosition, forward, out target);
+            case EpisodeType.PreDefined:
+                return TryGetPredefinedTarget(unitSetting.episodeFileName, index, userPosition, out target);
+            case EpisodeType.WanderingEpisodeForFixedReset:
+                return TryFindTargetByDistanceRange(userPosition, forward, 0.2f, 0.2f, -180.0f, 180.0f, 10.0f, out target);
+            case EpisodeType.WanderingEpisodeForAnyReset:
+                return TryFindTargetByDistanceRange(userPosition, forward, 0.5f, 0.5f, -180.0f, 180.0f, 10.0f, out target);
+            default:
+                return false;
+        }
     }
 
     private Vector2 GetRandomTargetAwayFromUser(Vector2 userPosition)
@@ -182,18 +263,47 @@ public class LiveVRClientTargetGuide : MonoBehaviour
         float maxX = hasAnchorBounds ? areaBounds.max.x : targetAreaWidthMeters * 0.5f;
         float minZ = hasAnchorBounds ? areaBounds.min.z : -targetAreaDepthMeters * 0.5f;
         float maxZ = hasAnchorBounds ? areaBounds.max.z : targetAreaDepthMeters * 0.5f;
+        float effectiveMinDistance = Mathf.Max(minDistanceFromUserMeters, minSpawnDistanceMeters);
+        float effectiveMaxDistance = Mathf.Max(effectiveMinDistance + 0.1f, maxSpawnDistanceMeters);
 
-        for (int attempt = 0; attempt < 32; attempt++)
+        for (int attempt = 0; attempt < 96; attempt++)
         {
-            target = new Vector2(
-                Mathf.Lerp(minX, maxX, (float)random.NextDouble()),
-                Mathf.Lerp(minZ, maxZ, (float)random.NextDouble()));
+            float angleRadians = (float)random.NextDouble() * Mathf.PI * 2.0f;
+            float distance = Mathf.Lerp(effectiveMinDistance, effectiveMaxDistance, (float)random.NextDouble());
+            target = userPosition + new Vector2(Mathf.Cos(angleRadians), Mathf.Sin(angleRadians)) * distance;
 
-            if (Vector2.Distance(userPosition, target) >= minDistanceFromUserMeters)
+            if (target.x >= minX && target.x <= maxX && target.y >= minZ && target.y <= maxZ)
                 return target;
         }
 
+        target = new Vector2(
+            Mathf.Clamp(target.x, minX, maxX),
+            Mathf.Clamp(target.y, minZ, maxZ));
         return target;
+    }
+
+    private bool IsTargetInsideArea(Vector2 target)
+    {
+        Bounds areaBounds;
+        if (TryGetAreaAnchorBounds(out areaBounds))
+        {
+            if (target.x < areaBounds.min.x ||
+                target.x > areaBounds.max.x ||
+                target.y < areaBounds.min.z ||
+                target.y > areaBounds.max.z)
+            {
+                return false;
+            }
+        }
+        else
+        {
+            float halfWidth = targetAreaWidthMeters * 0.5f;
+            float halfDepth = targetAreaDepthMeters * 0.5f;
+            if (target.x < -halfWidth || target.x > halfWidth || target.y < -halfDepth || target.y > halfDepth)
+                return false;
+        }
+
+        return true;
     }
 
     private Vector2 GetLoopRectangleTarget(int index)
@@ -239,6 +349,202 @@ public class LiveVRClientTargetGuide : MonoBehaviour
         targetObject.transform.position = new Vector3(currentTarget.x, ResolveTargetHeight(), currentTarget.y);
     }
 
+    private void HandleTargetReached(LiveVRNetworkManager manager, Vector2 userPosition)
+    {
+        int reachedIndex = targetIndex;
+        Vector2 reachedTarget = currentTarget;
+        float travelledSinceTargetSpawn = Mathf.Max(0.0f, cumulativeTargetDistanceMeters - currentTargetPathStartDistanceMeters);
+        float targetDistancePerRun = ResolveTargetDistancePerRun();
+        bool hasDistanceGoal = !float.IsInfinity(targetDistancePerRun) && targetDistancePerRun > 0.0f;
+        bool distanceComplete = hasDistanceGoal && cumulativeTargetDistanceMeters >= targetDistancePerRun;
+        int targetCountGoal = ResolveTargetCountPerRun(hasDistanceGoal);
+        bool countComplete = targetCountGoal > 0 && targetIndex + 1 >= targetCountGoal;
+
+        if (distanceComplete || countComplete)
+        {
+            runCompletedLocally = true;
+            completedRunId = manager != null ? manager.CurrentRunId : string.Empty;
+            hasTarget = false;
+            if (targetObject != null)
+                targetObject.SetActive(false);
+
+            if (manager != null)
+                manager.SendTargetReached(reachedIndex, reachedTarget, userPosition, travelledSinceTargetSpawn, cumulativeTargetDistanceMeters, true);
+            return;
+        }
+
+        if (manager != null)
+            manager.SendTargetReached(reachedIndex, reachedTarget, userPosition, travelledSinceTargetSpawn, cumulativeTargetDistanceMeters, false);
+
+        SelectNextTarget(userPosition);
+    }
+
+    private void UpdateCumulativeVirtualDistance(Vector2 userPosition)
+    {
+        if (!hasPreviousVirtualPosition)
+        {
+            previousVirtualPosition = userPosition;
+            hasPreviousVirtualPosition = true;
+            return;
+        }
+
+        float delta = Vector2.Distance(previousVirtualPosition, userPosition);
+        previousVirtualPosition = userPosition;
+
+        if (delta <= 0.0001f)
+            return;
+
+        cumulativeTargetDistanceMeters += delta;
+    }
+
+    private bool TryCompleteByVirtualDistance(LiveVRNetworkManager manager, Vector2 userPosition)
+    {
+        float targetDistancePerRun = ResolveTargetDistancePerRun();
+        bool hasDistanceGoal = !float.IsInfinity(targetDistancePerRun) && targetDistancePerRun > 0.0f;
+        if (!hasDistanceGoal || cumulativeTargetDistanceMeters < targetDistancePerRun)
+            return false;
+
+        int reachedIndex = Mathf.Max(0, targetIndex);
+        Vector2 target = hasTarget ? currentTarget : userPosition;
+        float travelledSinceTargetSpawn = Mathf.Max(0.0f, cumulativeTargetDistanceMeters - currentTargetPathStartDistanceMeters);
+        runCompletedLocally = true;
+        completedRunId = manager != null ? manager.CurrentRunId : string.Empty;
+        hasTarget = false;
+        if (targetObject != null)
+            targetObject.SetActive(false);
+
+        if (manager != null)
+            manager.SendTargetReached(reachedIndex, target, userPosition, travelledSinceTargetSpawn, cumulativeTargetDistanceMeters, true);
+
+        return true;
+    }
+
+    private bool TryFindNaturalTouringTarget(Vector2 userPosition, Vector2 forward, out Vector2 target)
+    {
+        target = Vector2.zero;
+        float angleRange = UnityEngine.Random.value < 0.2f ? 120.0f : 45.0f;
+        for (int attempt = 0; attempt < 96; attempt++)
+        {
+            float distance = Mathf.Lerp(1.0f, 3.0f, (float)random.NextDouble());
+            float angle = Mathf.Lerp(-angleRange, angleRange, (float)random.NextDouble());
+            Vector2 candidate = userPosition + Utility.RotateVector2(forward, angle) * distance;
+            if (IsTargetInsideArea(candidate))
+            {
+                target = candidate;
+                return true;
+            }
+        }
+
+        return TryFindTargetByDistanceRange(userPosition, forward, 1.0f, 3.0f, -180.0f, 180.0f, 10.0f, out target);
+    }
+
+    private bool TryFindTargetByDistanceRange(
+        Vector2 userPosition,
+        Vector2 forward,
+        float minDistance,
+        float maxDistance,
+        float minAngle,
+        float maxAngle,
+        float angleStep,
+        out Vector2 target)
+    {
+        target = Vector2.zero;
+        float safeMin = Mathf.Max(0.0f, minDistance);
+        float safeMax = Mathf.Max(safeMin, maxDistance);
+
+        for (int attempt = 0; attempt < 96; attempt++)
+        {
+            float distance = Mathf.Lerp(safeMin, safeMax, (float)random.NextDouble());
+            float angle = Mathf.Lerp(minAngle, maxAngle, (float)random.NextDouble());
+            Vector2 candidate = userPosition + Utility.RotateVector2(forward, angle) * distance;
+            if (IsTargetInsideArea(candidate))
+            {
+                target = candidate;
+                return true;
+            }
+        }
+
+        for (float distance = safeMax; distance >= safeMin; distance -= 0.25f)
+        {
+            for (float angle = minAngle; angle <= maxAngle; angle += Mathf.Max(1.0f, angleStep))
+            {
+                Vector2 candidate = userPosition + Utility.RotateVector2(forward, angle) * distance;
+                if (IsTargetInsideArea(candidate))
+                {
+                    target = candidate;
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private bool TryGetPredefinedTarget(string episodeFileName, int index, Vector2 userPosition, out Vector2 target)
+    {
+        target = Vector2.zero;
+        EnsurePredefinedTargetsLoaded(episodeFileName);
+        if (predefinedTargets.Count == 0)
+            return false;
+
+        target = predefinedTargets[Mathf.Abs(index) % predefinedTargets.Count];
+        if (IsTargetInsideArea(target))
+            return true;
+
+        target = userPosition;
+        return false;
+    }
+
+    private void EnsurePredefinedTargetsLoaded(string episodeFileName)
+    {
+        if (predefinedTargets.Count > 0 || string.IsNullOrEmpty(episodeFileName))
+            return;
+
+        string path = Path.Combine(Application.dataPath, "Resources/" + episodeFileName + ".txt");
+        if (!File.Exists(path))
+            return;
+
+        string[] lines = File.ReadAllLines(path);
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string[] parts = lines[i].Split(',');
+            if (parts.Length < 2)
+                continue;
+
+            float x;
+            float y;
+            if (float.TryParse(parts[0], NumberStyles.Float, CultureInfo.InvariantCulture, out x) &&
+                float.TryParse(parts[1], NumberStyles.Float, CultureInfo.InvariantCulture, out y))
+            {
+                predefinedTargets.Add(new Vector2(x, y));
+            }
+        }
+    }
+
+    private float ResolveTargetDistancePerRun()
+    {
+        if (_GCM.GlobalCoordinationManager.instance != null)
+            return Mathf.Max(0.0f, _GCM.GlobalCoordinationManager.instance.TargetDistancePerUser);
+
+        return float.PositiveInfinity;
+    }
+
+    private int ResolveTargetCountPerRun(bool hasDistanceGoal)
+    {
+        UnitSetting unitSetting = ResolveUnitSetting();
+        if (unitSetting != null && unitSetting.episodeLength > 0 && unitSetting.episodeLength < int.MaxValue)
+            return unitSetting.episodeLength;
+
+        if (predefinedTargets.Count > 0)
+            return predefinedTargets.Count;
+
+        int configuredTargetCount = Mathf.Max(1, targetsPerRun);
+        if (hasDistanceGoal && configuredTargetCount <= 1)
+            return -1;
+
+        return configuredTargetCount;
+    }
+
     private Vector2 GetUserVirtualPosition()
     {
         Transform cameraTransform = ResolveHmdCamera();
@@ -262,6 +568,13 @@ public class LiveVRClientTargetGuide : MonoBehaviour
         targetIndex = -1;
         hasTarget = false;
         currentTarget = Vector2.zero;
+        currentTargetPathStartDistanceMeters = 0.0f;
+        previousVirtualPosition = Vector2.zero;
+        hasPreviousVirtualPosition = false;
+        runCompletedLocally = false;
+        completedRunId = string.Empty;
+        cumulativeTargetDistanceMeters = 0.0f;
+        predefinedTargets.Clear();
     }
 
     private int ResolveUserId()
@@ -435,5 +748,39 @@ public class LiveVRClientTargetGuide : MonoBehaviour
         root.layer = layer;
         for (int i = 0; i < root.transform.childCount; i++)
             SetLayerRecursively(root.transform.GetChild(i).gameObject, layer);
+    }
+
+    private UnitSetting ResolveUnitSetting()
+    {
+        RDWSimulationManager simulationManager = RDWSimulationManager.instance;
+        if (simulationManager == null || simulationManager.simulationSetting == null || simulationManager.simulationSetting.unitSettings == null)
+            return null;
+
+        int userId = ResolveUserId();
+        UnitSetting[] settings = simulationManager.simulationSetting.unitSettings;
+        if (userId < 0 || userId >= settings.Length)
+            return settings.Length > 0 ? settings[0] : null;
+
+        return settings[userId];
+    }
+
+    private Vector2 ResolveCurrentForward()
+    {
+        Transform cameraTransform = ResolveHmdCamera();
+        if (cameraTransform != null)
+            return NormalizeOrFallback(new Vector2(cameraTransform.forward.x, cameraTransform.forward.z), Vector2.up);
+
+        return Vector2.up;
+    }
+
+    private static Vector2 NormalizeOrFallback(Vector2 value, Vector2 fallback)
+    {
+        if (value.sqrMagnitude > Mathf.Epsilon)
+            return value.normalized;
+
+        if (fallback.sqrMagnitude > Mathf.Epsilon)
+            return fallback.normalized;
+
+        return Vector2.up;
     }
 }

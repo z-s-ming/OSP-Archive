@@ -2,7 +2,7 @@ using System.Collections.Generic;
 
 public interface ILiveRdwWalkingStepper
 {
-    void StepLiveWalking(
+    LiveVRGainDebugSample StepLiveWalking(
         RedirectedUnit unit,
         LiveHmdPoseSample currentSample,
         LiveHmdPoseSample previousSample,

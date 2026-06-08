@@ -1,0 +1,1500 @@
+﻿Assets\RDW\02 Script\RDW_Scripts\Unit\RedirectedUnit.cs(733,17): warning CS0414: The field 'RedirectedUnit.i' is assigned but its value is never used
+Assets\RDW\02 Script\LiveVRMultiplayer\Core\LiveVRExperimentSetup.cs(72,35): warning CS0414: The field 'LiveVRExperimentSetup.applyPoseInLateUpdate' is assigned but its value is never used
+Assets\RDW\02 Script\LiveVRMultiplayer\Core\LiveVRExperimentSetup.cs(71,35): warning CS0414: The field 'LiveVRExperimentSetup.applyPoseInFixedUpdate' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(32,18): warning CS0414: The field 'APFRedirector_OSP.bInit' is assigned but its value is never used
+				LogAssemblyErrors (0ms)
+Curl error 65: necessary data rewind wasn't possible
+Assets\RDW\02 Script\RDW_Scripts\2DModule\Polygon2D.cs(59,60): warning CS0472: The result of the expression is always 'true' since a value of type 'int' is never equal to 'null' of type 'int?'
+Assets\RDW\02 Script\RDW_Scripts\Communicator\SocketCommunicator.cs(54,25): warning CS0168: The variable 'e' is declared but never used
+Assets\RDW\02 Script\RDW_Scripts\Communicator\SocketCommunicator.cs(77,26): warning CS0168: The variable 'e' is declared but never used
+Assets\RDW\02 Script\RDW_Scripts\Controller\SimulationController.cs(267,21): warning CS0162: Unreachable code detected
+Assets\RDW\02 Script\RDW_Scripts\Controller\Episode\WanderingEpisodeForAnyReset.cs(146,19): warning CS0219: The variable 'resetLength' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector.cs(156,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector.cs(158,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(113,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(114,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(115,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(175,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(176,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(177,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(143,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(144,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(145,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\2DModule\Polygon2D.cs(739,13): warning CS0472: The result of the expression is always 'true' since a value of type 'int' is never equal to 'null' of type 'int?'
+Assets\RDW\02 Script\LiveVRMultiplayer\Network\LiveVRNetworkManager.cs(1276,24): warning CS0618: 'InputTracking.GetLocalPosition(XRNode)' is obsolete: 'This API is obsolete, and should no longer be used. Please use InputDevice.TryGetFeatureValue with the CommonUsages.devicePosition usage instead.'
+Assets\RDW\02 Script\LiveVRMultiplayer\Network\LiveVRNetworkManager.cs(1277,24): warning CS0618: 'InputTracking.GetLocalRotation(XRNode)' is obsolete: 'This API is obsolete, and should no longer be used. Please use InputDevice.TryGetFeatureValue with the CommonUsages.deviceRotation usage instead.'
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(32,18): warning CS0414: The field 'APFRedirector_OSP.bInit' is assigned but its value is never used
+Assets\RDW\02 Script\LiveVRMultiplayer\Core\LiveVRExperimentSetup.cs(71,35): warning CS0414: The field 'LiveVRExperimentSetup.applyPoseInFixedUpdate' is assigned but its value is never used
+Assets\RDW\02 Script\LiveVRMultiplayer\Core\LiveVRExperimentSetup.cs(72,35): warning CS0414: The field 'LiveVRExperimentSetup.applyPoseInLateUpdate' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Unit\RedirectedUnit.cs(733,17): warning CS0414: The field 'RedirectedUnit.i' is assigned but its value is never used
+				LogAssemblyErrors (0ms)
+Assets\RDW\02 Script\RDW_Scripts\2DModule\Polygon2D.cs(59,60): warning CS0472: The result of the expression is always 'true' since a value of type 'int' is never equal to 'null' of type 'int?'
+Assets\RDW\02 Script\RDW_Scripts\Communicator\SocketCommunicator.cs(54,25): warning CS0168: The variable 'e' is declared but never used
+Assets\RDW\02 Script\RDW_Scripts\Communicator\SocketCommunicator.cs(77,26): warning CS0168: The variable 'e' is declared but never used
+Assets\RDW\02 Script\RDW_Scripts\Controller\SimulationController.cs(267,21): warning CS0162: Unreachable code detected
+Assets\RDW\02 Script\RDW_Scripts\Controller\Episode\WanderingEpisodeForAnyReset.cs(146,19): warning CS0219: The variable 'resetLength' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector.cs(156,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector.cs(158,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(113,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(114,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(115,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(143,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(144,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(145,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(175,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(176,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(177,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\2DModule\Polygon2D.cs(739,13): warning CS0472: The result of the expression is always 'true' since a value of type 'int' is never equal to 'null' of type 'int?'
+Assets\RDW\02 Script\LiveVRMultiplayer\Network\LiveVRNetworkManager.cs(1276,24): warning CS0618: 'InputTracking.GetLocalPosition(XRNode)' is obsolete: 'This API is obsolete, and should no longer be used. Please use InputDevice.TryGetFeatureValue with the CommonUsages.devicePosition usage instead.'
+Assets\RDW\02 Script\LiveVRMultiplayer\Network\LiveVRNetworkManager.cs(1277,24): warning CS0618: 'InputTracking.GetLocalRotation(XRNode)' is obsolete: 'This API is obsolete, and should no longer be used. Please use InputDevice.TryGetFeatureValue with the CommonUsages.deviceRotation usage instead.'
+Assets\RDW\02 Script\LiveVRMultiplayer\Core\LiveVRExperimentSetup.cs(72,35): warning CS0414: The field 'LiveVRExperimentSetup.applyPoseInLateUpdate' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Unit\RedirectedUnit.cs(733,17): warning CS0414: The field 'RedirectedUnit.i' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(32,18): warning CS0414: The field 'APFRedirector_OSP.bInit' is assigned but its value is never used
+Assets\RDW\02 Script\LiveVRMultiplayer\Core\LiveVRExperimentSetup.cs(71,35): warning CS0414: The field 'LiveVRExperimentSetup.applyPoseInFixedUpdate' is assigned but its value is never used
+				LogAssemblyErrors (0ms)
+Start importing Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs using Guid(5ea7a97c790c48059f510d4f9fb65dc8) Importer(-1,00000000000000000000000000000000)  -> (artifact id: 'f043293ce4e5821b483d0cca62dc926b') in 0.002658 seconds 
+Assets\RDW\02 Script\RDW_Scripts\2DModule\Polygon2D.cs(59,60): warning CS0472: The result of the expression is always 'true' since a value of type 'int' is never equal to 'null' of type 'int?'
+Assets\RDW\02 Script\RDW_Scripts\Communicator\SocketCommunicator.cs(54,25): warning CS0168: The variable 'e' is declared but never used
+Assets\RDW\02 Script\RDW_Scripts\Communicator\SocketCommunicator.cs(77,26): warning CS0168: The variable 'e' is declared but never used
+Assets\RDW\02 Script\RDW_Scripts\Controller\SimulationController.cs(267,21): warning CS0162: Unreachable code detected
+Assets\RDW\02 Script\RDW_Scripts\Controller\Episode\WanderingEpisodeForAnyReset.cs(146,19): warning CS0219: The variable 'resetLength' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector.cs(156,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector.cs(158,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(113,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(114,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(115,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(143,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(144,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(145,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(175,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(176,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(177,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\2DModule\Polygon2D.cs(739,13): warning CS0472: The result of the expression is always 'true' since a value of type 'int' is never equal to 'null' of type 'int?'
+Assets\RDW\02 Script\LiveVRMultiplayer\Network\LiveVRNetworkManager.cs(1264,24): warning CS0618: 'InputTracking.GetLocalPosition(XRNode)' is obsolete: 'This API is obsolete, and should no longer be used. Please use InputDevice.TryGetFeatureValue with the CommonUsages.devicePosition usage instead.'
+Assets\RDW\02 Script\LiveVRMultiplayer\Network\LiveVRNetworkManager.cs(1265,24): warning CS0618: 'InputTracking.GetLocalRotation(XRNode)' is obsolete: 'This API is obsolete, and should no longer be used. Please use InputDevice.TryGetFeatureValue with the CommonUsages.deviceRotation usage instead.'
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(32,18): warning CS0414: The field 'APFRedirector_OSP.bInit' is assigned but its value is never used
+Assets\RDW\02 Script\LiveVRMultiplayer\Core\LiveVRExperimentSetup.cs(71,35): warning CS0414: The field 'LiveVRExperimentSetup.applyPoseInFixedUpdate' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Unit\RedirectedUnit.cs(733,17): warning CS0414: The field 'RedirectedUnit.i' is assigned but its value is never used
+Assets\RDW\02 Script\LiveVRMultiplayer\Core\LiveVRExperimentSetup.cs(72,35): warning CS0414: The field 'LiveVRExperimentSetup.applyPoseInLateUpdate' is assigned but its value is never used
+				LogAssemblyErrors (0ms)
+ArgumentException: Getting control 1's position in a group with only 1 controls when doing repaint
+  at UnityEngine.UIElements.UIR.RenderChainCommand.ExecuteNonDrawMesh (UnityEngine.UIElements.UIR.DrawParams drawParams, System.Single pixelsPerPoint, System.Exception& immediateException) [0x000bd] in <d4f140699b324b6ead98b4169bc350a1>:0 
+Rethrow as ImmediateModeException
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Logger:LogWarning (string,object)
+Unity.Services.Core.Internal.CoreLogger:LogWarning (object) (at Library/PackageCache/com.unity.services.core@1.8.1/Runtime/Core.Internal/Logging/CoreLogger.cs:15)
+Unity.Services.Core.Editor.ProjectUnlinkBuildWarning:OnPreprocessBuild (UnityEditor.Build.Reporting.BuildReport) (at Library/PackageCache/com.unity.services.core@1.8.1/Editor/Core/Build/ProjectUnlinkBuildWarning.cs:29)
+(Filename: Library/PackageCache/com.unity.services.core@1.8.1/Editor/Core/Build/ProjectUnlinkBuildWarning.cs Line: 29)
+UnityEngine.Debug:LogWarning (object)
+UnityEditor.Android.AndroidSDKTools:DetectErrorsAndWarnings (string,string,string[])
+Assets\RDW\02 Script\RDW_Scripts\2DModule\Polygon2D.cs(59,60): warning CS0472: The result of the expression is always 'true' since a value of type 'int' is never equal to 'null' of type 'int?'
+Assets\RDW\02 Script\RDW_Scripts\Communicator\SocketCommunicator.cs(54,25): warning CS0168: The variable 'e' is declared but never used
+Assets\RDW\02 Script\RDW_Scripts\Communicator\SocketCommunicator.cs(77,26): warning CS0168: The variable 'e' is declared but never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector.cs(156,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector.cs(158,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(113,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(114,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter.cs(115,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(175,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(176,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(177,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(143,21): warning CS0219: The variable 'r' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(144,21): warning CS0219: The variable 'gamma' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Resetter\APF_R_Resetter_OSP.cs(145,21): warning CS0219: The variable 'M' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Controller\SimulationController.cs(267,21): warning CS0162: Unreachable code detected
+Assets\RDW\02 Script\RDW_Scripts\Controller\Episode\WanderingEpisodeForAnyReset.cs(146,19): warning CS0219: The variable 'resetLength' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\2DModule\Polygon2D.cs(739,13): warning CS0472: The result of the expression is always 'true' since a value of type 'int' is never equal to 'null' of type 'int?'
+Assets\RDW\02 Script\LiveVRMultiplayer\Network\LiveVRNetworkManager.cs(1264,24): warning CS0618: 'InputTracking.GetLocalPosition(XRNode)' is obsolete: 'This API is obsolete, and should no longer be used. Please use InputDevice.TryGetFeatureValue with the CommonUsages.devicePosition usage instead.'
+Assets\RDW\02 Script\LiveVRMultiplayer\Network\LiveVRNetworkManager.cs(1265,24): warning CS0618: 'InputTracking.GetLocalRotation(XRNode)' is obsolete: 'This API is obsolete, and should no longer be used. Please use InputDevice.TryGetFeatureValue with the CommonUsages.deviceRotation usage instead.'
+Assets\RDW\02 Script\LiveVRMultiplayer\Core\LiveVRExperimentSetup.cs(72,35): warning CS0414: The field 'LiveVRExperimentSetup.applyPoseInLateUpdate' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Redirector\APFRedirector_OSP.cs(32,18): warning CS0414: The field 'APFRedirector_OSP.bInit' is assigned but its value is never used
+Assets\RDW\02 Script\LiveVRMultiplayer\Core\LiveVRExperimentSetup.cs(71,35): warning CS0414: The field 'LiveVRExperimentSetup.applyPoseInFixedUpdate' is assigned but its value is never used
+Assets\RDW\02 Script\RDW_Scripts\Unit\RedirectedUnit.cs(733,17): warning CS0414: The field 'RedirectedUnit.i' is assigned but its value is never used
+ 0.9 kb	 0.0% Assets/RDW/04 Material/resetLoc_1_mat.mat
+ 0.4 kb	 0.0% Assets/RDW/03 Prefab/RDW_Prefabs/Other/ResetLocator.prefab
+ 0.2 kb	 0.0% Packages/com.unity.test-framework/UnityEngine.TestRunner/Assertions/OutOfOrderExpectedLogMessageException.cs
+ 0.2 kb	 0.0% Packages/com.unity.test-framework/UnityEngine.TestRunner/Assertions/UnexpectedLogMessageException.cs
+ 0.1 kb	 0.0% Packages/com.unity.test-framework/UnityEngine.TestRunner/Assertions/UnityTestTimeoutException.cs
+ 0.1 kb	 0.0% Packages/com.unity.test-framework/UnityEngine.TestRunner/Assertions/UnhandledLogMessageException.cs
+ 0.1 kb	 0.0% Packages/com.unity.test-framework/UnityEngine.TestRunner/Assertions/InvalidSignatureException.cs
+ 0.1 kb	 0.0% Packages/com.unity.services.core/Runtime/Core.Internal/Registry/CircularDependencyException.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Trigger/BidirectionalCollisionRecoverabilityEvaluator.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Trigger/BidirectionalCollisionRecoverabilityAssessment.cs
+ 0.1 kb	 0.0% Packages/com.unity.purchasing/Runtime/SecurityCore/IAPSecurityException.cs
+ 0.1 kb	 0.0% Packages/com.unity.services.core/Runtime/Core/Initialization/UnityProjectNotLinkedException.cs
+ 0.1 kb	 0.0% Packages/com.unity.services.core/Runtime/Core/Initialization/ServicesInitializationException.cs
+ 0.1 kb	 0.0% Packages/com.unity.purchasing/Runtime/Purchasing/Telemetry/IapTelemetryException.cs
+ 0.1 kb	 0.0% Packages/com.unity.purchasing/Runtime/Stores/StoreSpecificPurchaseErrorCode.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Trigger/BidirectionalCollisionDebugVisualizer.cs
+ 0.1 kb	 0.0% Packages/com.unity.services.core/Runtime/Core/RequestFailedException.cs
+ 0.1 kb	 0.0% Packages/com.unity.inputsystem/InputSystem/Utilities/ExceptionHelpers.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Selection/ProactiveUserResetArbitrationService.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Safety/ProactiveUserResetSafetyValidator.cs
+ 0.1 kb	 0.0% Packages/com.unity.xr.openxr/MockRuntime/MockRuntimeFeatureSet.cs
+ 0.1 kb	 0.0% Packages/com.unity.ads/Runtime/Advertisement/Enums/UnityAdsInitializationError.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ResetExecution/IRdwResetExecutionCoordinator.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Trigger/ProactiveResetTriggerDetectors.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Selection/ProactiveResetCandidateSelectors.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Logging/ProactiveCandidateFrameLogger.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Execution/ProactiveResetIntentDispatcher.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Execution/PerUserProactiveResetCooldown.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Core/ProactiveResetStrategyInterfaces.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Controller/Episode/WanderingEpisodeForFixedReset.cs
+ 0.1 kb	 0.0% Packages/com.unity.services.core/Runtime/Core.Internal/Registry/DependencyTreeExceptions.cs
+ 0.1 kb	 0.0% Packages/com.unity.services.core/Runtime/Core/CommonErrorCodes.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Resetter/UserResetDirectionResolver.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ResetExecution/RdwResetExecutionRegistry.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Safety/ProactiveResetSafetyPolicies.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Logging/ProactiveTriggerWindowLogger.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Core/ProactiveResetEventIdTracker.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Controller/Episode/WanderingEpisodeForAnyReset.cs
+ 0.1 kb	 0.0% Packages/com.unity.ads/Runtime/Advertisement/Enums/UnityAdsShowError.cs
+ 0.1 kb	 0.0% Packages/com.unity.ads/Runtime/Advertisement/Enums/UnityAdsLoadError.cs
+ 0.1 kb	 0.0% Packages/com.unity.xr.openxr/Runtime/Features/OpenXRFeatureSettings.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Core/ProactiveResetPipeline.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Core/ProactiveResetPairFilter.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs
+ 0.1 kb	 0.0% Packages/com.unity.services.core/Runtime/Core.Internal/Registry/HashExceptions.cs
+ 0.1 kb	 0.0% Packages/com.unity.inputsystem/InputSystem/Devices/ICustomDeviceReset.cs
+ 0.1 kb	 0.0% Packages/com.unity.inputsystem/InputSystem/Devices/Commands/RequestResetCommand.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Resetter/TwoOneTurnResetter.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Resetter/FreezeTurnResetter.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Resetter/CenterTurnResetter.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Resetter/APF_R_Resetter_OSP.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ProactiveUserReset/Core/ProactiveResetModels.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Communicator/SocketCommunicator.cs
+ 0.1 kb	 0.0% Packages/com.unity.inputsystem/InputSystem/Events/DeviceResetEvent.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Resetter/RotationResetter.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Resetter/ARC_Resetter_OSP.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Resetter/APF_R_Resetter.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Resetter/NullResetter.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Resetter/ARC_Resetter.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/ResetExecution/ResetPlan.cs
+ 0.1 kb	 0.0% Assets/RDW/02 Script/RDW_Scripts/Resetter/Resetter.cs
+				LogAssemblyErrors (0ms)
+[LiveVR] Runtime role=HostOnly. Host authority: receives HMD poses, runs RDW/redirection/reset, and writes live logs.
+[LiveVR] Host listening for pose packets on UDP port 47770.
+[LiveVR] Host run ID for questionnaire/log matching: 20260608_111004
+[LiveVR] Using LiveSpaceProfile 'rectangle_1780888204508' with 4 boundary vertices as RDW realSpace.
+_GCM.GlobalCoordinationManager:SetResetParameters () (at Assets/RDW/02 Script/GlobalCoordination/GlobalCoordinationManager.cs:1277)
+_GCM.GlobalCoordinationManager:ResetEpisode () (at Assets/RDW/02 Script/GlobalCoordination/GlobalCoordinationManager.cs:557)
+_GCM.GlobalCoordinationManager:SetResetParameters () (at Assets/RDW/02 Script/GlobalCoordination/GlobalCoordinationManager.cs:1282)
+_GCM.GlobalCoordinationManager:ResetEpisode () (at Assets/RDW/02 Script/GlobalCoordination/GlobalCoordinationManager.cs:557)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: no pose received.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Auto-assigned client 192.168.137.136:34641 (Quest 3S) -> user 0.
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] User 0: pose is not calibrated.
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Sent center calibration command to user 0.
+LiveVRHostExperimentController:CalibrateUser (int) (at Assets/RDW/02 Script/LiveVRMultiplayer/Host/LiveVRHostExperimentController.cs:295)
+LiveVRHostExperimentController:CalibrateSelectedUser () (at Assets/RDW/02 Script/LiveVRMultiplayer/Host/LiveVRHostExperimentController.cs:276)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.000/0.000 yawDiff=21.93
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=21.95
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=21.96
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=21.97
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=21.97
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=21.96
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=21.95
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=21.94
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=21.93
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=21.90
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=21.91
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=21.91
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=21.94
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=21.95
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=21.94
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=21.92
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=21.92
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=-0.01 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=21.93
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=21.94
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=21.95
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.01 virtualDelta=0.000 virtualYawDelta=0.01 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=21.95
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=21.96
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=-0.07 virtualDelta=0.000 virtualYawDelta=-0.06 injectedYaw=0.01 rate=-0.16 gains T/R/C=0.000/1.250/0.133 yawDiff=21.99
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=17.97
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=19.26
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=25.28
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=37.61
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=40.19
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=49.63
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.006 physicalYawDelta=-0.10 virtualDelta=0.006 virtualYawDelta=-0.08 injectedYaw=0.02 rate=-15.45 gains T/R/C=0.000/1.250/0.133 yawDiff=80.32
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=82.12
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=89.01
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=92.07
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=96.73
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=87.86
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=87.08
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=84.71
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=82.92
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=80.81
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=73.17
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=71.38
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Curvature redir=APFRedirector_OSP physicalDelta=0.023 physicalYawDelta=-0.21 virtualDelta=0.023 virtualYawDelta=-0.02 injectedYaw=0.20 rate=17.87 gains T/R/C=0.000/0.670/-0.133 yawDiff=72.29
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=72.08
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.116 physicalYawDelta=-0.92 virtualDelta=0.116 virtualYawDelta=-1.38 injectedYaw=-0.45 rate=-22.78 gains T/R/C=0.000/0.670/-0.133 yawDiff=70.99
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.057 physicalYawDelta=-0.38 virtualDelta=0.057 virtualYawDelta=-0.57 injectedYaw=-0.19 rate=-20.16 gains T/R/C=0.000/0.670/-0.133 yawDiff=71.82
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=71.91
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=72.86
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=71.41
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=71.14
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Host received TARGET_REACHED user=0 target=0 distance=4.97 cumulative=4.97 complete=False pos=(-3.44,-6.57) targetPos=(-3.23,-7.17)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=70.30
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=68.52
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=60.30
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=47.85
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=38.48
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=46.10
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=63.52
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=70.68
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=77.11
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=84.85
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.027 physicalYawDelta=-0.45 virtualDelta=0.027 virtualYawDelta=-0.36 injectedYaw=0.09 rate=-27.66 gains T/R/C=0.000/1.250/0.133 yawDiff=89.61
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Reset plan user=0 event=1 targetAngle=-96.6 physicalTurn=-96.6 virtualViewTurn=-360.0 extraVirtualInjected=263.4 initialPhysicalYaw=-142.6 initialVirtualYaw=-52.1
+LiveVRResetCoordinator:EnsureResetMapping (LiveVRNetworkManager,LiveVRResetCoordinator/ActiveReset,LiveVRPoseSample) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:294)
+LiveVRResetCoordinator:TryBeginReset (RedirectedUnit,ResetPlan) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:133)
+RdwResetExecutionRegistry:TryBeginReset (RedirectedUnit,ResetPlan) (at Assets/RDW/02 Script/RDW_Scripts/ResetExecution/RdwResetExecutionRegistry.cs:18)
+RedirectedUnit:TryBeginExternalReset (ResetPlan) (at Assets/RDW/02 Script/RDW_Scripts/Unit/RedirectedUnit.cs:609)
+(Filename: Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs Line: 294)
+[LiveVR] Sent RESET_START user=0 type=WALL_RESET event=1 physical=-96.6 injected=-263.4 turn=-1
+LiveVRNetworkManager:SendResetStart (int,string,UnityEngine.Vector2,int,bool,UnityEngine.Vector2,int,single,single) (at Assets/RDW/02 Script/LiveVRMultiplayer/Network/LiveVRNetworkManager.cs:1032)
+LiveVRResetCoordinator:SendPrompt (LiveVRNetworkManager,LiveVRResetCoordinator/ActiveReset) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:572)
+LiveVRResetCoordinator:TryBeginReset (RedirectedUnit,ResetPlan) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:134)
+RdwResetExecutionRegistry:TryBeginReset (RedirectedUnit,ResetPlan) (at Assets/RDW/02 Script/RDW_Scripts/ResetExecution/RdwResetExecutionRegistry.cs:18)
+RedirectedUnit:TryBeginExternalReset (ResetPlan) (at Assets/RDW/02 Script/RDW_Scripts/Unit/RedirectedUnit.cs:609)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.022 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=90.64
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=85.57
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=89.43
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=86.21
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=83.62
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=118.70
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=146.80
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.007 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=-174.43
+[LiveVR] Sent RESET_END user=0 event=1
+LiveVRNetworkManager:SendResetEnd (int,int) (at Assets/RDW/02 Script/LiveVRMultiplayer/Network/LiveVRNetworkManager.cs:1127)
+LiveVRResetCoordinator:CommitLiveResetDone (int,int,UnityEngine.Vector2,single) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:369)
+LiveVRResetCoordinator:FixedUpdate () (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:190)
+[LiveVR] CommitLiveResetDone user=0 event=1 physical=(3.16,2.10) yaw=111.1 frozenVirtual=(-6.13,24.36)/-52.1
+LiveVRResetCoordinator:CommitLiveResetDone (int,int,UnityEngine.Vector2,single) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:370)
+LiveVRResetCoordinator:FixedUpdate () (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:190)
+(Filename: Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs Line: 370)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.002 physicalYawDelta=0.31 virtualDelta=0.002 virtualYawDelta=0.46 injectedYaw=0.15 rate=21.01 gains T/R/C=0.000/0.670/0.133 yawDiff=-162.98
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=-160.66
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=-162.33
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.029 physicalYawDelta=-0.35 virtualDelta=0.029 virtualYawDelta=-0.28 injectedYaw=0.07 rate=-18.75 gains T/R/C=0.000/1.250/0.133 yawDiff=-163.35
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=-162.97
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=-163.36
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=-163.74
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.041 physicalYawDelta=0.44 virtualDelta=0.041 virtualYawDelta=0.35 injectedYaw=-0.09 rate=21.36 gains T/R/C=0.000/1.250/-0.133 yawDiff=-163.06
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.039 physicalYawDelta=-0.57 virtualDelta=0.039 virtualYawDelta=-0.85 injectedYaw=-0.28 rate=-23.63 gains T/R/C=0.000/0.670/-0.133 yawDiff=-164.11
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.039 physicalYawDelta=0.58 virtualDelta=0.039 virtualYawDelta=0.47 injectedYaw=-0.12 rate=21.09 gains T/R/C=0.000/1.250/-0.133 yawDiff=-162.65
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.037 physicalYawDelta=-0.35 virtualDelta=0.037 virtualYawDelta=-0.52 injectedYaw=-0.17 rate=-20.89 gains T/R/C=0.000/0.670/-0.133 yawDiff=-162.90
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=-162.23
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=-161.13
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=-160.38
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=-160.08
+[LiveVR] Host received TARGET_REACHED user=0 target=1 distance=7.71 cumulative=12.68 complete=False pos=(-9.25,-9.27) targetPos=(-9.87,-9.40)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=-161.95
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=-179.99
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=173.45
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=173.95
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=174.27
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Reset plan user=0 event=2 targetAngle=171.8 physicalTurn=171.8 virtualViewTurn=360.0 extraVirtualInjected=188.2 initialPhysicalYaw=98.7 initialVirtualYaw=-87.2
+LiveVRResetCoordinator:EnsureResetMapping (LiveVRNetworkManager,LiveVRResetCoordinator/ActiveReset,LiveVRPoseSample) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:294)
+LiveVRResetCoordinator:TryBeginReset (RedirectedUnit,ResetPlan) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:133)
+RdwResetExecutionRegistry:TryBeginReset (RedirectedUnit,ResetPlan) (at Assets/RDW/02 Script/RDW_Scripts/ResetExecution/RdwResetExecutionRegistry.cs:18)
+RedirectedUnit:TryBeginExternalReset (ResetPlan) (at Assets/RDW/02 Script/RDW_Scripts/Unit/RedirectedUnit.cs:609)
+(Filename: Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs Line: 294)
+[LiveVR] Sent RESET_START user=0 type=WALL_RESET event=2 physical=171.8 injected=188.2 turn=1
+LiveVRNetworkManager:SendResetStart (int,string,UnityEngine.Vector2,int,bool,UnityEngine.Vector2,int,single,single) (at Assets/RDW/02 Script/LiveVRMultiplayer/Network/LiveVRNetworkManager.cs:1032)
+LiveVRResetCoordinator:SendPrompt (LiveVRNetworkManager,LiveVRResetCoordinator/ActiveReset) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:572)
+LiveVRResetCoordinator:TryBeginReset (RedirectedUnit,ResetPlan) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:134)
+RdwResetExecutionRegistry:TryBeginReset (RedirectedUnit,ResetPlan) (at Assets/RDW/02 Script/RDW_Scripts/ResetExecution/RdwResetExecutionRegistry.cs:18)
+RedirectedUnit:TryBeginExternalReset (ResetPlan) (at Assets/RDW/02 Script/RDW_Scripts/Unit/RedirectedUnit.cs:609)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=174.11
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=175.50
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=-177.85
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.020 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=179.98
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=172.20
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=130.26
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=77.11
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=45.38
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=20.82
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=16.39
+[LiveVR] Sent RESET_END user=0 event=2
+LiveVRNetworkManager:SendResetEnd (int,int) (at Assets/RDW/02 Script/LiveVRMultiplayer/Network/LiveVRNetworkManager.cs:1127)
+LiveVRResetCoordinator:CommitLiveResetDone (int,int,UnityEngine.Vector2,single) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:369)
+LiveVRResetCoordinator:FixedUpdate () (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:190)
+[LiveVR] CommitLiveResetDone user=0 event=2 physical=(-3.06,-0.42) yaw=-78.9 frozenVirtual=(-0.17,27.97)/-87.2
+LiveVRResetCoordinator:CommitLiveResetDone (int,int,UnityEngine.Vector2,single) (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:370)
+LiveVRResetCoordinator:FixedUpdate () (at Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs:190)
+(Filename: Assets/RDW/02 Script/LiveVRMultiplayer/RDW/LiveVRResetCoordinator.cs Line: 370)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=-6.48
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=-3.55
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.001 physicalYawDelta=1.24 virtualDelta=0.001 virtualYawDelta=1.85 injectedYaw=0.61 rate=25.47 gains T/R/C=0.000/0.670/0.133 yawDiff=-2.15
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=1.25
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=0.92
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=1.27
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Rotation redir=APFRedirector_OSP physicalDelta=0.043 physicalYawDelta=0.25 virtualDelta=0.043 virtualYawDelta=0.38 injectedYaw=0.12 rate=22.56 gains T/R/C=0.000/0.670/0.133 yawDiff=2.72
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=2.50
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=1.42
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=2.08
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=Curvature redir=APFRedirector_OSP physicalDelta=0.040 physicalYawDelta=0.04 virtualDelta=0.040 virtualYawDelta=-0.14 injectedYaw=-0.18 rate=-16.05 gains T/R/C=0.000/0.670/0.133 yawDiff=1.09
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=0.85
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/-0.133 yawDiff=1.52
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Host received TARGET_REACHED user=0 target=2 distance=6.30 cumulative=18.98 complete=False pos=(-15.32,-10.02) targetPos=(-15.96,-10.11)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/-0.133 yawDiff=0.54
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/1.250/0.133 yawDiff=6.25
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=16.33
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Gain user=0 type=None redir=APFRedirector_OSP physicalDelta=0.000 physicalYawDelta=0.00 virtualDelta=0.000 virtualYawDelta=0.00 injectedYaw=0.00 rate=0.00 gains T/R/C=0.000/0.670/0.133 yawDiff=21.38
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+[LiveVR] Host received TARGET_REACHED user=0 target=3 distance=1.02 cumulative=20.00 complete=True pos=(-16.05,-9.82) targetPos=(-19.24,-3.21)
+[LiveVR] Failed to receive pose packet: get_unscaledTime can only be called from the main thread.
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+UnityEngine.Debug:LogWarning (object)
+Per-user reset counts: 2,0.0000,2,0,0,0,2
+Saving Inter-Reset Distance Data Starts. Queue Count : 2
+_GCM.GM_DataRecord:WriteInterResetDistanceData_Batch (System.Collections.Generic.Queue`1<string>&) (at Assets/RDW/02 Script/GM_DataRecord.cs:633)
+_GCM.GM_DataRecord:Save_InterResetDistance_Batch () (at Assets/RDW/02 Script/GM_DataRecord.cs:460)

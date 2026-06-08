@@ -19,7 +19,9 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
         public float DesiredVirtualRotationDegrees;
         public float AccumulatedPhysicalRotationDegrees;
         public float ResetProgress;
-        public float NextInjectionLogTime;
+        public float LastMeaningfulProgressElapsedSeconds;
+        public float LastWatchdogProgress;
+        public float LastWatchdogPhysicalTurnDegrees;
         public bool HasSentResetStart;
         public Vector2 FrozenVirtualPosition;
         public float FrozenVirtualYawDegrees;
@@ -36,9 +38,12 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
     [SerializeField] private bool requireInsideRealSpaceForCompletion = false;
     [SerializeField] private float stableDurationSeconds = 0.3f;
     [SerializeField] private float timeoutSeconds = 0.0f;
+    [SerializeField] private float meaningfulProgressThreshold = 0.02f;
+    [SerializeField] private float meaningfulTurnThresholdDegrees = 2.0f;
     [SerializeField] private float promptRepeatSeconds = 0.5f;
     [SerializeField] private float resetVirtualRotationScale = 1.0f;
     [SerializeField] private float minimumPhysicalTurnDegreesForVirtualReset = 3.0f;
+    [SerializeField] private float minimumLiveResetPhysicalTurnDegrees = 30.0f;
 
     private readonly Dictionary<int, ActiveReset> activeByPlanId = new Dictionary<int, ActiveReset>();
     private readonly Dictionary<int, int> activePlanByUserId = new Dictionary<int, int>();
@@ -54,6 +59,8 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
         bool newRequireInsideRealSpaceForCompletion,
         float newStableDurationSeconds,
         float newTimeoutSeconds,
+        float newMeaningfulProgressThreshold,
+        float newMeaningfulTurnThresholdDegrees,
         float newPromptRepeatSeconds)
     {
         networkManager = newNetworkManager;
@@ -65,6 +72,8 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
         requireInsideRealSpaceForCompletion = newRequireInsideRealSpaceForCompletion;
         stableDurationSeconds = newStableDurationSeconds;
         timeoutSeconds = newTimeoutSeconds;
+        meaningfulProgressThreshold = newMeaningfulProgressThreshold;
+        meaningfulTurnThresholdDegrees = newMeaningfulTurnThresholdDegrees;
         promptRepeatSeconds = newPromptRepeatSeconds;
     }
 
@@ -109,7 +118,9 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
             DesiredVirtualRotationDegrees = 0.0f,
             AccumulatedPhysicalRotationDegrees = 0.0f,
             ResetProgress = 0.0f,
-            NextInjectionLogTime = 0.0f,
+            LastMeaningfulProgressElapsedSeconds = 0.0f,
+            LastWatchdogProgress = 0.0f,
+            LastWatchdogPhysicalTurnDegrees = 0.0f,
             HasSentResetStart = false,
             FrozenVirtualPosition = Vector2.zero,
             FrozenVirtualYawDegrees = 0.0f
@@ -124,6 +135,24 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
         return true;
     }
 
+    public void ClearActiveResets(bool notifyClients)
+    {
+        LiveVRNetworkManager manager = ResolveNetworkManager();
+        foreach (KeyValuePair<int, ActiveReset> item in activeByPlanId)
+        {
+            ActiveReset activeReset = item.Value;
+            if (notifyClients && manager != null && manager.IsHost)
+                manager.SendResetEnd(activeReset.Plan.UserId, activeReset.Plan.PlanId);
+
+            if (activeReset.Unit != null)
+                activeReset.Unit.CancelExternalResetForLiveRestart();
+        }
+
+        activeByPlanId.Clear();
+        activePlanByUserId.Clear();
+        completedPlanIds.Clear();
+    }
+
     private void FixedUpdate()
     {
         LiveVRNetworkManager manager = ResolveNetworkManager();
@@ -136,10 +165,30 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
             ActiveReset activeReset = item.Value;
             TickActiveReset(manager, activeReset);
 
+            if (IsResetTimedOut(activeReset))
+            {
+                manager.SetTrialEndState(LiveVRTrialEndState.InvalidResetTimeout);
+                manager.BeginRestartEpoch();
+                manager.BroadcastClientResetClear("reset_timeout");
+                manager.SetExperimentState(LiveVRExperimentState.Invalid);
+                if (activeReset.Unit != null)
+                    activeReset.Unit.CancelExternalResetForLiveRestart();
+                completedPlanIds.Add(activeReset.Plan.PlanId);
+                Debug.LogWarning(string.Format(
+                    "[LiveVR] Reset no-progress timeout user={0} event={1}; trial marked invalid. elapsed={2:F1}s idle={3:F1}s progress={4:P0}",
+                    activeReset.Plan.UserId,
+                    activeReset.Plan.PlanId,
+                    activeReset.ElapsedSeconds,
+                    activeReset.ElapsedSeconds - activeReset.LastMeaningfulProgressElapsedSeconds,
+                    activeReset.ResetProgress));
+                continue;
+            }
+
             if (IsLiveHmdReset(manager, activeReset))
             {
                 LiveVRPoseSample finalSample;
-                if (TryGetPoseForCompletion(manager, activeReset.Plan.UserId, out finalSample) &&
+                if (ShouldCompleteReset(manager, activeReset) &&
+                    TryGetPoseForCompletion(manager, activeReset.Plan.UserId, out finalSample) &&
                     CommitLiveResetDone(
                         activeReset.Plan.UserId,
                         activeReset.Plan.PlanId,
@@ -196,23 +245,12 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
 
         float physicalYawDelta = Mathf.DeltaAngle(activeReset.PreviousYawDegrees, sample.YawDegrees);
         activeReset.PreviousYawDegrees = sample.YawDegrees;
-
-        activeReset.AccumulatedPhysicalRotationDegrees += physicalYawDelta;
+        activeReset.AccumulatedPhysicalRotationDegrees = AccumulatePhysicalTurnTowardPlan(
+            activeReset.AccumulatedPhysicalRotationDegrees,
+            physicalYawDelta,
+            activeReset.DesiredPhysicalRotationDegrees);
         activeReset.ResetProgress = CalculateResetProgress(activeReset);
-
-        if (Time.unscaledTime >= activeReset.NextInjectionLogTime)
-        {
-            activeReset.NextInjectionLogTime = Time.unscaledTime + 0.5f;
-            Debug.Log(string.Format(
-                "[LiveVR] Reset progress user={0} event={1} physical={2:F1}/{3:F1} clientVirtualPlan={4:F1}/{5:F1} progress={6:P0}",
-                activeReset.Plan.UserId,
-                activeReset.Plan.PlanId,
-                activeReset.AccumulatedPhysicalRotationDegrees,
-                activeReset.DesiredPhysicalRotationDegrees,
-                activeReset.DesiredVirtualRotationDegrees * activeReset.ResetProgress,
-                activeReset.DesiredVirtualRotationDegrees,
-                activeReset.ResetProgress));
-        }
+        RefreshResetWatchdogIfProgressed(activeReset);
     }
 
     private bool EnsureResetMapping(LiveVRNetworkManager manager, ActiveReset activeReset, LiveVRPoseSample sample)
@@ -227,12 +265,13 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
         Vector2 currentForward = NormalizeOrFallback(Utility.RotateVector2(Vector2.up, sample.YawDegrees), Vector2.up);
         Vector2 targetDirection = NormalizeOrFallback(activeReset.Plan.TargetDirection, currentForward);
         float targetAngle = Vector2.SignedAngle(currentForward, targetDirection);
+        float plannedPhysicalTurn = ResolveLiveResetPhysicalTurn(targetAngle);
 
         activeReset.InitialPhysicalYawDegrees = sample.YawDegrees;
         activeReset.InitialVirtualYawDegrees = virtualUser.transform2D.localRotation;
         activeReset.FrozenVirtualPosition = virtualUser.transform2D.localPosition;
         activeReset.FrozenVirtualYawDegrees = virtualUser.transform2D.localRotation;
-        activeReset.DesiredPhysicalRotationDegrees = targetAngle;
+        activeReset.DesiredPhysicalRotationDegrees = plannedPhysicalTurn;
         if (Mathf.Abs(activeReset.DesiredPhysicalRotationDegrees) < Mathf.Max(0.1f, minimumPhysicalTurnDegreesForVirtualReset))
         {
             activeReset.DesiredPhysicalRotationDegrees = 0.0f;
@@ -247,11 +286,13 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
             activeReset.ResetProgress = 0.0f;
         }
         activeReset.AccumulatedPhysicalRotationDegrees = 0.0f;
-        activeReset.NextInjectionLogTime = 0.0f;
+        activeReset.LastMeaningfulProgressElapsedSeconds = activeReset.ElapsedSeconds;
+        activeReset.LastWatchdogProgress = activeReset.ResetProgress;
+        activeReset.LastWatchdogPhysicalTurnDegrees = activeReset.AccumulatedPhysicalRotationDegrees;
         activeReset.HasResetMapping = true;
 
         Debug.Log(string.Format(
-            "[LiveVR] Reset mapping start user={0} event={1} targetAngle={2:F1} physicalPlan={3:F1} virtualPlan={4:F1} extraInjected={5:F1} initialPhysicalYaw={6:F1} initialVirtualYaw={7:F1}",
+            "[LiveVR] Reset plan user={0} event={1} targetAngle={2:F1} physicalTurn={3:F1} virtualViewTurn={4:F1} extraVirtualInjected={5:F1} initialPhysicalYaw={6:F1} initialVirtualYaw={7:F1}",
             activeReset.Plan.UserId,
             activeReset.Plan.PlanId,
             targetAngle,
@@ -261,6 +302,27 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
             activeReset.InitialPhysicalYawDegrees,
             activeReset.InitialVirtualYawDegrees));
         return true;
+    }
+
+    private float ResolveLiveResetPhysicalTurn(float targetAngle)
+    {
+        float minTurn = Mathf.Max(
+            Mathf.Max(0.1f, minimumPhysicalTurnDegreesForVirtualReset),
+            minimumLiveResetPhysicalTurnDegrees);
+        float absAngle = Mathf.Abs(targetAngle);
+        if (absAngle < minTurn)
+        {
+            float directionSign = targetAngle >= 0.0f ? 1.0f : -1.0f;
+            float alternateTurn = -directionSign * (360.0f - absAngle);
+            Debug.Log(string.Format(
+                "[LiveVR] Reset target angle {0:F1} deg is below minimum {1:F1}; using alternate physical turn {2:F1} deg.",
+                targetAngle,
+                minTurn,
+                alternateTurn));
+            return alternateTurn;
+        }
+
+        return targetAngle;
     }
 
     public bool CommitLiveResetDone(int userId, int resetEventId, Vector2 finalPhysicalPose, float finalPhysicalYaw)
@@ -277,15 +339,13 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
         if (!activeByPlanId.TryGetValue(resetEventId, out activeReset))
             return false;
 
-        LiveVRResetDoneMessage resetDone;
-        if (!manager.TryGetClientResetDone(userId, resetEventId, out resetDone))
-            return false;
-
-        if (!IsFinalYawAligned(activeReset, finalPhysicalYaw))
-            return false;
+        LogFinalYawOffset(activeReset, finalPhysicalYaw);
 
         if (!IsFinalPositionSafe(activeReset, finalPhysicalPose))
+        {
+            PrepareRejectedResetDoneRetry(manager, activeReset, "position_or_safety");
             return false;
+        }
 
         ApplyFrozenVirtualPose(activeReset);
         if (!activeReset.Unit.CommitLiveExternalReset(
@@ -325,14 +385,24 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
         if (Mathf.Abs(activeReset.DesiredPhysicalRotationDegrees) <= Mathf.Epsilon)
             return 1.0f;
 
-        return Mathf.Clamp01(activeReset.AccumulatedPhysicalRotationDegrees / activeReset.DesiredPhysicalRotationDegrees);
+        return Mathf.Clamp01(Mathf.Abs(activeReset.AccumulatedPhysicalRotationDegrees) / Mathf.Abs(activeReset.DesiredPhysicalRotationDegrees));
+    }
+
+    private static float AccumulatePhysicalTurnTowardPlan(float currentTurn, float physicalYawDelta, float desiredTurn)
+    {
+        float desiredMagnitude = Mathf.Abs(desiredTurn);
+        if (desiredMagnitude <= Mathf.Epsilon)
+            return 0.0f;
+
+        float directionSign = Mathf.Sign(desiredTurn);
+        float currentMagnitude = Mathf.Clamp(Mathf.Abs(currentTurn), 0.0f, desiredMagnitude);
+        float deltaAlongPlan = physicalYawDelta * directionSign;
+        float nextMagnitude = Mathf.Clamp(currentMagnitude + deltaAlongPlan, 0.0f, desiredMagnitude);
+        return directionSign * nextMagnitude;
     }
 
     private bool ShouldCompleteReset(LiveVRNetworkManager manager, ActiveReset activeReset)
     {
-        if (manager.HasClientReportedResetDone(activeReset.Plan.UserId, activeReset.Plan.PlanId))
-            return true;
-
         LiveVRPoseSample sample;
         if (!TryGetPoseForCompletion(manager, activeReset.Plan.UserId, out sample))
         {
@@ -340,10 +410,6 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
             return false;
         }
 
-        Vector2 targetDirection = NormalizeOrFallback(activeReset.Plan.TargetDirection, Vector2.up);
-        Vector2 currentForward = NormalizeOrFallback(Utility.RotateVector2(Vector2.up, sample.YawDegrees), Vector2.up);
-        float yawError = Mathf.Abs(Vector2.SignedAngle(currentForward, targetDirection));
-        bool yawAligned = yawError <= Mathf.Max(1.0f, yawErrorThresholdDegrees);
         bool positionAligned = !requirePositionAlignment ||
                                !activeReset.Plan.HasTargetPosition ||
                                Vector2.Distance(sample.ExperimentPosition, activeReset.Plan.TargetPosition) <= Mathf.Max(0.0f, positionToleranceMeters);
@@ -351,7 +417,7 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
 
         bool resetMappingComplete = !activeReset.HasResetMapping || activeReset.ResetProgress >= 0.98f;
 
-        if ((yawAligned || resetMappingComplete) && positionAligned && safetyOk && resetMappingComplete)
+        if (resetMappingComplete && positionAligned && safetyOk)
         {
             activeReset.StableSeconds += Time.fixedDeltaTime;
         }
@@ -360,9 +426,60 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
             activeReset.StableSeconds = 0.0f;
         }
 
-        bool completedByPose = activeReset.StableSeconds >= Mathf.Max(0.0f, stableDurationSeconds);
-        bool completedByTimeout = timeoutSeconds > 0.0f && activeReset.ElapsedSeconds >= timeoutSeconds;
-        return completedByPose || completedByTimeout;
+        return activeReset.StableSeconds >= Mathf.Max(0.0f, stableDurationSeconds);
+    }
+
+    private bool IsResetTimedOut(ActiveReset activeReset)
+    {
+        if (timeoutSeconds <= 0.0f || activeReset == null)
+            return false;
+
+        if (activeReset.ResetProgress >= 1.0f)
+            return false;
+
+        return activeReset.ElapsedSeconds - activeReset.LastMeaningfulProgressElapsedSeconds >= timeoutSeconds;
+    }
+
+    private void PrepareRejectedResetDoneRetry(LiveVRNetworkManager manager, ActiveReset activeReset, string reason)
+    {
+        if (manager == null || activeReset == null)
+            return;
+
+        manager.ClearClientResetDone(activeReset.Plan.UserId, activeReset.Plan.PlanId);
+        activeReset.StableSeconds = 0.0f;
+        activeReset.HasPreviousYaw = false;
+        activeReset.HasResetMapping = false;
+        activeReset.DesiredPhysicalRotationDegrees = 0.0f;
+        activeReset.DesiredVirtualRotationDegrees = 0.0f;
+        activeReset.AccumulatedPhysicalRotationDegrees = 0.0f;
+        activeReset.ResetProgress = 0.0f;
+        activeReset.LastMeaningfulProgressElapsedSeconds = activeReset.ElapsedSeconds;
+        activeReset.LastWatchdogProgress = 0.0f;
+        activeReset.LastWatchdogPhysicalTurnDegrees = 0.0f;
+        activeReset.HasSentResetStart = false;
+        activeReset.NextPromptTime = 0.0f;
+        Debug.LogWarning(string.Format(
+            "[LiveVR] Reset commit rejected; retrying reset user={0} event={1} reason={2}.",
+            activeReset.Plan.UserId,
+            activeReset.Plan.PlanId,
+            reason));
+    }
+
+    private void RefreshResetWatchdogIfProgressed(ActiveReset activeReset)
+    {
+        if (activeReset == null)
+            return;
+
+        float progressDelta = activeReset.ResetProgress - activeReset.LastWatchdogProgress;
+        float turnDelta = Mathf.Abs(activeReset.AccumulatedPhysicalRotationDegrees - activeReset.LastWatchdogPhysicalTurnDegrees);
+        bool meaningfulProgress = progressDelta >= Mathf.Max(0.001f, meaningfulProgressThreshold);
+        bool meaningfulTurn = turnDelta >= Mathf.Max(0.1f, meaningfulTurnThresholdDegrees);
+        if (!meaningfulProgress && !meaningfulTurn)
+            return;
+
+        activeReset.LastMeaningfulProgressElapsedSeconds = activeReset.ElapsedSeconds;
+        activeReset.LastWatchdogProgress = activeReset.ResetProgress;
+        activeReset.LastWatchdogPhysicalTurnDegrees = activeReset.AccumulatedPhysicalRotationDegrees;
     }
 
     private bool IsLiveHmdReset(LiveVRNetworkManager manager, ActiveReset activeReset)
@@ -387,20 +504,19 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
             activeReset.Unit.controller.ResetCurrentState(virtualUser.transform2D);
     }
 
-    private bool IsFinalYawAligned(ActiveReset activeReset, float finalPhysicalYaw)
+    private void LogFinalYawOffset(ActiveReset activeReset, float finalPhysicalYaw)
     {
         Vector2 targetDirection = NormalizeOrFallback(activeReset.Plan.TargetDirection, Vector2.up);
         Vector2 finalForward = NormalizeOrFallback(Utility.RotateVector2(Vector2.up, finalPhysicalYaw), Vector2.up);
         float yawError = Mathf.Abs(Vector2.SignedAngle(finalForward, targetDirection));
         if (yawError <= Mathf.Max(1.0f, yawErrorThresholdDegrees))
-            return true;
+            return;
 
         Debug.LogWarning(string.Format(
-            "[LiveVR] Reject reset commit user={0} event={1}: final yaw error {2:F1} deg exceeds threshold.",
+            "[LiveVR] Reset mapping completed user={0} event={1}; final yaw offset {2:F1} deg exceeds reference threshold but does not block completion.",
             activeReset.Plan.UserId,
             activeReset.Plan.PlanId,
             yawError));
-        return false;
     }
 
     private bool IsFinalPositionSafe(ActiveReset activeReset, Vector2 finalPhysicalPose)

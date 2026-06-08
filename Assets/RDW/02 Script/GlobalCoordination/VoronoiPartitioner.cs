@@ -154,6 +154,12 @@ namespace _GCM
             if (frameState == null || frameState.PhysicalUsers == null || frameState.PhysicalUsers.Count < _totalUserCount)
                 return result;
 
+            for (int i = 0; i < _totalUserCount; i++)
+            {
+                if (frameState.PhysicalUsers[i] == null)
+                    return result;
+            }
+
             float maxSafeRadius = 0f;
             if (useVelocityOffset)
             {

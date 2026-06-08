@@ -75,7 +75,9 @@ public class LiveVRHmdMovementController : MonoBehaviour, IMovementController
                 previousSample = sample;
 
             defaultLiveWalkingStepper.DriveVirtualUserFromHmdDelta = driveVirtualUserFromHmdDelta;
-            ResolveLiveWalkingStepper().StepLiveWalking(unit, sample, previousSample, units);
+            LiveVRGainDebugSample gainDebug = ResolveLiveWalkingStepper().StepLiveWalking(unit, sample, previousSample, units);
+            if (gainDebug.IsValid)
+                LiveVRGainDebugState.Record(userId, gainDebug);
             previousPoseByUserId[userId] = sample;
             unitsWithFreshPose.Add(unit);
         }
@@ -97,6 +99,12 @@ public class LiveVRHmdMovementController : MonoBehaviour, IMovementController
     public void ResetLivePoseAnchor(int userId, LiveVRPoseSample sample)
     {
         previousPoseByUserId[userId] = sample;
+    }
+
+    public void ClearPreviousPoseCache()
+    {
+        previousPoseByUserId.Clear();
+        LiveVRGainDebugState.Clear();
     }
 
     private bool TryGetValidPose(LiveVRNetworkManager manager, int userId, bool warnWhenMissing, out LiveVRPoseSample sample)

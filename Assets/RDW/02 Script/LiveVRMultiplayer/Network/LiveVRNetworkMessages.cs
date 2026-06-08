@@ -9,7 +9,271 @@ public enum LiveVRExperimentState
     Ready = 2,
     Running = 3,
     Paused = 4,
-    Completed = 5
+    Completed = 5,
+    Invalid = 6
+}
+
+public enum LiveVRTrialEndState
+{
+    Normal = 0,
+    ManualStop = 1,
+    InvalidTrackingLost = 2,
+    InvalidNetworkLost = 3,
+    InvalidResetTimeout = 4,
+    InvalidSafetyBoundary = 5,
+    InvalidUserAbort = 6,
+    InvalidHostError = 7
+}
+
+public enum LiveVRUserConnectionState
+{
+    ConnectedFresh = 0,
+    ConnectedStale = 1,
+    Disconnected = 2,
+    Reconnecting = 3,
+    NeedsPoseReanchor = 4
+}
+
+public struct LiveVRControlEnvelope
+{
+    public string MessageId;
+    public string MessageType;
+    public int TargetUserId;
+    public string HostRunId;
+    public string RunId;
+    public int TrialId;
+    public int ConfigVersion;
+    public int RestartEpoch;
+    public int CalibrationVersion;
+    public string Payload;
+
+    public static LiveVRControlEnvelope Create(
+        string messageId,
+        string messageType,
+        int targetUserId,
+        LiveVRProtocolVersionContext context,
+        string payload)
+    {
+        LiveVRControlEnvelope envelope = new LiveVRControlEnvelope
+        {
+            MessageId = messageId,
+            MessageType = messageType,
+            TargetUserId = targetUserId,
+            Payload = payload ?? string.Empty
+        };
+
+        if (context != null)
+        {
+            envelope.HostRunId = context.HostRunId;
+            envelope.RunId = context.RunId;
+            envelope.TrialId = context.TrialId;
+            envelope.ConfigVersion = context.ConfigVersion;
+            envelope.RestartEpoch = context.RestartEpoch;
+            envelope.CalibrationVersion = context.CalibrationVersion;
+        }
+
+        return envelope;
+    }
+
+    public string ToNetworkMessage()
+    {
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            "CONTROL|{0}|{1}|{2}|{3}|{4}|{5}|{6}|{7}|{8}|{9}",
+            Escape(MessageId),
+            Escape(MessageType),
+            TargetUserId,
+            Escape(HostRunId),
+            Escape(RunId),
+            TrialId,
+            ConfigVersion,
+            RestartEpoch,
+            CalibrationVersion,
+            Escape(Payload));
+    }
+
+    public static bool TryParse(string message, out LiveVRControlEnvelope envelope)
+    {
+        envelope = default(LiveVRControlEnvelope);
+        if (string.IsNullOrEmpty(message))
+            return false;
+
+        string[] parts = message.Split('|');
+        if (parts.Length != 11 || parts[0] != "CONTROL")
+            return false;
+
+        int targetUserId;
+        int trialId;
+        int configVersion;
+        int restartEpoch;
+        int calibrationVersion;
+        if (!int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out targetUserId) ||
+            !int.TryParse(parts[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out trialId) ||
+            !int.TryParse(parts[7], NumberStyles.Integer, CultureInfo.InvariantCulture, out configVersion) ||
+            !int.TryParse(parts[8], NumberStyles.Integer, CultureInfo.InvariantCulture, out restartEpoch) ||
+            !int.TryParse(parts[9], NumberStyles.Integer, CultureInfo.InvariantCulture, out calibrationVersion))
+        {
+            return false;
+        }
+
+        envelope.MessageId = Unescape(parts[1]);
+        envelope.MessageType = Unescape(parts[2]);
+        envelope.TargetUserId = targetUserId;
+        envelope.HostRunId = Unescape(parts[4]);
+        envelope.RunId = Unescape(parts[5]);
+        envelope.TrialId = trialId;
+        envelope.ConfigVersion = configVersion;
+        envelope.RestartEpoch = restartEpoch;
+        envelope.CalibrationVersion = calibrationVersion;
+        envelope.Payload = Unescape(parts[10]);
+        return true;
+    }
+
+    private static string Escape(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value.Replace("%", "%25").Replace("|", "%7C");
+    }
+
+    private static string Unescape(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value.Replace("%7C", "|").Replace("%25", "%");
+    }
+}
+
+public struct LiveVRControlAckMessage
+{
+    public string MessageId;
+    public string MessageType;
+    public int UserId;
+    public bool Accepted;
+    public string Reason;
+    public long UnixMilliseconds;
+
+    public string ToNetworkMessage()
+    {
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            "CONTROL_ACK|{0}|{1}|{2}|{3}|{4}|{5}",
+            Escape(MessageId),
+            Escape(MessageType),
+            UserId,
+            Accepted ? 1 : 0,
+            Escape(Reason),
+            UnixMilliseconds);
+    }
+
+    public static bool TryParse(string message, out LiveVRControlAckMessage ack)
+    {
+        ack = default(LiveVRControlAckMessage);
+        if (string.IsNullOrEmpty(message))
+            return false;
+
+        string[] parts = message.Split('|');
+        if (parts.Length != 7 || parts[0] != "CONTROL_ACK")
+            return false;
+
+        int userId;
+        int acceptedFlag;
+        long unixMs;
+        if (!int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out userId) ||
+            !int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out acceptedFlag) ||
+            !long.TryParse(parts[6], NumberStyles.Integer, CultureInfo.InvariantCulture, out unixMs))
+        {
+            return false;
+        }
+
+        ack.MessageId = Unescape(parts[1]);
+        ack.MessageType = Unescape(parts[2]);
+        ack.UserId = userId;
+        ack.Accepted = acceptedFlag != 0;
+        ack.Reason = Unescape(parts[5]);
+        ack.UnixMilliseconds = unixMs;
+        return true;
+    }
+
+    private static string Escape(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value.Replace("%", "%25").Replace("|", "%7C");
+    }
+
+    private static string Unescape(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value.Replace("%7C", "|").Replace("%25", "%");
+    }
+}
+
+public struct LiveVRClientResetClearMessage
+{
+    public int UserId;
+    public int RestartEpoch;
+    public string Reason;
+    public long HostUnixMilliseconds;
+
+    public string ToNetworkMessage()
+    {
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            "CLIENT_RESET_CLEAR|{0}|{1}|{2}|{3}",
+            UserId,
+            RestartEpoch,
+            Escape(Reason),
+            HostUnixMilliseconds);
+    }
+
+    public static bool TryParse(string message, out LiveVRClientResetClearMessage clear)
+    {
+        clear = default(LiveVRClientResetClearMessage);
+        if (string.IsNullOrEmpty(message))
+            return false;
+
+        string[] parts = message.Split('|');
+        if (parts.Length != 5 || parts[0] != "CLIENT_RESET_CLEAR")
+            return false;
+
+        int userId;
+        int restartEpoch;
+        long hostTime;
+        if (!int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out userId) ||
+            !int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out restartEpoch) ||
+            !long.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out hostTime))
+        {
+            return false;
+        }
+
+        clear.UserId = userId;
+        clear.RestartEpoch = restartEpoch;
+        clear.Reason = Unescape(parts[3]);
+        clear.HostUnixMilliseconds = hostTime;
+        return true;
+    }
+
+    private static string Escape(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value.Replace("%", "%25").Replace("|", "%7C");
+    }
+
+    private static string Unescape(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value.Replace("%7C", "|").Replace("%25", "%");
+    }
 }
 
 public struct LiveVRAckMessage
@@ -818,6 +1082,85 @@ public struct LiveVRResetDoneMessage
         resetDone.ClientUnixMilliseconds = clientTime;
         resetDone.FinalPhysicalYawDegrees = finalYaw;
         resetDone.FinalInjectedTurnDegrees = finalInjected;
+        return true;
+    }
+}
+
+public struct LiveVRTargetReachedMessage
+{
+    public int UserId;
+    public int TargetIndex;
+    public long ClientUnixMilliseconds;
+    public Vector2 TargetPosition;
+    public Vector2 UserPosition;
+    public float DistanceMeters;
+    public float CumulativeDistanceMeters;
+    public bool RunComplete;
+
+    public string ToNetworkMessage()
+    {
+        return string.Format(
+            CultureInfo.InvariantCulture,
+            "TARGET_REACHED|{0}|{1}|{2}|{3:R}|{4:R}|{5:R}|{6:R}|{7:R}|{8:R}|{9}",
+            UserId,
+            TargetIndex,
+            ClientUnixMilliseconds,
+            TargetPosition.x,
+            TargetPosition.y,
+            UserPosition.x,
+            UserPosition.y,
+            DistanceMeters,
+            CumulativeDistanceMeters,
+            RunComplete ? 1 : 0);
+    }
+
+    public static bool TryParse(string message, out LiveVRTargetReachedMessage reached)
+    {
+        reached = default(LiveVRTargetReachedMessage);
+        if (string.IsNullOrEmpty(message))
+            return false;
+
+        string[] parts = message.Split('|');
+        if ((parts.Length != 9 && parts.Length != 11) || parts[0] != "TARGET_REACHED")
+            return false;
+
+        int userId;
+        int targetIndex;
+        long clientTime;
+        float targetX;
+        float targetY;
+        float userX;
+        float userY;
+        float distance;
+        float cumulativeDistance = 0.0f;
+        int runComplete = 1;
+        if (!int.TryParse(parts[1], NumberStyles.Integer, CultureInfo.InvariantCulture, out userId) ||
+            !int.TryParse(parts[2], NumberStyles.Integer, CultureInfo.InvariantCulture, out targetIndex) ||
+            !long.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out clientTime) ||
+            !float.TryParse(parts[4], NumberStyles.Float, CultureInfo.InvariantCulture, out targetX) ||
+            !float.TryParse(parts[5], NumberStyles.Float, CultureInfo.InvariantCulture, out targetY) ||
+            !float.TryParse(parts[6], NumberStyles.Float, CultureInfo.InvariantCulture, out userX) ||
+            !float.TryParse(parts[7], NumberStyles.Float, CultureInfo.InvariantCulture, out userY) ||
+            !float.TryParse(parts[8], NumberStyles.Float, CultureInfo.InvariantCulture, out distance))
+        {
+            return false;
+        }
+
+        if (parts.Length == 11 &&
+            (!float.TryParse(parts[9], NumberStyles.Float, CultureInfo.InvariantCulture, out cumulativeDistance) ||
+             !int.TryParse(parts[10], NumberStyles.Integer, CultureInfo.InvariantCulture, out runComplete)))
+        {
+            return false;
+        }
+
+        reached.UserId = userId;
+        reached.TargetIndex = targetIndex;
+        reached.ClientUnixMilliseconds = clientTime;
+        reached.TargetPosition = new Vector2(targetX, targetY);
+        reached.UserPosition = new Vector2(userX, userY);
+        reached.DistanceMeters = distance;
+        reached.CumulativeDistanceMeters = parts.Length == 11 ? cumulativeDistance : distance;
+        reached.RunComplete = runComplete != 0;
         return true;
     }
 }

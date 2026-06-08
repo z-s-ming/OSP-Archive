@@ -11,6 +11,7 @@ using UnityEngine;
 [RequireComponent(typeof(LiveVRNetworkLogger))]
 [RequireComponent(typeof(LiveVRVirtualPoseBroadcaster))]
 [RequireComponent(typeof(LiveVRClientVirtualViewBinder))]
+[RequireComponent(typeof(LiveVRClientPresentationState))]
 [RequireComponent(typeof(LiveVRClientCameraIsolation))]
 [RequireComponent(typeof(LiveVRClientEnvironmentLoader))]
 [RequireComponent(typeof(LiveVRClientTargetGuide))]
@@ -56,6 +57,7 @@ public class LiveVRExperimentSetup : MonoBehaviour
     [SerializeField] private LiveVRHostExperimentController hostExperimentController;
     [SerializeField] private LiveVRNetworkLogger networkLogger;
     [SerializeField] private LiveVRVirtualPoseBroadcaster virtualPoseBroadcaster;
+    [SerializeField] private LiveVRClientPresentationState clientPresentationState;
     [SerializeField] private LiveVRClientVirtualViewBinder clientVirtualViewBinder;
     [SerializeField] private LiveVRClientCameraIsolation clientCameraIsolation;
     [SerializeField] private LiveVRClientEnvironmentLoader clientEnvironmentLoader;
@@ -110,6 +112,8 @@ public class LiveVRExperimentSetup : MonoBehaviour
     [SerializeField] private bool requireInsideRealSpaceForResetCompletion = false;
     [SerializeField] private float resetStableDurationSeconds = 0.3f;
     [SerializeField] private float resetTimeoutSeconds = 0.0f;
+    [SerializeField] private float resetMeaningfulProgressThreshold = 0.02f;
+    [SerializeField] private float resetMeaningfulTurnThresholdDegrees = 2.0f;
     [SerializeField] private float resetPromptRepeatSeconds = 0.5f;
 
     [Header("Network Logging")]
@@ -141,6 +145,20 @@ public class LiveVRExperimentSetup : MonoBehaviour
     [SerializeField] private string clientVisualEnvironmentLayerName = "VirtualWall";
     [SerializeField] private bool applyVirtualSpaceSettingTransformToClientEnvironment = true;
     [SerializeField] private bool disableClientEnvironmentCameras = true;
+    [SerializeField] private bool keepOnlyClientWalkableEnvironment = true;
+    [SerializeField] private string[] clientWalkableEnvironmentRootNamesToKeep = { "walkingArea", "Floor_Tiles", "Terrain" };
+    [SerializeField] private string[] clientWalkableEnvironmentRootNamesToHideInside =
+    {
+        "Trees",
+        "Rocks",
+        "Props",
+        "Mushrooms",
+        "Plants",
+        "Water",
+        "Mountains",
+        "obstacle_*",
+        "Cube*"
+    };
 
     [Header("Client Target Guide")]
     [SerializeField] private bool enableClientTargetGuide = true;
@@ -158,6 +176,9 @@ public class LiveVRExperimentSetup : MonoBehaviour
     [SerializeField] private float clientTargetRadiusMeters = 0.18f;
     [SerializeField] private float clientTargetReachDistanceMeters = 0.65f;
     [SerializeField] private float clientTargetMinDistanceFromUserMeters = 2.0f;
+    [SerializeField] private float clientTargetMinSpawnDistanceMeters = 4.0f;
+    [SerializeField] private float clientTargetMaxSpawnDistanceMeters = 8.0f;
+    [SerializeField] private int clientTargetCountPerRun = 1;
     [SerializeField] private int clientTargetBaseSeed = 1000;
 
     [Header("Client Host Connection")]
@@ -174,6 +195,7 @@ public class LiveVRExperimentSetup : MonoBehaviour
 
     private void Awake()
     {
+        ClearLegacyClientRuntimePreferences();
         ApplySavedClientPreferences();
         ApplyCommandLineOverrides();
         EnsureComponents();
@@ -294,6 +316,8 @@ public class LiveVRExperimentSetup : MonoBehaviour
                 requireInsideRealSpaceForResetCompletion,
                 resetStableDurationSeconds,
                 resetTimeoutSeconds,
+                resetMeaningfulProgressThreshold,
+                resetMeaningfulTurnThresholdDegrees,
                 resetPromptRepeatSeconds);
         }
 
@@ -331,6 +355,18 @@ public class LiveVRExperimentSetup : MonoBehaviour
                 applyClientVirtualPoseOnlyWhileRunning);
         }
 
+        if (clientPresentationState != null)
+        {
+            clientPresentationState.Configure(
+                networkManager,
+                clientVirtualViewBinder,
+                clientHud,
+                clientWorldHud,
+                clientTargetGuide);
+            if (networkManager != null)
+                networkManager.ConfigureClientPresentationState(clientPresentationState);
+        }
+
         if (clientCameraIsolation != null)
         {
             clientCameraIsolation.Configure(
@@ -352,7 +388,10 @@ public class LiveVRExperimentSetup : MonoBehaviour
                 loadClientVisualEnvironment,
                 clientVisualEnvironmentLayerName,
                 applyVirtualSpaceSettingTransformToClientEnvironment,
-                disableClientEnvironmentCameras);
+                disableClientEnvironmentCameras,
+                keepOnlyClientWalkableEnvironment,
+                clientWalkableEnvironmentRootNamesToKeep,
+                clientWalkableEnvironmentRootNamesToHideInside);
         }
 
         if (clientTargetGuide != null)
@@ -374,6 +413,9 @@ public class LiveVRExperimentSetup : MonoBehaviour
                 clientTargetRadiusMeters,
                 clientTargetReachDistanceMeters,
                 clientTargetMinDistanceFromUserMeters,
+                clientTargetMinSpawnDistanceMeters,
+                clientTargetMaxSpawnDistanceMeters,
+                clientTargetCountPerRun,
                 clientTargetBaseSeed);
         }
 
@@ -453,6 +495,12 @@ public class LiveVRExperimentSetup : MonoBehaviour
 
         if (clientVirtualViewBinder == null)
             clientVirtualViewBinder = gameObject.AddComponent<LiveVRClientVirtualViewBinder>();
+
+        if (clientPresentationState == null)
+            clientPresentationState = GetComponent<LiveVRClientPresentationState>();
+
+        if (clientPresentationState == null)
+            clientPresentationState = gameObject.AddComponent<LiveVRClientPresentationState>();
 
         if (clientCameraIsolation == null)
             clientCameraIsolation = GetComponent<LiveVRClientCameraIsolation>();
@@ -625,6 +673,12 @@ public class LiveVRExperimentSetup : MonoBehaviour
             return;
 
         LiveVRClientPreferences.LoadHostConnection(ref hostAddress, ref hostPosePort);
+    }
+
+    private void ClearLegacyClientRuntimePreferences()
+    {
+        if (mode == LiveVRExperimentMode.ClientOnly)
+            LiveVRClientPreferences.ClearRuntimeStateKeys();
     }
 
     private void SaveClientPreferencesIfNeeded()

@@ -5,6 +5,8 @@ public class LiveVRClientHud : MonoBehaviour
     [HideInInspector]
     [SerializeField] private LiveVRNetworkManager networkManager;
     [HideInInspector]
+    [SerializeField] private LiveVRClientTargetGuide targetGuide;
+    [HideInInspector]
     [SerializeField] private bool showHud = true;
     [HideInInspector]
     [SerializeField] private Vector2 screenPosition = new Vector2(12f, 160f);
@@ -35,6 +37,14 @@ public class LiveVRClientHud : MonoBehaviour
         resetPromptVisibleSeconds = newResetPromptVisibleSeconds;
     }
 
+    public void ClearResetPrompt()
+    {
+        lastResetEventId = -1;
+        lastResetPromptHostUnixMilliseconds = -1;
+        resetPromptUntilTime = 0.0f;
+        resetPromptText = string.Empty;
+    }
+
     private void Update()
     {
         LiveVRNetworkManager manager = ResolveNetworkManager();
@@ -45,18 +55,17 @@ public class LiveVRClientHud : MonoBehaviour
         if (manager.TryGetLatestResetPrompt(out prompt) &&
             (prompt.EventId != lastResetEventId || prompt.HostUnixMilliseconds != lastResetPromptHostUnixMilliseconds))
         {
+            if (IsResetPromptComplete(prompt))
+            {
+                ClearResetPrompt();
+                manager.ClearLatestResetPrompt();
+                return;
+            }
+
             lastResetEventId = prompt.EventId;
             lastResetPromptHostUnixMilliseconds = prompt.HostUnixMilliseconds;
             resetPromptUntilTime = Time.unscaledTime + resetPromptVisibleSeconds;
-            string turnInstruction = BuildTurnInstruction(manager, prompt);
-            resetPromptText = prompt.HasTargetPosition
-                ? string.Format(
-                    "RESET: {0}  {1}  target=({2:F2},{3:F2})",
-                    prompt.ResetType,
-                    turnInstruction,
-                    prompt.TargetPosition.x,
-                    prompt.TargetPosition.y)
-                : string.Format("RESET: {0}  {1}", prompt.ResetType, turnInstruction);
+            resetPromptText = BuildResetGuideText(manager, prompt);
         }
         else if (!manager.TryGetLatestResetPrompt(out prompt))
         {
@@ -81,37 +90,55 @@ public class LiveVRClientHud : MonoBehaviour
         if (manager.IsConnectedToHost &&
             manager.HasCalibration &&
             manager.ExperimentState == LiveVRExperimentState.Running &&
-            !hasVisibleResetPrompt)
+            !hasVisibleResetPrompt &&
+            !IsLocalRunComplete())
         {
             return;
         }
 
         EnsureStyles();
 
+        if (hasVisibleResetPrompt)
+        {
+            DrawResetGuide(resetPromptText);
+            return;
+        }
+
+        if (manager.IsConnectedToHost &&
+            manager.HasCalibration &&
+            manager.ExperimentState == LiveVRExperimentState.Running &&
+            IsLocalRunComplete())
+        {
+            DrawCenterGuide("\u4f60\u5df2\u5b8c\u6210\n\u8bf7\u539f\u5730\u7b49\u5f85");
+            return;
+        }
+
+        if (manager.IsConnectedToHost &&
+            manager.HasCalibration &&
+            manager.ExperimentState != LiveVRExperimentState.Running)
+        {
+            DrawCenterGuide(manager.ExperimentState == LiveVRExperimentState.Completed
+                ? "\u5b9e\u9a8c\u5df2\u7ed3\u675f\n\u8bf7\u7b49\u5f85\u5b9e\u9a8c\u5458"
+                : "\u6821\u51c6\u5b8c\u6210\n\u7b49\u5f85\u4e3b\u673a\u5f00\u59cb");
+            return;
+        }
+
         float y = screenPosition.y;
         if (!manager.IsConnectedToHost)
         {
-            DrawLine(ref y, string.Format("User {0}: connecting to Host {1}:{2}", manager.LocalUserId, manager.HostAddress, manager.HostPosePort), warningStyle);
-            DrawLine(ref y, manager.HostDiscoveryStatus, normalStyle);
-            DrawLine(ref y, "Keep headset app open.", normalStyle);
+            DrawLine(ref y, string.Format("\u7528\u6237 {0}\uff1a\u6b63\u5728\u8fde\u63a5\u4e3b\u673a {1}:{2}", manager.LocalUserId, manager.HostAddress, manager.HostPosePort), warningStyle);
+            DrawLine(ref y, "\u8bf7\u4fdd\u6301\u5934\u663e\u7a0b\u5e8f\u5f00\u542f", normalStyle);
         }
         else if (!manager.HasHostAssignment)
         {
-            DrawLine(ref y, "Connected to Host. Waiting for Host user assignment.", warningStyle);
-            DrawLine(ref y, manager.ClientAssignmentStatus, normalStyle);
+            DrawLine(ref y, "\u5df2\u8fde\u63a5\u4e3b\u673a\uff0c\u7b49\u5f85\u5206\u914d\u7528\u6237", warningStyle);
         }
         else if (!manager.HasCalibration)
         {
-            DrawLine(ref y, string.Format("User {0}: connected", manager.LocalUserId), normalStyle);
-            DrawLine(ref y, "Stand on CENTER, face FORWARD, wait for operator calibration.", warningStyle);
-        }
-        else
-        {
-            DrawLine(ref y, "Calibration complete. Walk to start position and wait.", normalStyle);
+            DrawLine(ref y, string.Format("\u7528\u6237 {0}\uff1a\u5df2\u8fde\u63a5", manager.LocalUserId), normalStyle);
+            DrawLine(ref y, "\u8bf7\u7ad9\u5230\u4e2d\u5fc3\u70b9\uff0c\u9762\u5411\u524d\u65b9\uff0c\u7b49\u5f85\u6821\u51c6", warningStyle);
         }
 
-        if (hasVisibleResetPrompt)
-            DrawLine(ref y, resetPromptText, resetStyle);
     }
 
     private LiveVRNetworkManager ResolveNetworkManager()
@@ -122,40 +149,44 @@ public class LiveVRClientHud : MonoBehaviour
         return networkManager;
     }
 
-    private string BuildTurnInstruction(LiveVRNetworkManager manager, LiveVRResetPromptMessage prompt)
+    private bool IsLocalRunComplete()
     {
-        if (prompt.HasTurnInstruction)
-        {
-            float remaining = Mathf.Max(0.0f, prompt.RemainingTurnDegrees);
-            if (remaining < 5.0f)
-                return "Hold still";
-
-            string direction = prompt.TurnDirectionSign >= 0 ? "left" : "right";
-            return string.Format(
-                "Keep turning {0} {1:F0} deg ({2:P0})",
-                direction,
-                remaining,
-                Mathf.Clamp01(prompt.Progress01));
-        }
-
-        return BuildTurnInstruction(manager, prompt.DirectionHint);
+        LiveVRClientTargetGuide guide = ResolveTargetGuide();
+        return guide != null && guide.IsLocalRunComplete;
     }
 
-    private string BuildTurnInstruction(LiveVRNetworkManager manager, Vector2 targetDirection)
+    private LiveVRClientTargetGuide ResolveTargetGuide()
+    {
+        if (targetGuide == null)
+            targetGuide = GetComponent<LiveVRClientTargetGuide>();
+
+        return targetGuide;
+    }
+
+    private string BuildResetGuideText(LiveVRNetworkManager manager, LiveVRResetPromptMessage prompt)
+    {
+        int directionSign = prompt.HasTurnInstruction
+            ? prompt.TurnDirectionSign
+            : ResolveDirectionSign(manager, prompt.DirectionHint);
+
+        bool turnLeft = directionSign >= 0;
+        return turnLeft ? "<--\n\u5411\u5de6\u8f6c" : "-->\n\u5411\u53f3\u8f6c";
+    }
+
+    private static bool IsResetPromptComplete(LiveVRResetPromptMessage prompt)
+    {
+        return prompt.HasTurnInstruction &&
+               (prompt.Progress01 >= 0.995f || prompt.RemainingTurnDegrees <= 5.0f);
+    }
+
+    private int ResolveDirectionSign(LiveVRNetworkManager manager, Vector2 targetDirection)
     {
         if (targetDirection.sqrMagnitude <= Mathf.Epsilon)
-            return "Stop and turn in place";
+            return 1;
 
         Vector2 currentForward = ResolveCurrentForward(manager);
         float signedAngle = Vector2.SignedAngle(currentForward, targetDirection.normalized);
-        float absAngle = Mathf.Abs(signedAngle);
-
-        if (absAngle < 3.0f)
-            return "Hold still";
-
-        return signedAngle > 0.0f
-            ? string.Format("Turn left {0:F0} deg", absAngle)
-            : string.Format("Turn right {0:F0} deg", absAngle);
+        return signedAngle >= 0.0f ? 1 : -1;
     }
 
     private Vector2 ResolveCurrentForward(LiveVRNetworkManager manager)
@@ -196,8 +227,32 @@ public class LiveVRClientHud : MonoBehaviour
         warningStyle.normal.textColor = new Color(1.0f, 0.75f, 0.25f);
 
         resetStyle = new GUIStyle(normalStyle);
-        resetStyle.fontSize = 24;
-        resetStyle.normal.textColor = Color.red;
+        resetStyle.alignment = TextAnchor.MiddleCenter;
+        resetStyle.fontSize = 48;
+        resetStyle.normal.textColor = new Color(1.0f, 0.92f, 0.2f);
+    }
+
+    private void DrawResetGuide(string text)
+    {
+        float width = Mathf.Max(panelSize.x, 520.0f);
+        float height = Mathf.Max(panelSize.y * 3.0f, 128.0f);
+        GUI.Box(GetCenteredRect(width, height), text, resetStyle);
+    }
+
+    private void DrawCenterGuide(string text)
+    {
+        float width = Mathf.Max(panelSize.x, 560.0f);
+        float height = Mathf.Max(panelSize.y * 3.0f, 128.0f);
+        GUI.Box(GetCenteredRect(width, height), text, resetStyle);
+    }
+
+    private static Rect GetCenteredRect(float width, float height)
+    {
+        return new Rect(
+            Mathf.Max(0.0f, (Screen.width - width) * 0.5f),
+            Mathf.Max(0.0f, (Screen.height - height) * 0.5f),
+            width,
+            height);
     }
 
     private void DrawLine(ref float y, string text, GUIStyle style)

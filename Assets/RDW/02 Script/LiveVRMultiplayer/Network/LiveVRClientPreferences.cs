@@ -10,35 +10,29 @@ public static class LiveVRClientPreferences
 
     public static void Load(ref int userId, ref string hostAddress, ref int hostPosePort, ref int expectedUserCount)
     {
-        userId = PlayerPrefs.GetInt(UserIdKey, userId);
-        hostAddress = PlayerPrefs.GetString(HostKey, hostAddress);
-        hostPosePort = PlayerPrefs.GetInt(PortKey, hostPosePort);
-        expectedUserCount = PlayerPrefs.GetInt(UsersKey, expectedUserCount);
+        LoadHostConnection(ref hostAddress, ref hostPosePort);
     }
 
     public static void Save(int userId, string hostAddress, int hostPosePort, int expectedUserCount)
     {
-        Save(userId, hostAddress, hostPosePort, expectedUserCount, LoadProactiveResetEnabled(true));
+        SaveHostConnection(hostAddress, hostPosePort);
     }
 
     public static void Save(int userId, string hostAddress, int hostPosePort, int expectedUserCount, bool proactiveResetEnabled)
     {
-        PlayerPrefs.SetInt(UserIdKey, Mathf.Max(0, userId));
-        PlayerPrefs.SetString(HostKey, string.IsNullOrEmpty(hostAddress) ? string.Empty : hostAddress);
-        PlayerPrefs.SetInt(PortKey, Mathf.Max(1, hostPosePort));
-        PlayerPrefs.SetInt(UsersKey, Mathf.Max(1, expectedUserCount));
-        PlayerPrefs.SetInt(ProactiveResetKey, proactiveResetEnabled ? 1 : 0);
-        PlayerPrefs.Save();
+        SaveHostConnection(hostAddress, hostPosePort);
     }
 
     public static void LoadHostConnection(ref string hostAddress, ref int hostPosePort)
     {
+        ClearRuntimeStateKeys();
         hostAddress = PlayerPrefs.GetString(HostKey, hostAddress);
         hostPosePort = PlayerPrefs.GetInt(PortKey, hostPosePort);
     }
 
     public static void SaveHostConnection(string hostAddress, int hostPosePort)
     {
+        ClearRuntimeStateKeys();
         PlayerPrefs.SetString(HostKey, string.IsNullOrEmpty(hostAddress) ? string.Empty : hostAddress);
         PlayerPrefs.SetInt(PortKey, Mathf.Max(1, hostPosePort));
         PlayerPrefs.Save();
@@ -46,6 +40,26 @@ public static class LiveVRClientPreferences
 
     public static bool LoadProactiveResetEnabled(bool fallback)
     {
-        return PlayerPrefs.GetInt(ProactiveResetKey, fallback ? 1 : 0) != 0;
+        ClearRuntimeStateKeys();
+        return fallback;
+    }
+
+    public static void ClearRuntimeStateKeys()
+    {
+        bool changed = false;
+        changed |= DeleteKeyIfPresent(UserIdKey);
+        changed |= DeleteKeyIfPresent(UsersKey);
+        changed |= DeleteKeyIfPresent(ProactiveResetKey);
+        if (changed)
+            PlayerPrefs.Save();
+    }
+
+    private static bool DeleteKeyIfPresent(string key)
+    {
+        if (!PlayerPrefs.HasKey(key))
+            return false;
+
+        PlayerPrefs.DeleteKey(key);
+        return true;
     }
 }

@@ -33,6 +33,7 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
     private int activeLocalResetEventId = -1;
     private int completedLocalResetEventId = -1;
     private bool hasLocalResetMapping;
+    private bool localResetDoneSent;
     private float localResetInitialPhysicalYaw;
     private float localResetPreviousPhysicalYaw;
     private float localResetDesiredPhysicalTurn;
@@ -53,6 +54,24 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
             long now = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             return Mathf.Max(0.0f, (now - lastVirtualPoseHostTime) / 1000.0f);
         }
+    }
+
+    public void ClearLocalResetState()
+    {
+        activeLocalResetEventId = -1;
+        completedLocalResetEventId = -1;
+        hasLocalResetMapping = false;
+        localResetDoneSent = false;
+        localResetInitialPhysicalYaw = 0.0f;
+        localResetPreviousPhysicalYaw = 0.0f;
+        localResetDesiredPhysicalTurn = 0.0f;
+        localResetInjectRate = 0.0f;
+        localResetAccumulatedPhysicalTurn = 0.0f;
+        localResetDesiredInjectedRootTurn = 0.0f;
+        localResetAppliedInjectedRootTurn = 0.0f;
+        localResetStartCameraWorldPosition = Vector3.zero;
+        localResetStartCameraWorldYaw = 0.0f;
+        nextResetDebugLogTime = 0.0f;
     }
 
     public void Configure(
@@ -86,11 +105,14 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
         if (manager == null || manager.IsHost)
             return;
 
-        if (applyOnlyWhileRunning && manager.ExperimentState != LiveVRExperimentState.Running)
-            return;
-
         Transform root = ResolveViewRoot();
         if (root == null)
+            return;
+
+        if (TryApplyLocalResetInjection(root, manager))
+            return;
+
+        if (applyOnlyWhileRunning && manager.ExperimentState != LiveVRExperimentState.Running)
             return;
 
         LiveVRVirtualPoseMessage virtualPose;
@@ -110,9 +132,6 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
             lastHostVirtualYawDegrees = virtualPose.VirtualYawDegrees;
             hasLastHostVirtualPose = true;
         }
-
-        if (TryApplyLocalResetInjection(root, manager))
-            return;
 
         if (!hasFreshVirtualPose || virtualPose.Sequence == lastAppliedSequence)
             return;
@@ -172,19 +191,6 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
 
         root.rotation = rootRotation;
         root.position = targetWorldPosition - (rootRotation * planarRootSpaceHeadOffset);
-
-        if (manager != null && manager.HasFreshResetPrompt(1.25f) && Time.unscaledTime >= nextResetDebugLogTime)
-        {
-            nextResetDebugLogTime = Time.unscaledTime + 0.5f;
-            Debug.Log(string.Format(
-                "[LiveVR] Client apply virtual pose seq={0} fresh={1} desiredCameraYaw={2:F1} localHeadYaw={3:F1} rootYaw={4:F1} cameraYaw={5:F1}",
-                hasFreshVirtualPose ? virtualPose.Sequence.ToString() : "none",
-                hasFreshVirtualPose,
-                desiredCameraWorldYaw,
-                localHeadYaw,
-                rootYaw,
-                ExtractYawDegrees(cameraTransform.rotation)));
-        }
     }
 
     private bool TryApplyLocalResetInjection(Transform root, LiveVRNetworkManager manager)
@@ -193,12 +199,24 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
         if (manager == null || !manager.TryGetLatestResetStart(out resetStart))
         {
             hasLocalResetMapping = false;
+            localResetDoneSent = false;
             return false;
         }
 
         Transform cameraTransform = ResolveHmdCamera();
         if (cameraTransform == null || cameraTransform == root)
+        {
+            if (Time.unscaledTime >= nextResetDebugLogTime)
+            {
+                nextResetDebugLogTime = Time.unscaledTime + 0.5f;
+                Debug.LogWarning(string.Format(
+                    "[LiveVR] Client reset injection skipped event={0}: camera/root invalid camera={1} root={2}",
+                    resetStart.EventId,
+                    cameraTransform != null ? cameraTransform.name : "null",
+                    root != null ? root.name : "null"));
+            }
             return false;
+        }
 
         float localHeadYaw = ResolveLocalHeadYaw(root, cameraTransform);
         bool isCurrentActiveReset = hasLocalResetMapping && activeLocalResetEventId == resetStart.EventId;
@@ -212,6 +230,7 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
 
             activeLocalResetEventId = resetStart.EventId;
             hasLocalResetMapping = true;
+            localResetDoneSent = false;
             localResetInitialPhysicalYaw = localHeadYaw;
             localResetPreviousPhysicalYaw = localHeadYaw;
             localResetDesiredPhysicalTurn = resetStart.PhysicalTurnDegrees;
@@ -221,38 +240,22 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
             localResetAppliedInjectedRootTurn = 0.0f;
             localResetStartCameraWorldPosition = cameraTransform.position;
             localResetStartCameraWorldYaw = ToProjectYaw(cameraTransform.rotation);
-
-            Debug.Log(string.Format(
-                "[LiveVR] Client reset injection start event={0} physicalPlan={1:F1} injectRate={2:F3} injectedRootPlan={3:F1} initialPhysicalYaw={4:F1} rootYaw={5:F1} startCameraYaw={6:F1}",
-                resetStart.EventId,
-                localResetDesiredPhysicalTurn,
-                localResetInjectRate,
-                localResetDesiredInjectedRootTurn,
-                localResetInitialPhysicalYaw,
-                ToProjectYaw(root.rotation),
-                ToProjectYaw(cameraTransform.rotation)));
         }
 
-        float rawDeltaPhysical = Mathf.DeltaAngle(localResetPreviousPhysicalYaw, localHeadYaw);
+        if (localResetDoneSent)
+        {
+            ApplyResetVirtualMapping(root, cameraTransform, CalculateResetDesiredCameraWorldYaw());
+            return true;
+        }
+
+        float physicalYawDelta = Mathf.DeltaAngle(localResetPreviousPhysicalYaw, localHeadYaw);
         localResetPreviousPhysicalYaw = localHeadYaw;
-
-        float directionSign = Mathf.Sign(localResetDesiredPhysicalTurn);
-        float remainingPhysicalMagnitude = Mathf.Max(0.0f, Mathf.Abs(localResetDesiredPhysicalTurn) - Mathf.Abs(localResetAccumulatedPhysicalTurn));
-        float usableDeltaPhysical = rawDeltaPhysical;
-        if (Mathf.Abs(directionSign) > Mathf.Epsilon)
-        {
-            bool isCorrectDirection = Mathf.Sign(rawDeltaPhysical) == directionSign;
-            usableDeltaPhysical = isCorrectDirection
-                ? Mathf.Sign(rawDeltaPhysical) * Mathf.Min(Mathf.Abs(rawDeltaPhysical), remainingPhysicalMagnitude)
-                : 0.0f;
-        }
-
-        float deltaInjectedRootTurn = usableDeltaPhysical * localResetInjectRate;
-        if (Mathf.Abs(deltaInjectedRootTurn) > 0.0001f)
-        {
-            localResetAppliedInjectedRootTurn += deltaInjectedRootTurn;
-            localResetAccumulatedPhysicalTurn += usableDeltaPhysical;
-        }
+        float nextAccumulatedPhysicalTurn = AccumulatePhysicalTurnTowardPlan(
+            localResetAccumulatedPhysicalTurn,
+            physicalYawDelta,
+            localResetDesiredPhysicalTurn);
+        localResetAccumulatedPhysicalTurn = nextAccumulatedPhysicalTurn;
+        localResetAppliedInjectedRootTurn = localResetAccumulatedPhysicalTurn * localResetInjectRate;
 
         float physicalTurn = localResetAccumulatedPhysicalTurn;
         float progress = Mathf.Abs(localResetDesiredPhysicalTurn) <= Mathf.Epsilon
@@ -261,42 +264,31 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
         float desiredCameraWorldYaw = CalculateResetDesiredCameraWorldYaw();
         ApplyResetVirtualMapping(root, cameraTransform, desiredCameraWorldYaw);
 
-        if (Time.unscaledTime >= nextResetDebugLogTime)
-        {
-            nextResetDebugLogTime = Time.unscaledTime + 0.5f;
-            Debug.Log(string.Format(
-                "[LiveVR] Client reset injection event={0} physical={1:F1}/{2:F1} injected={3:F1}/{4:F1} rawDelta={5:F2} usedDelta={6:F2} injectedDelta={7:F2} progress={8:P0} desiredCameraYaw={9:F1} rootYaw={10:F1} cameraYaw={11:F1}",
-                resetStart.EventId,
-                physicalTurn,
-                localResetDesiredPhysicalTurn,
-                localResetAppliedInjectedRootTurn,
-                localResetDesiredInjectedRootTurn,
-                rawDeltaPhysical,
-                usableDeltaPhysical,
-                deltaInjectedRootTurn,
-                progress,
-                desiredCameraWorldYaw,
-                ToProjectYaw(root.rotation),
-                ToProjectYaw(cameraTransform.rotation)));
-        }
-
         if (progress >= 0.995f)
         {
             completedLocalResetEventId = activeLocalResetEventId;
-            hasLocalResetMapping = false;
-            LiveVRPoseSample finalPose;
-            float finalPhysicalYaw = manager.TryGetLocalPoseSample(out finalPose)
-                ? finalPose.YawDegrees
-                : localHeadYaw;
-            manager.SendResetDone(activeLocalResetEventId, finalPhysicalYaw, localResetAppliedInjectedRootTurn);
-            Debug.Log(string.Format(
-                "[LiveVR] Client reset injection complete event={0} desiredCameraYaw={1:F1} finalPhysicalYaw={2:F1}; returning to host virtual pose walking sync.",
-                activeLocalResetEventId,
-                desiredCameraWorldYaw,
-                finalPhysicalYaw));
+            localResetAccumulatedPhysicalTurn = localResetDesiredPhysicalTurn;
+            localResetAppliedInjectedRootTurn = localResetDesiredInjectedRootTurn;
+            desiredCameraWorldYaw = CalculateResetDesiredCameraWorldYaw();
+            ApplyResetVirtualMapping(root, cameraTransform, desiredCameraWorldYaw);
+            if (!localResetDoneSent)
+                localResetDoneSent = true;
         }
 
         return true;
+    }
+
+    private static float AccumulatePhysicalTurnTowardPlan(float currentTurn, float physicalYawDelta, float desiredTurn)
+    {
+        float desiredMagnitude = Mathf.Abs(desiredTurn);
+        if (desiredMagnitude <= Mathf.Epsilon)
+            return 0.0f;
+
+        float directionSign = Mathf.Sign(desiredTurn);
+        float currentMagnitude = Mathf.Clamp(Mathf.Abs(currentTurn), 0.0f, desiredMagnitude);
+        float deltaAlongPlan = physicalYawDelta * directionSign;
+        float nextMagnitude = Mathf.Clamp(currentMagnitude + deltaAlongPlan, 0.0f, desiredMagnitude);
+        return directionSign * nextMagnitude;
     }
 
     private float CalculateResetDesiredCameraWorldYaw()

@@ -5,6 +5,7 @@ using UnityEngine.UI;
 public class LiveVRClientWorldHud : MonoBehaviour
 {
     [SerializeField] private LiveVRNetworkManager networkManager;
+    [SerializeField] private LiveVRClientTargetGuide targetGuide;
     [SerializeField] private Transform hmdCamera;
     [SerializeField] private bool showHud = true;
     [SerializeField] private float distanceMeters = 1.25f;
@@ -42,6 +43,16 @@ public class LiveVRClientWorldHud : MonoBehaviour
         updateIntervalSeconds = Mathf.Max(0.02f, newUpdateIntervalSeconds);
     }
 
+    public void ClearResetPrompt()
+    {
+        lastResetEventId = -1;
+        lastResetPromptHostUnixMilliseconds = -1;
+        resetPrompt = string.Empty;
+        resetPromptUntilTime = 0.0f;
+        lastStatusText = string.Empty;
+        nextUpdateTime = 0.0f;
+    }
+
     private void LateUpdate()
     {
         LiveVRNetworkManager manager = ResolveNetworkManager();
@@ -71,10 +82,25 @@ public class LiveVRClientWorldHud : MonoBehaviour
         {
             nextUpdateTime = Time.unscaledTime + updateIntervalSeconds;
             lastStatusText = BuildStatusText(manager);
+            bool resetActive = Time.unscaledTime < resetPromptUntilTime;
+            bool localComplete = IsLocalRunComplete();
+            bool waitingForStart = !resetActive &&
+                                   manager.IsConnectedToHost &&
+                                   manager.HasCalibration &&
+                                   (manager.ExperimentState != LiveVRExperimentState.Running || localComplete);
+            statusText.alignment = resetActive || waitingForStart ? TextAnchor.MiddleCenter : TextAnchor.MiddleLeft;
+            statusText.fontSize = resetActive ? 120 : waitingForStart ? 54 : 32;
             statusText.text = lastStatusText;
             if (fallbackText != null)
+            {
+                fallbackText.anchor = resetActive || waitingForStart ? TextAnchor.MiddleCenter : TextAnchor.UpperLeft;
+                fallbackText.alignment = resetActive || waitingForStart ? TextAlignment.Center : TextAlignment.Left;
+                fallbackText.fontSize = resetActive ? 120 : waitingForStart ? 92 : 64;
                 fallbackText.text = lastStatusText;
-            background.color = manager.IsConnectedToHost
+            }
+            background.color = resetActive
+                ? new Color(0.02f, 0.02f, 0.02f, 0.86f)
+                : manager.IsConnectedToHost
                 ? new Color(0.02f, 0.08f, 0.06f, 0.78f)
                 : new Color(0.16f, 0.04f, 0.02f, 0.82f);
         }
@@ -105,7 +131,7 @@ public class LiveVRClientWorldHud : MonoBehaviour
         if (!manager.HasCalibration)
             return true;
 
-        if (manager.ExperimentState == LiveVRExperimentState.Running)
+        if (manager.ExperimentState == LiveVRExperimentState.Running && !IsLocalRunComplete())
             return false;
 
         return true;
@@ -185,7 +211,16 @@ public class LiveVRClientWorldHud : MonoBehaviour
 
         if (fallbackText != null)
         {
-            fallbackText.transform.localPosition = new Vector3(-0.53f, 0.24f + verticalOffsetMeters, Mathf.Max(0.25f, distanceMeters - 0.02f));
+            bool resetActive = Time.unscaledTime < resetPromptUntilTime;
+            bool localComplete = IsLocalRunComplete();
+            bool waitingForStart = !resetActive &&
+                                   networkManager != null &&
+                                   networkManager.IsConnectedToHost &&
+                                   networkManager.HasCalibration &&
+                                   (networkManager.ExperimentState != LiveVRExperimentState.Running || localComplete);
+            fallbackText.transform.localPosition = resetActive || waitingForStart
+                ? new Vector3(0.0f, verticalOffsetMeters, Mathf.Max(0.25f, distanceMeters - 0.02f))
+                : new Vector3(-0.53f, 0.24f + verticalOffsetMeters, Mathf.Max(0.25f, distanceMeters - 0.02f));
             fallbackText.transform.localRotation = Quaternion.identity;
             fallbackText.transform.localScale = Vector3.one;
         }
@@ -197,10 +232,17 @@ public class LiveVRClientWorldHud : MonoBehaviour
         if (manager.TryGetLatestResetPrompt(out prompt) &&
             (prompt.EventId != lastResetEventId || prompt.HostUnixMilliseconds != lastResetPromptHostUnixMilliseconds))
         {
+            if (IsResetPromptComplete(prompt))
+            {
+                ClearResetPrompt();
+                manager.ClearLatestResetPrompt();
+                return;
+            }
+
             lastResetEventId = prompt.EventId;
             lastResetPromptHostUnixMilliseconds = prompt.HostUnixMilliseconds;
             resetPromptUntilTime = Time.unscaledTime + 4.0f;
-            resetPrompt = string.Format("RESET {0}\n{1}", prompt.ResetType, BuildTurnInstruction(manager, prompt));
+            resetPrompt = BuildResetGuideText(manager, prompt);
         }
         else if (!manager.TryGetLatestResetPrompt(out prompt))
         {
@@ -211,55 +253,59 @@ public class LiveVRClientWorldHud : MonoBehaviour
 
     private string BuildStatusText(LiveVRNetworkManager manager)
     {
+        if (Time.unscaledTime < resetPromptUntilTime)
+            return resetPrompt;
+
+        if (manager.IsConnectedToHost &&
+            manager.HasCalibration &&
+            manager.ExperimentState == LiveVRExperimentState.Completed)
+        {
+            return "\u5b9e\u9a8c\u5df2\u7ed3\u675f\n\u8bf7\u7b49\u5f85\u5b9e\u9a8c\u5458";
+        }
+
+        if (manager.IsConnectedToHost &&
+            manager.HasCalibration &&
+            manager.ExperimentState == LiveVRExperimentState.Running &&
+            IsLocalRunComplete())
+        {
+            return "\u4f60\u5df2\u5b8c\u6210\n\u8bf7\u539f\u5730\u7b49\u5f85";
+        }
+
+        if (manager.IsConnectedToHost &&
+            manager.HasCalibration &&
+            manager.ExperimentState != LiveVRExperimentState.Running)
+        {
+            return "\u6821\u51c6\u5b8c\u6210\n\u7b49\u5f85\u4e3b\u673a\u5f00\u59cb";
+        }
+
         StringBuilder sb = new StringBuilder(256);
-        sb.AppendFormat("LIVE VR USER {0}\n\n", manager.LocalUserId);
+        sb.AppendFormat("\u7528\u6237 {0}\n\n", manager.LocalUserId);
 
         if (!manager.IsConnectedToHost)
         {
-            sb.AppendLine("Connecting to Host...");
+            sb.AppendLine("\u6b63\u5728\u8fde\u63a5\u4e3b\u673a");
             sb.AppendFormat("{0}:{1}\n", manager.HostAddress, manager.HostPosePort);
-            sb.AppendLine("Waiting for Host ACK.");
-            sb.AppendLine(manager.HostDiscoveryStatus);
-            sb.AppendLine("Keep the headset app open.");
+            sb.AppendLine("\u7b49\u5f85\u4e3b\u673a\u54cd\u5e94");
+            sb.AppendLine("\u8bf7\u4fdd\u6301\u5934\u663e\u7a0b\u5e8f\u5f00\u542f");
         }
         else if (!manager.HasHostAssignment)
         {
-            sb.AppendLine("Connected to Host.");
-            sb.AppendLine("Waiting for Host user assignment.");
-            sb.AppendLine(manager.ClientAssignmentStatus);
+            sb.AppendLine("\u5df2\u8fde\u63a5\u4e3b\u673a");
+            sb.AppendLine("\u7b49\u5f85\u4e3b\u673a\u5206\u914d\u7528\u6237");
         }
         else if (!manager.HasCalibration)
         {
-            sb.AppendLine("Connected.");
-            sb.AppendFormat("Assigned User {0}.\n", manager.LocalUserId);
-            sb.AppendLine("Stand on the CENTER mark.");
-            sb.AppendLine("Face the marked FORWARD direction.");
-            sb.AppendLine("Waiting for operator calibration.");
+            sb.AppendLine("\u5df2\u8fde\u63a5");
+            sb.AppendFormat("\u5df2\u5206\u914d\u7528\u6237 {0}\n", manager.LocalUserId);
+            sb.AppendLine("\u8bf7\u7ad9\u5230\u4e2d\u5fc3\u70b9");
+            sb.AppendLine("\u9762\u5411\u6807\u8bb0\u7684\u524d\u65b9");
+            sb.AppendLine("\u7b49\u5f85\u5b9e\u9a8c\u5458\u6821\u51c6");
         }
         else if (manager.ExperimentState == LiveVRExperimentState.Running)
         {
             if (Time.unscaledTime < resetPromptUntilTime)
-                sb.AppendLine("Reset required.");
+                sb.AppendLine("\u9700\u8981\u91cd\u7f6e");
         }
-        else if (manager.ExperimentState == LiveVRExperimentState.Completed)
-        {
-            sb.AppendLine("Experiment complete.");
-            sb.AppendLine("Please wait for the operator.");
-        }
-        else
-        {
-            sb.AppendLine("Calibration complete.");
-            sb.AppendLine("Enter passthrough if needed.");
-            sb.AppendLine("Walk to your start position.");
-            sb.AppendLine("Wait for experiment start.");
-        }
-
-        if (Time.unscaledTime < resetPromptUntilTime)
-        {
-            sb.AppendLine();
-            sb.AppendLine(resetPrompt);
-        }
-
         return sb.ToString();
     }
 
@@ -291,40 +337,44 @@ public class LiveVRClientWorldHud : MonoBehaviour
         return networkManager;
     }
 
-    private string BuildTurnInstruction(LiveVRNetworkManager manager, LiveVRResetPromptMessage prompt)
+    private bool IsLocalRunComplete()
     {
-        if (prompt.HasTurnInstruction)
-        {
-            float remaining = Mathf.Max(0.0f, prompt.RemainingTurnDegrees);
-            if (remaining < 5.0f)
-                return "Hold still";
-
-            string direction = prompt.TurnDirectionSign >= 0 ? "left" : "right";
-            return string.Format(
-                "Keep turning {0} {1:F0} deg ({2:P0})",
-                direction,
-                remaining,
-                Mathf.Clamp01(prompt.Progress01));
-        }
-
-        return BuildTurnInstruction(manager, prompt.DirectionHint);
+        LiveVRClientTargetGuide guide = ResolveTargetGuide();
+        return guide != null && guide.IsLocalRunComplete;
     }
 
-    private string BuildTurnInstruction(LiveVRNetworkManager manager, Vector2 targetDirection)
+    private LiveVRClientTargetGuide ResolveTargetGuide()
+    {
+        if (targetGuide == null)
+            targetGuide = GetComponent<LiveVRClientTargetGuide>();
+
+        return targetGuide;
+    }
+
+    private string BuildResetGuideText(LiveVRNetworkManager manager, LiveVRResetPromptMessage prompt)
+    {
+        int directionSign = prompt.HasTurnInstruction
+            ? prompt.TurnDirectionSign
+            : ResolveDirectionSign(manager, prompt.DirectionHint);
+
+        bool turnLeft = directionSign >= 0;
+        return turnLeft ? "<--\n\u5411\u5de6\u8f6c" : "-->\n\u5411\u53f3\u8f6c";
+    }
+
+    private static bool IsResetPromptComplete(LiveVRResetPromptMessage prompt)
+    {
+        return prompt.HasTurnInstruction &&
+               (prompt.Progress01 >= 0.995f || prompt.RemainingTurnDegrees <= 5.0f);
+    }
+
+    private int ResolveDirectionSign(LiveVRNetworkManager manager, Vector2 targetDirection)
     {
         if (targetDirection.sqrMagnitude <= Mathf.Epsilon)
-            return "Stop and turn in place";
+            return 1;
 
         Vector2 currentForward = ResolveCurrentForward(manager);
         float signedAngle = Vector2.SignedAngle(currentForward, targetDirection.normalized);
-        float absAngle = Mathf.Abs(signedAngle);
-
-        if (absAngle < 3.0f)
-            return "Hold still";
-
-        return signedAngle > 0.0f
-            ? string.Format("Turn left {0:F0} deg", absAngle)
-            : string.Format("Turn right {0:F0} deg", absAngle);
+        return signedAngle >= 0.0f ? 1 : -1;
     }
 
     private Vector2 ResolveCurrentForward(LiveVRNetworkManager manager)

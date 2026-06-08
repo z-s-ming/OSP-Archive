@@ -129,7 +129,11 @@ public class LiveVRNetworkStatusOverlay : MonoBehaviour
             if (manager.ShouldUseSimulatedUser(userId, staleWarningSeconds, true))
                 style = normalStyle;
             string spaceStatus = GetLiveSpaceStatus(sample);
-            string stage = sample.IsCalibrated ? "calibrated, go/start-ready check" : "connected, waiting host calibration";
+            string stage = stale
+                ? "STALE, waiting reconnect"
+                : sample.IsCalibrated
+                ? "calibrated, ready for host start"
+                : "connected, waiting host calibration";
             DrawLine(ref y, string.Format(
                 "User {0}: {1} {2} pos=({3:F2},{4:F2}) yaw={5:F1} age={6:F3}s {7}",
                 userId,
@@ -140,7 +144,34 @@ public class LiveVRNetworkStatusOverlay : MonoBehaviour
                 sample.YawDegrees,
                 sample.AgeSeconds,
                 spaceStatus), style);
+
+            if (manager.IsHost)
+                DrawGainDebugLine(ref y, userId);
         }
+    }
+
+    private void DrawGainDebugLine(ref float y, int userId)
+    {
+        LiveVRGainDebugSample gain;
+        if (!LiveVRGainDebugState.TryGetLatest(userId, out gain))
+            return;
+
+        GUIStyle style = gain.ResetActive || !gain.HasRedirection ? warningStyle : normalStyle;
+        DrawLine(ref y, string.Format(
+            "  Gain u={0}: type={1} redir={2} pΔ={3:F3}m pYawΔ={4:F2} vΔ={5:F3}m vYawΔ={6:F2} injYaw={7:F2} rate={8:F1}/s T/R/C={9:F2}/{10:F2}/{11:F3} yawDiff={12:F1}",
+            userId,
+            gain.ResetActive ? "RESET" : gain.HasRedirection ? gain.GainType.ToString() : "None",
+            string.IsNullOrEmpty(gain.RedirectorName) ? "-" : gain.RedirectorName,
+            gain.PhysicalDeltaMeters,
+            gain.PhysicalYawDeltaDegrees,
+            gain.VirtualDeltaMeters,
+            gain.VirtualYawDeltaDegrees,
+            gain.InjectedYawDeltaDegrees,
+            gain.PrimaryRateDegreesPerSecond,
+            gain.TranslationGain,
+            gain.RotationGain,
+            gain.CurvatureGain,
+            gain.VirtualPhysicalYawDiffDegrees), style);
     }
 
     private string GetLiveSpaceStatus(LiveVRPoseSample sample)
