@@ -68,7 +68,7 @@ public class LiveVRNetworkManager : MonoBehaviour
     [HideInInspector]
     [SerializeField] private int hostPosePort = 47770;
     [HideInInspector]
-    [SerializeField] private float sendRateHz = 30.0f;
+    [SerializeField] private float sendRateHz = 60.0f;
     [HideInInspector]
     [SerializeField] private bool enableHostDiscovery = true;
     [HideInInspector]
@@ -100,6 +100,7 @@ public class LiveVRNetworkManager : MonoBehaviour
     private readonly object endpointsLock = new object();
     private readonly object assignmentLock = new object();
     private readonly object clientStateLock = new object();
+    private readonly object clientGainRateLogLock = new object();
     private readonly Dictionary<int, LiveVRPoseSample> latestPoses = new Dictionary<int, LiveVRPoseSample>();
     private readonly Dictionary<int, IPEndPoint> clientEndpoints = new Dictionary<int, IPEndPoint>();
     private readonly Dictionary<int, long> latestHelloReceiveUnixMs = new Dictionary<int, long>();
@@ -136,6 +137,7 @@ public class LiveVRNetworkManager : MonoBehaviour
     private readonly HashSet<int> targetReachedUserIds = new HashSet<int>();
     private bool hasVirtualPose;
     private LiveVRVirtualPoseMessage latestVirtualPose;
+    private long latestVirtualPoseReceiveUnixMilliseconds;
     private uint virtualPoseSequence;
     private int centerCalibrationEventId;
     private int clearCalibrationEventId;
@@ -149,6 +151,25 @@ public class LiveVRNetworkManager : MonoBehaviour
     private uint sentPosePacketCount;
     private uint sentHelloPacketCount;
     private uint sentHostDiscoveryPacketCount;
+    private float clientPoseRateWindowStartTime;
+    private int clientPoseRateWindowCount;
+    private uint clientPoseRateWindowStartSequence;
+    private uint clientPoseRateWindowLastSequence;
+    private bool hasClientPoseRateWindow;
+    private float nextClientPoseRateLogTime;
+    private long clientGainRateWindowStartUnixMs;
+    private int clientGainReceivedWindowCount;
+    private int clientGainReceivedNonZeroWindowCount;
+    private int clientGainReceivedUndefinedWindowCount;
+    private uint clientGainReceivedStartSequence;
+    private uint clientGainReceivedLastSequence;
+    private bool hasClientGainReceivedWindow;
+    private float clientGainReceivedAbsRateSum;
+    private float clientGainReceivedMaxAbsRate;
+    private GainType clientGainReceivedLastType = GainType.Undefined;
+    private float clientGainReceivedLastRate;
+    private float clientGainReceivedLastValidSeconds;
+    private float nextClientGainReceivedLogTime;
     private string lastClientSendError = string.Empty;
     private string lastPoseSourceStatus = "not sampled";
     private string hostDiscoveryStatus = "idle";
@@ -271,6 +292,7 @@ public class LiveVRNetworkManager : MonoBehaviour
             return;
 
         reliableControl.Tick();
+        LogClientGainReceivedRateIfNeeded();
 
         if (IsWaitingForClientStartupConfirmation)
             return;
@@ -401,6 +423,7 @@ public class LiveVRNetworkManager : MonoBehaviour
             lastResetStartReceiveUnixMilliseconds = 0;
             hasVirtualPose = false;
             latestVirtualPose = default(LiveVRVirtualPoseMessage);
+            latestVirtualPoseReceiveUnixMilliseconds = 0;
         }
     }
 
@@ -916,6 +939,16 @@ public class LiveVRNetworkManager : MonoBehaviour
         }
     }
 
+    public bool TryGetLatestVirtualPose(out LiveVRVirtualPoseMessage virtualPose, out long receiveUnixMilliseconds)
+    {
+        lock (clientStateLock)
+        {
+            virtualPose = latestVirtualPose;
+            receiveUnixMilliseconds = latestVirtualPoseReceiveUnixMilliseconds;
+            return hasVirtualPose;
+        }
+    }
+
     public bool TryGetLocalPoseSample(out LiveVRPoseSample sample)
     {
         return TryBuildLocalPoseSample(out sample);
@@ -1140,6 +1173,7 @@ public class LiveVRNetworkManager : MonoBehaviour
         };
 
         SendReliableToUser(userId, "CALIBRATE_CENTER", message.ToNetworkMessage());
+        Debug.Log(string.Format("[LiveVR] Sent center calibration command to user {0} endpoint={1}.", userId, GetEndpointDebugLabel(userId)));
     }
 
     public void SendClearCalibrationCommand(int userId)
@@ -1159,6 +1193,28 @@ public class LiveVRNetworkManager : MonoBehaviour
 
     public void SendVirtualPose(int userId, Vector2 virtualPosition, float virtualYawDegrees)
     {
+        SendVirtualPose(userId, virtualPosition, virtualYawDegrees, 0.0f, GainType.Undefined, 0.0f, 0.0f);
+    }
+
+    public void SendVirtualPose(
+        int userId,
+        Vector2 virtualPosition,
+        float virtualYawDegrees,
+        float injectedYawDeltaDegrees,
+        GainType gainType)
+    {
+        SendVirtualPose(userId, virtualPosition, virtualYawDegrees, injectedYawDeltaDegrees, gainType, 0.0f, 0.0f);
+    }
+
+    public void SendVirtualPose(
+        int userId,
+        Vector2 virtualPosition,
+        float virtualYawDegrees,
+        float injectedYawDeltaDegrees,
+        GainType gainType,
+        float gainRateDegreesPerSecond,
+        float gainValidSeconds)
+    {
         if (!IsHost)
             return;
 
@@ -1168,7 +1224,11 @@ public class LiveVRNetworkManager : MonoBehaviour
             Sequence = ++virtualPoseSequence,
             HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
             VirtualPosition = virtualPosition,
-            VirtualYawDegrees = virtualYawDegrees
+            VirtualYawDegrees = virtualYawDegrees,
+            InjectedYawDeltaDegrees = injectedYawDeltaDegrees,
+            GainType = gainType,
+            GainRateDegreesPerSecond = gainRateDegreesPerSecond,
+            GainValidSeconds = gainValidSeconds
         };
         SendToUser(userId, virtualPose.ToNetworkMessage());
     }
@@ -1503,6 +1563,7 @@ public class LiveVRNetworkManager : MonoBehaviour
             byte[] data = Encoding.UTF8.GetBytes(sample.ToNetworkMessage());
             clientSender.Send(data, data.Length, hostEndPoint);
             sentPosePacketCount++;
+            RecordClientPoseSendForRateLog(sample);
             lastClientSendError = string.Empty;
         }
         catch (Exception e)
@@ -1908,9 +1969,155 @@ public class LiveVRNetworkManager : MonoBehaviour
             {
                 latestVirtualPose = virtualPose;
                 hasVirtualPose = true;
-                lastAckUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                latestVirtualPoseReceiveUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                lastAckUnixMilliseconds = latestVirtualPoseReceiveUnixMilliseconds;
+            }
+            RecordClientGainReceivedForRateLog(virtualPose);
+        }
+    }
+
+    private void RecordClientPoseSendForRateLog(LiveVRPoseSample sample)
+    {
+        if (mode != LiveVRExperimentMode.ClientOnly)
+            return;
+
+        float now = Time.unscaledTime;
+        if (!hasClientPoseRateWindow)
+        {
+            hasClientPoseRateWindow = true;
+            clientPoseRateWindowStartTime = now;
+            clientPoseRateWindowStartSequence = sample.Sequence;
+            nextClientPoseRateLogTime = now + 1.0f;
+        }
+
+        clientPoseRateWindowCount++;
+        clientPoseRateWindowLastSequence = sample.Sequence;
+
+        if (now < nextClientPoseRateLogTime)
+            return;
+
+        float duration = Mathf.Max(0.001f, now - clientPoseRateWindowStartTime);
+        uint sequenceDelta = clientPoseRateWindowLastSequence >= clientPoseRateWindowStartSequence
+            ? clientPoseRateWindowLastSequence - clientPoseRateWindowStartSequence + 1u
+            : 0u;
+        Debug.Log(string.Format(
+            "[LiveVRRate][ClientPose] user={0} hz={1:F1} sent={2} seqDelta={3} seq={4} configuredRate={5:F1}",
+            localUserId,
+            clientPoseRateWindowCount / duration,
+            clientPoseRateWindowCount,
+            sequenceDelta,
+            clientPoseRateWindowLastSequence,
+            sendRateHz));
+
+        hasClientPoseRateWindow = false;
+        clientPoseRateWindowStartTime = 0.0f;
+        clientPoseRateWindowStartSequence = 0;
+        clientPoseRateWindowLastSequence = 0;
+        clientPoseRateWindowCount = 0;
+        nextClientPoseRateLogTime = now + 1.0f;
+    }
+
+    private void RecordClientGainReceivedForRateLog(LiveVRVirtualPoseMessage virtualPose)
+    {
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        float absRate = Mathf.Abs(virtualPose.GainRateDegreesPerSecond);
+
+        lock (clientGainRateLogLock)
+        {
+            if (!hasClientGainReceivedWindow)
+            {
+                hasClientGainReceivedWindow = true;
+                clientGainRateWindowStartUnixMs = now;
+                clientGainReceivedStartSequence = virtualPose.Sequence;
+            }
+
+            clientGainReceivedWindowCount++;
+            clientGainReceivedLastSequence = virtualPose.Sequence;
+            clientGainReceivedLastType = virtualPose.GainType;
+            clientGainReceivedLastRate = virtualPose.GainRateDegreesPerSecond;
+            clientGainReceivedLastValidSeconds = virtualPose.GainValidSeconds;
+            clientGainReceivedAbsRateSum += absRate;
+            clientGainReceivedMaxAbsRate = Mathf.Max(clientGainReceivedMaxAbsRate, absRate);
+
+            if (virtualPose.GainType == GainType.Undefined ||
+                absRate <= Mathf.Epsilon ||
+                virtualPose.GainValidSeconds <= 0.0f)
+            {
+                clientGainReceivedUndefinedWindowCount++;
+            }
+            else
+            {
+                clientGainReceivedNonZeroWindowCount++;
             }
         }
+    }
+
+    private void LogClientGainReceivedRateIfNeeded()
+    {
+        if (mode != LiveVRExperimentMode.ClientOnly || Time.unscaledTime < nextClientGainReceivedLogTime)
+            return;
+
+        nextClientGainReceivedLogTime = Time.unscaledTime + 1.0f;
+
+        int received;
+        int nonZero;
+        int undefined;
+        uint startSequence;
+        uint lastSequence;
+        long startUnixMs;
+        float absRateSum;
+        float maxAbsRate;
+        GainType lastType;
+        float lastRate;
+        float lastValidSeconds;
+
+        lock (clientGainRateLogLock)
+        {
+            if (!hasClientGainReceivedWindow || clientGainReceivedWindowCount <= 0)
+                return;
+
+            received = clientGainReceivedWindowCount;
+            nonZero = clientGainReceivedNonZeroWindowCount;
+            undefined = clientGainReceivedUndefinedWindowCount;
+            startSequence = clientGainReceivedStartSequence;
+            lastSequence = clientGainReceivedLastSequence;
+            startUnixMs = clientGainRateWindowStartUnixMs;
+            absRateSum = clientGainReceivedAbsRateSum;
+            maxAbsRate = clientGainReceivedMaxAbsRate;
+            lastType = clientGainReceivedLastType;
+            lastRate = clientGainReceivedLastRate;
+            lastValidSeconds = clientGainReceivedLastValidSeconds;
+
+            hasClientGainReceivedWindow = false;
+            clientGainRateWindowStartUnixMs = 0;
+            clientGainReceivedWindowCount = 0;
+            clientGainReceivedNonZeroWindowCount = 0;
+            clientGainReceivedUndefinedWindowCount = 0;
+            clientGainReceivedStartSequence = 0;
+            clientGainReceivedLastSequence = 0;
+            clientGainReceivedAbsRateSum = 0.0f;
+            clientGainReceivedMaxAbsRate = 0.0f;
+            clientGainReceivedLastType = GainType.Undefined;
+            clientGainReceivedLastRate = 0.0f;
+            clientGainReceivedLastValidSeconds = 0.0f;
+        }
+
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        float duration = Mathf.Max(0.001f, (now - startUnixMs) / 1000.0f);
+        uint sequenceDelta = lastSequence >= startSequence ? lastSequence - startSequence + 1u : 0u;
+        Debug.Log(string.Format(
+            "[LiveVR] GainReceived user={0} hz={1:F1} received={2} seqDelta={3} nonZero={4} undefined={5} avgAbsRate={6:F2}/s maxAbsRate={7:F2}/s lastType={8} lastRate={9:F2}/s lastValid={10:F3}s",
+            localUserId,
+            received / duration,
+            received,
+            sequenceDelta,
+            nonZero,
+            undefined,
+            received > 0 ? absRateSum / received : 0.0f,
+            maxAbsRate,
+            lastType,
+            lastRate,
+            lastValidSeconds));
     }
 
     private void ApplyHostAdvertisement(LiveVRHostAdvertisementMessage advertisement, IPEndPoint remote)
@@ -2008,20 +2215,51 @@ public class LiveVRNetworkManager : MonoBehaviour
         bool proactiveResetEnabled,
         ref LiveVRClientConnectionInfo info)
     {
+        string previousEndpointKey;
+        bool endpointChanged = assignedEndpointByUserId.TryGetValue(assignedUserId, out previousEndpointKey) &&
+                               !string.Equals(previousEndpointKey, endpointKey, StringComparison.Ordinal);
+        if (endpointChanged)
+        {
+            LiveVRClientConnectionInfo previousInfo;
+            if (clientConnectionsByEndpoint.TryGetValue(previousEndpointKey, out previousInfo))
+            {
+                previousInfo.AssignedUserId = -1;
+                previousInfo.AssignmentStatus = "replaced by reconnect";
+                clientConnectionsByEndpoint[previousEndpointKey] = previousInfo;
+            }
+        }
+
+        string previousDeviceKey;
+        if (assignedDeviceKeyByUserId.TryGetValue(assignedUserId, out previousDeviceKey) &&
+            !string.Equals(previousDeviceKey, deviceKey, StringComparison.Ordinal))
+        {
+            assignedUserIdByDeviceKey.Remove(previousDeviceKey);
+        }
+
         info.AssignedUserId = assignedUserId;
         info.ProactiveResetEnabled = proactiveResetEnabled;
         info.AssignmentStatus = "assigned";
-        if (string.IsNullOrEmpty(info.DeviceKey))
-            info.DeviceKey = deviceKey;
+        info.DeviceKey = deviceKey;
 
         clientConnectionsByEndpoint[endpointKey] = info;
         assignedEndpointByUserId[assignedUserId] = endpointKey;
         assignedUserIdByDeviceKey[deviceKey] = assignedUserId;
         assignedDeviceKeyByUserId[assignedUserId] = deviceKey;
+        runtimeSimulatedFallbackUsers.Remove(assignedUserId);
+        userConnectionStates[assignedUserId] = LiveVRUserConnectionState.ConnectedFresh;
 
         IPEndPoint assignedEndpoint = BuildEndpoint(info);
         if (assignedEndpoint != null)
             clientEndpoints[assignedUserId] = assignedEndpoint;
+
+        if (endpointChanged)
+        {
+            Debug.LogFormat(
+                "[LiveVR] Client user {0} endpoint updated {1} -> {2}; fallback cleared.",
+                assignedUserId,
+                previousEndpointKey,
+                endpointKey);
+        }
     }
 
     private void SendAssignmentLocked(LiveVRClientConnectionInfo info)
@@ -2206,6 +2444,22 @@ public class LiveVRNetworkManager : MonoBehaviour
             return null;
 
         return new IPEndPoint(address, info.Port);
+    }
+
+    private string GetEndpointDebugLabel(int userId)
+    {
+        lock (endpointsLock)
+        {
+            string endpointKey;
+            if (assignedEndpointByUserId.TryGetValue(userId, out endpointKey))
+                return endpointKey;
+
+            IPEndPoint endpoint;
+            if (clientEndpoints.TryGetValue(userId, out endpoint) && endpoint != null)
+                return endpoint.ToString();
+        }
+
+        return "none";
     }
 
     private void ApplyHostAssignment(LiveVRClientAssignmentMessage assignment)

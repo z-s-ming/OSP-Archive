@@ -10,8 +10,9 @@ public class LiveVRClientEnvironmentLoader : MonoBehaviour
     [SerializeField] private string environmentLayerName = "VirtualWall";
     [SerializeField] private bool applyVirtualSpaceSettingTransform = true;
     [SerializeField] private bool disableEnvironmentCameras = true;
+    [SerializeField] private bool hideSimulationVirtualSpaceOnClient = true;
     [SerializeField] private string walkableAreaAnchorName = "walkingArea";
-    [SerializeField] private bool keepOnlyWalkableEnvironment = true;
+    [SerializeField] private bool keepOnlyWalkableEnvironment = false;
     [SerializeField] private string[] walkableEnvironmentRootNamesToKeep = { "walkingArea", "Floor_Tiles", "Terrain" };
     [SerializeField] private string[] walkableEnvironmentRootNamesToHideInside =
     {
@@ -28,6 +29,7 @@ public class LiveVRClientEnvironmentLoader : MonoBehaviour
 
     private GameObject environmentInstance;
     private bool warnedMissingPrefab;
+    private bool warnedEnvironmentParent;
 
     public void Configure(
         LiveVRNetworkManager newNetworkManager,
@@ -85,18 +87,23 @@ public class LiveVRClientEnvironmentLoader : MonoBehaviour
             return;
         }
 
-        environmentInstance = environmentParent != null
-            ? Instantiate(prefab, environmentParent)
-            : Instantiate(prefab);
+        Transform resolvedParent = ResolveEnvironmentParent();
+        environmentInstance = Instantiate(prefab);
+        if (resolvedParent != null)
+            environmentInstance.transform.SetParent(resolvedParent, false);
         environmentInstance.name = "LiveVR Client Visual Environment";
 
         ApplyEnvironmentTransform(environmentInstance.transform);
         AlignWalkableAreaToOrigin(environmentInstance.transform);
-        SanitizeWalkableEnvironment(environmentInstance.transform);
+        // Visual cleanup is now handled in the environment prefab itself.
+        // Runtime partial hiding created inconsistent visual layers during reset rotation.
         SetLayerRecursively(environmentInstance, ResolveLayer(environmentLayerName));
 
         if (disableEnvironmentCameras)
             DisableCameras(environmentInstance);
+
+        if (hideSimulationVirtualSpaceOnClient)
+            HideOriginalSimulationVirtualSpace(environmentInstance.transform);
     }
 
     private GameObject ResolveEnvironmentPrefab()
@@ -116,6 +123,37 @@ public class LiveVRClientEnvironmentLoader : MonoBehaviour
         }
 
         return simulationManager.simulationSetting.virtualSpaceSetting.predefinedSpace;
+    }
+
+    private Transform ResolveEnvironmentParent()
+    {
+        Transform virtualWorldRoot = FindVirtualWorldRoot();
+        if (environmentParent == null)
+        {
+            if (virtualWorldRoot != null)
+            {
+                environmentParent = virtualWorldRoot;
+                return environmentParent;
+            }
+
+            WarnEnvironmentParent("[LiveVR] Client visual environment parent is missing and VirtualWorldRoot was not found. The environment will be instantiated at scene root, so RDW visual injection will not rotate it.");
+            return null;
+        }
+
+        if (virtualWorldRoot != null && !IsSameOrChildOf(environmentParent, virtualWorldRoot))
+        {
+            WarnEnvironmentParent(string.Format(
+                "[LiveVR] Client visual environment parent '{0}' is not under VirtualWorldRoot. All client visual environment should be under VirtualWorldRoot so RDW injection moves one world.",
+                environmentParent.name));
+        }
+
+        return environmentParent;
+    }
+
+    private static Transform FindVirtualWorldRoot()
+    {
+        GameObject root = GameObject.Find("VirtualWorldRoot");
+        return root != null ? root.transform : null;
     }
 
     private void ApplyEnvironmentTransform(Transform instanceTransform)
@@ -490,6 +528,15 @@ public class LiveVRClientEnvironmentLoader : MonoBehaviour
         Debug.LogWarning("[LiveVR] Client visual environment is enabled, but no prefab is assigned and SimulationSetting.virtualSpaceSetting.predefinedSpace is empty.");
     }
 
+    private void WarnEnvironmentParent(string message)
+    {
+        if (warnedEnvironmentParent)
+            return;
+
+        warnedEnvironmentParent = true;
+        Debug.LogWarning(message);
+    }
+
     private LiveVRNetworkManager ResolveNetworkManager()
     {
         if (networkManager == null)
@@ -523,5 +570,51 @@ public class LiveVRClientEnvironmentLoader : MonoBehaviour
         AudioListener[] listeners = root.GetComponentsInChildren<AudioListener>(true);
         for (int i = 0; i < listeners.Length; i++)
             listeners[i].enabled = false;
+    }
+
+    private static void HideOriginalSimulationVirtualSpace(Transform clientEnvironmentRoot)
+    {
+        Transform[] transforms = GameObject.FindObjectsOfType<Transform>(true);
+        int hiddenRendererCount = 0;
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            Transform candidate = transforms[i];
+            if (candidate == null ||
+                !string.Equals(candidate.name, "Virtual Space", System.StringComparison.OrdinalIgnoreCase) ||
+                IsSameOrChildOf(candidate, clientEnvironmentRoot))
+            {
+                continue;
+            }
+
+            Renderer[] renderers = candidate.GetComponentsInChildren<Renderer>(true);
+            for (int r = 0; r < renderers.Length; r++)
+            {
+                if (renderers[r] == null || !renderers[r].enabled)
+                    continue;
+
+                renderers[r].enabled = false;
+                hiddenRendererCount++;
+            }
+        }
+
+        if (hiddenRendererCount > 0)
+            Debug.Log(string.Format("[LiveVR] Hid original simulation Virtual Space renderers on client: {0}", hiddenRendererCount));
+    }
+
+    private static bool IsSameOrChildOf(Transform candidate, Transform root)
+    {
+        if (candidate == null || root == null)
+            return false;
+
+        Transform current = candidate;
+        while (current != null)
+        {
+            if (current == root)
+                return true;
+
+            current = current.parent;
+        }
+
+        return false;
     }
 }

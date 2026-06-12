@@ -1,0 +1,395 @@
+﻿06-09 10:39:08.316 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 10:39:08.316 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 10:42:09.903 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 10:42:09.903 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 10:42:10.186 E/android.hardware.wifi-service(  886): Error occurred while deleting old tombstone files
+06-09 10:42:10.186 E/android.hardware.wifi-service(  886): Error writing files to flash
+06-09 10:42:12.167 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 10:56:15.870 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 10:56:15.870 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:00:00.868 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:00:00.869 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:00:01.018 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 11:10:22.862 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:10:22.862 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:10:31.862 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:10:31.863 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:12:38.861 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:12:38.861 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:30:58.891 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:30:58.893 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:30:58.901 I/UsbPortManager( 1472): USB port changed: port=UsbPort{id=port0, supportedModes=dual, supportedContaminantProtectionModes=5, supportsEnableContaminantPresenceProtection=false, supportsEnableContaminantPresenceDetection=true, supportsComplianceWarnings=false, status=UsbPortStatus{connected=true, currentMode=ufp, currentPowerRole=sink, currentDataRole=device, supportedRoleCombinations=[source:host, sink:device], contaminantDetectionStatus=2, contaminantProtectionStatus=0, usbDataStatus=enabled, isPowerTransferLimited=false, powerBrickConnectionStatus=unknown, complianceWarnings=[], plugState=0, displayPortAltModeInfo=null}, canChangeMode=true, canChangePowerRole=false, canChangeDataRole=false, connectedAtMillis=476457706, lastConnectDurationMillis=0
+06-09 11:30:58.937 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 11:30:58.992 I/UsbPortManager( 1472): USB port changed: port=UsbPort{id=port0, supportedModes=dual, supportedContaminantProtectionModes=5, supportsEnableContaminantPresenceProtection=false, supportsEnableContaminantPresenceDetection=true, supportsComplianceWarnings=false, status=UsbPortStatus{connected=true, currentMode=ufp, currentPowerRole=sink, currentDataRole=device, supportedRoleCombinations=[source:host, source:device, sink:host, sink:device], contaminantDetectionStatus=2, contaminantProtectionStatus=0, usbDataStatus=enabled, isPowerTransferLimited=false, powerBrickConnectionStatus=unknown, complianceWarnings=[], plugState=0, displayPortAltModeInfo=null}, canChangeMode=true, canChangePowerRole=true, canChangeDataRole=true, connectedAtMillis=476457706, lastConnectDurationMillis=0
+06-09 11:30:59.029 W/cnss_pci 0000(    0): 01:00.0: Direct firmware load for qca6490/amss20.bin failed with error -2
+06-09 11:31:00.277 I/wlan    (17154): [17154:I:HAL] hal_reo_set_err_dst_remap_6490: HWIO_REO_R0_ERROR_DESTINATION_MAPPING_IX_0 0x55555
+06-09 11:31:00.277 I/wlan    (17154): [17154:I:HAL] hal_reo_set_err_dst_remap_6490: HWIO_REO_R0_ERROR_DESTINATION_MAPPING_IX_1 0x5555550
+06-09 11:31:04.701 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_travelmode_lowlatency_override]. The value length exceeds 91 bytes: 612. Note that this error does not affect the value being read via MDC or ADC.
+06-09 11:31:05.000 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_native_telemetry_allowed_sdk_events_list]. The value length exceeds 91 bytes: 1694. Note that this error does not affect the value being read via MDC or ADC.
+06-09 11:31:05.168 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_rate_limit]. The value length exceeds 91 bytes: 1640. Note that this error does not affect the value being read via MDC or ADC.
+06-09 11:31:05.180 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_statsd_event_verification_list]. The value length exceeds 91 bytes: 540. Note that this error does not affect the value being read via MDC or ADC.
+06-09 11:31:05.216 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_qos_override]. The value length exceeds 91 bytes: 159. Note that this error does not affect the value being read via MDC or ADC.
+06-09 11:31:05.416 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_dynamic_ossdk_allowed_list]. The value length exceeds 91 bytes: 432. Note that this error does not affect the value being read via MDC or ADC.
+06-09 11:31:05.681 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services_sessionless.hzos_media_projection_activity_blocklist]. The value length exceeds 91 bytes: 232. Note that this error does not affect the value being read via MDC or ADC.
+06-09 11:31:05.824 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services_sessionless.single_panel_mediaprojection_blockedactivities]. The value length exceeds 91 bytes: 1602. Note that this error does not affect the value being read via MDC or ADC.
+06-09 11:32:06.427 W/ActivityTaskManager( 1472): Force removing ActivityRecord{4ee5ce7 u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity t1084 f}}: app died, no saved state
+06-09 11:32:06.479 W/UsageStatsService( 1472): Unexpected activity event reported! (com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity event : 23 instanceId : 95495997)
+06-09 11:32:07.247 I/ActivityLaunchInterceptorController( 1472): RequiresControllersLaunchInterceptor: com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity com.oculus.vrshell/com.oculus.vrshell.systemdialog.launchcheck.LaunchCheckControllerRequiredDialogActivity
+06-09 11:32:07.251 I/ActivityTaskManager( 1472): START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+06-09 11:32:07.323 V/WindowManager( 1472):     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+06-09 11:32:09.434 E/TaskPersister( 1472): File error accessing recents directory (directory doesn't exist?).
+06-09 11:32:30.755 I/UsbPortManager( 1472): USB port changed: port=UsbPort{id=port0, supportedModes=dual, supportedContaminantProtectionModes=5, supportsEnableContaminantPresenceProtection=false, supportsEnableContaminantPresenceDetection=true, supportsComplianceWarnings=false, status=UsbPortStatus{connected=false, currentMode=none, currentPowerRole=no-power, currentDataRole=no-data, supportedRoleCombinations=[no-power:no-data], contaminantDetectionStatus=2, contaminantProtectionStatus=0, usbDataStatus=enabled, isPowerTransferLimited=false, powerBrickConnectionStatus=unknown, complianceWarnings=[], plugState=0, displayPortAltModeInfo=null}, canChangeMode=true, canChangePowerRole=false, canChangeDataRole=false, connectedAtMillis=0, lastConnectDurationMillis=91853
+06-09 11:32:30.846 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 11:32:39.024 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:32:39.024 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:32:39.378 V/WindowManager( 1472):     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+06-09 11:32:42.851 V/WindowManager( 1472):     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+06-09 11:32:43.092 I/ActivityTaskManager( 1472): START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} with LAUNCH_SINGLE_TASK from uid 2000 (realCallingUid=10029) (BAL_ALLOW_PENDING_INTENT) result code=0
+06-09 11:32:43.101 V/WindowManager( 1472):     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+06-09 11:32:43.137 I/VolumetricWindowManagerServiceImpl( 1472): Handling SWMS response: launch into NEW_VOLUMETRIC_WINDOW VolumetricWindowPlacementResponse { volumetricToken = VolumetricWindowToken { scope = 1, token = horizonos.view.VolumetricWindowToken$InternalVolumetricToken@adaad78, persistableToken = ca5448be-f979-404e-be57-8d73027227a5 }, relativeSpaceToken = SpaceToken { binderToken = android.os.BinderProxy@5b2d47e, persistableToken = 00000000-0000-0000-0000-000000000000 }, pose = Pose { orientation = Vector4f { x = 0.0, y = 0.0, z = 0.0, w = 1.0 }, position = Vector3f { x = 0.0, y = 0.0, z = 0.0 } }, bounds = Extent3f { width = 0.5816597, height = 0.30479985, depth = 0.0 }, surfaceSize = 3664x1920, densityDpi = 0, visible = true } for launch request [ActivityInfo{db33edb com.unity3d.player.UnityPlayerActivity}]
+06-09 11:32:43.171 I/ActivityTaskManager( 1472): START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10210100 cmp=com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} with LAUNCH_SINGLE_TASK from uid 2000 (realCallingUid=1000) (BAL_ALLOW_PENDING_INTENT) result code=0
+06-09 11:32:43.175 I/VolumetricContentMonitor( 1472): Switching to immersive app. taskId: 1093, ActivityInfo{8eb7e16 com.unity3d.player.UnityPlayerActivity}
+06-09 11:32:43.189 I/ActivityManager( 1472): Start proc 18056:com.yourlab.rdwtest/u0a3 for next-top-activity {com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity}
+06-09 11:32:43.255 W/ActivityManager( 1472): pid 1472 system sent binder code 1 with flags 1 to frozen apps and got error -32
+06-09 11:32:43.256 W/DisplayManagerService( 1472): android.os.DeadObjectException
+06-09 11:32:43.262 D/ActivityTaskManager( 1472): getDisplaysWithTopActivities: immersive ActivityRecord{22788ec u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity t1094}
+06-09 11:32:43.272 D/ActivityTaskManager( 1472): getDisplaysWithTopActivities: immersive ActivityRecord{22788ec u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity t1094}
+06-09 11:32:43.274 I/HorizonOsWindowManagerUtils( 1472): setFocusedWindowSync: setting focus to ActivityRecord{22788ec u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity t1094}
+06-09 11:32:43.330 D/CoreBackPreview( 1472): Window{e78ca27 u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@8d4ba40, mPriority=0, mIsAnimationCallback=false}
+06-09 11:32:43.349 V/WindowManager( 1472): Sent Transition #1150 createdAt=06-09 11:32:43.166 via request=TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=1094 displayId=0 isRunning=true baseIntent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10210100 cmp=com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity } baseActivity=ComponentInfo{com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} topActivity=ComponentInfo{com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} origActivity=null realActivity=ComponentInfo{com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} numActivities=1 numActivitiesPerUser={0=1} lastActiveTime=476561974 supportsMultiWindow=true resizeMode=0 isResizeable=false minWidth=-1 minHeight=-1 defaultMinSize=1 token=WCT{RemoteToken{b128b17 Task{bc9374a #1094 type=standard A=10003:com.yourlab.rdwtest}}} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=null topActivityInfo=ActivityInfo{8eb7e16 com.unity3d.player.UnityPlayerActivity} launchCookies=[] telemetryLaunchIds=[] positionInParent=Point(0, 0) parentTaskId=1093 isFocused=false isVisible=false isVisibleRequested=false isSleeping=false topActivityInSizeCompat=false topActivityEligibleForLetterboxEducation= false topActivityLetterboxed= false isFromDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 locusId=null displayAreaFeatureId=1 cameraCompatControlState=hidden finishingActivityExitReason=0}, remoteTransition = null, displayChange = null }
+06-09 11:32:43.349 V/WindowManager( 1472):     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+06-09 11:32:43.358 D/ActivityTaskManager( 1472): getDisplaysWithTopActivities: immersive ActivityRecord{22788ec u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity t1094}
+06-09 11:32:43.383 D/VolumetricContentMonitor( 1472): Focused window changed to RunningWindowInfo{  pid: 18056, uid: 10003, userId: 0, windowContainerToken: 114227037, windowToken: android.view.IWindow$Stub$Proxy@46bd8d2, windowId: com.android.server.wm.WindowState$WindowId@2677da3, displayId: 0, windowType: 1, activity: RunningActivityInfo { rootTask: 1093, uid: 10003, pid: 18056, userId: 0, activity: com.unity3d.player.UnityPlayerActivity, windowId: com.android.server.wm.WindowState$WindowId@2677da3, state: ACTIVITY_STATE_VISIBLE}}, from android.view.IWindow$Stub$Proxy@552396e
+06-09 11:32:43.430 V/WindowManager( 1472):     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+06-09 11:32:43.437 E/TaskPersister( 1472): File error accessing recents directory (directory doesn't exist?).
+06-09 11:32:46.442 E/TaskPersister( 1472): File error accessing recents directory (directory doesn't exist?).
+06-09 11:32:47.705 E/android.hardware.wifi-service(  886): Error occurred while deleting old tombstone files
+06-09 11:32:47.705 E/android.hardware.wifi-service(  886): Error writing files to flash
+06-09 11:32:52.458 E/android.hardware.wifi-service(  886): Error occurred while deleting old tombstone files
+06-09 11:32:52.458 E/android.hardware.wifi-service(  886): Error writing files to flash
+06-09 11:32:54.838 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 11:32:55.425 V/WindowManager( 1472):     startWCT=WindowContainerTransaction { changes = {RemoteToken{1603ef0 Task{ca6cb33 #676 type=standard}}={bounds:Rect(0, 0 - 450, 124),}} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+06-09 11:37:47.571 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:37:47.571 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:37:50.015 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:37:50.015 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:37:49.434 E/spi_geni a88000.spi(    0): PM: failed to suspend: error -16
+06-09 11:37:49.622 I/Abort   (    0): Device a88000.spi failed to suspend: error -16
+06-09 11:37:59.153 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:37:59.153 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:01.808 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:01.808 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:19.470 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:19.470 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:34.783 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:34.783 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:38.469 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:38.470 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:41.457 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:41.457 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:58.839 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:38:58.839 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:39:15.127 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:39:15.127 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:39:30.384 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:39:30.384 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:39:33.179 E/cnss_pci 0000(    0): 01:00.0: PM: failed to suspend: error -11
+06-09 11:39:33.234 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:39:33.234 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:39:33.337 I/Abort   (    0): Device 0000:01:00.0 failed to suspend: error -11
+06-09 11:39:45.641 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:39:45.641 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:39:47.929 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:39:47.929 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:39:37.773 E/alarmtimer.0.auto(    0): PM: failed to suspend: error -16
+06-09 11:39:37.943 I/Abort   (    0): Device alarmtimer.0.auto failed to suspend: error -16
+06-09 11:41:44.869 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:41:44.869 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:41:45.197 E/android.hardware.wifi-service(  886): Error occurred while deleting old tombstone files
+06-09 11:41:45.197 E/android.hardware.wifi-service(  886): Error writing files to flash
+06-09 11:41:58.785 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 11:42:37.091 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 11:57:26.836 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 11:57:26.836 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 12:00:00.834 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 12:00:00.834 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 12:00:01.096 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 12:10:31.828 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 12:10:31.828 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 12:11:44.827 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 12:11:44.827 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 12:22:23.821 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 12:22:23.821 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 12:22:26.163 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 12:22:26.163 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 12:22:26.091 E/spi_geni a88000.spi(    0): PM: failed to suspend: error -16
+06-09 12:22:26.484 I/Abort   (    0): Device a88000.spi failed to suspend: error -16
+06-09 13:00:00.803 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:00:00.803 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:00:01.021 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 13:10:31.793 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:10:31.793 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:28:05.785 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:28:05.785 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:32:31.782 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:32:31.782 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:41:45.777 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:41:45.777 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:41:46.025 W/cnss_pci 0000(    0): 01:00.0: Direct firmware load for qca6490/amss20.bin failed with error -2
+06-09 13:41:47.306 I/wlan    (19044): [19044:I:HAL] hal_reo_set_err_dst_remap_6490: HWIO_REO_R0_ERROR_DESTINATION_MAPPING_IX_0 0x55555
+06-09 13:41:47.306 I/wlan    (19044): [19044:I:HAL] hal_reo_set_err_dst_remap_6490: HWIO_REO_R0_ERROR_DESTINATION_MAPPING_IX_1 0x5555550
+06-09 13:41:52.267 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_travelmode_lowlatency_override]. The value length exceeds 91 bytes: 612. Note that this error does not affect the value being read via MDC or ADC.
+06-09 13:41:52.775 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_native_telemetry_allowed_sdk_events_list]. The value length exceeds 91 bytes: 1694. Note that this error does not affect the value being read via MDC or ADC.
+06-09 13:41:53.091 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_rate_limit]. The value length exceeds 91 bytes: 1640. Note that this error does not affect the value being read via MDC or ADC.
+06-09 13:41:53.112 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_statsd_event_verification_list]. The value length exceeds 91 bytes: 540. Note that this error does not affect the value being read via MDC or ADC.
+06-09 13:41:53.181 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_qos_override]. The value length exceeds 91 bytes: 159. Note that this error does not affect the value being read via MDC or ADC.
+06-09 13:41:53.630 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_dynamic_ossdk_allowed_list]. The value length exceeds 91 bytes: 432. Note that this error does not affect the value being read via MDC or ADC.
+06-09 13:41:54.181 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services_sessionless.hzos_media_projection_activity_blocklist]. The value length exceeds 91 bytes: 232. Note that this error does not affect the value being read via MDC or ADC.
+06-09 13:41:54.492 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services_sessionless.single_panel_mediaprojection_blockedactivities]. The value length exceeds 91 bytes: 1602. Note that this error does not affect the value being read via MDC or ADC.
+06-09 13:42:48.329 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:42:48.330 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 13:42:48.475 E/android.hardware.wifi-service(  886): Error occurred while deleting old tombstone files
+06-09 13:42:48.475 E/android.hardware.wifi-service(  886): Error writing files to flash
+06-09 14:00:00.769 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 14:00:00.769 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 14:00:00.989 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 14:10:31.761 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 14:10:31.761 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 14:11:58.760 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 14:11:58.760 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 14:28:13.751 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 14:28:13.751 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 14:50:38.378 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 14:50:38.379 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 14:50:38.602 E/ActivityTaskManager( 1472): setVisibility=true while transition is not collecting or finishing ActivityRecord{22788ec u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity t1094} caller=com.android.server.wm.ActivityRecord.setVisibility:5472 com.android.server.wm.TaskFragment.resumeTopActivity:1478 com.android.server.wm.Task.resumeTopActivityInnerLocked:5184 com.android.server.wm.Task.resumeTopActivityUncheckedLocked:5114 com.android.server.wm.Task.resumeTopActivityUncheckedLocked:5133 com.android.server.wm.Task.resumeTopActivityUncheckedLocked:5165 com.android.server.wm.RootWindowContainer.lambda$applySleepTokens$20:2443 com.android.server.wm.RootWindowContainer.$r8$lambda$9xL80GDJRExKql35hTmQVg_ieD8:0 
+06-09 14:50:38.698 W/cnss_pci 0000(    0): 01:00.0: Direct firmware load for qca6490/amss20.bin failed with error -2
+06-09 14:50:39.045 D/ActivityTaskManager( 1472): getDisplaysWithTopActivities: immersive ActivityRecord{22788ec u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity t1094}
+06-09 14:50:39.923 I/wlan    (17158): [17158:I:HAL] hal_reo_set_err_dst_remap_6490: HWIO_REO_R0_ERROR_DESTINATION_MAPPING_IX_0 0x55555
+06-09 14:50:39.923 I/wlan    (17158): [17158:I:HAL] hal_reo_set_err_dst_remap_6490: HWIO_REO_R0_ERROR_DESTINATION_MAPPING_IX_1 0x5555550
+06-09 14:50:43.635 E/TaskPersister( 1472): File error accessing recents directory (directory doesn't exist?).
+06-09 14:50:45.136 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_travelmode_lowlatency_override]. The value length exceeds 91 bytes: 612. Note that this error does not affect the value being read via MDC or ADC.
+06-09 14:50:45.657 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_native_telemetry_allowed_sdk_events_list]. The value length exceeds 91 bytes: 1694. Note that this error does not affect the value being read via MDC or ADC.
+06-09 14:50:45.971 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_rate_limit]. The value length exceeds 91 bytes: 1640. Note that this error does not affect the value being read via MDC or ADC.
+06-09 14:50:45.991 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_statsd_event_verification_list]. The value length exceeds 91 bytes: 540. Note that this error does not affect the value being read via MDC or ADC.
+06-09 14:50:46.055 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_qos_override]. The value length exceeds 91 bytes: 159. Note that this error does not affect the value being read via MDC or ADC.
+06-09 14:50:46.469 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services.oculus_mobile_telemetry_dynamic_ossdk_allowed_list]. The value length exceeds 91 bytes: 432. Note that this error does not affect the value being read via MDC or ADC.
+06-09 14:50:46.993 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services_sessionless.hzos_media_projection_activity_blocklist]. The value length exceeds 91 bytes: 232. Note that this error does not affect the value being read via MDC or ADC.
+06-09 14:50:47.288 E/HzDcSyncController( 1472): Error while setting sysprop [persist.device_config.oculus_shared_os_services_sessionless.single_panel_mediaprojection_blockedactivities]. The value length exceeds 91 bytes: 1602. Note that this error does not affect the value being read via MDC or ADC.
+06-09 14:50:48.446 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:50:49.001 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:02.357 W/SyncBossFW(  927):   23902 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:51:02.357 W/SyncBossFW(  927):   23902 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:51:06.128 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:06.250 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:51:06.438 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:06.654 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:51:06.837 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:07.218 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:09.296 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:09.956 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:10.636 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:11.063 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:11.145 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:51:11.979 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:12.196 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:12.332 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:51:12.515 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:12.871 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:14.976 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:15.202 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:15.583 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:16.108 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:16.350 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:17.542 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:17.637 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:51:23.597 W/SyncBossFW(  927):   45143 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:51:23.598 W/SyncBossFW(  927):   45143 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:51:24.870 E/SensorService(  932): Frame illuminated outside the exposure range, hw timestamp: 46409800, illumination timestamp: 46349050, exposure max: 65535 (4x errors in the past 526.595s)
+06-09 14:51:40.435 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:51:44.839 W/SyncBossFW(  927):   66383 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:51:44.839 W/SyncBossFW(  927):   66383 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:51:49.445 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:51:50.310 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:51:50.519 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:51:51.129 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:51:56.953 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:52:06.198 W/SyncBossFW(  927):   87742 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:52:06.198 W/SyncBossFW(  927):   87742 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:52:10.961 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:52:22.549 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:52:27.522 W/SyncBossFW(  927):  109066 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:52:27.522 W/SyncBossFW(  927):  109066 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:52:35.797 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:52:42.728 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:52:47.292 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:52:48.759 W/SyncBossFW(  927):  130303 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:52:48.759 W/SyncBossFW(  927):  130303 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:53:10.162 W/SyncBossFW(  927):  151705 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:53:10.162 W/SyncBossFW(  927):  151705 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:53:30.039 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:53:31.479 W/SyncBossFW(  927):  173022 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:53:31.479 W/SyncBossFW(  927):  173022 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:53:34.532 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:34.533 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:53:34.556 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:34.888 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:53:35.146 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:53:36.912 I/UsbPortManager( 1472): USB port changed: port=UsbPort{id=port0, supportedModes=dual, supportedContaminantProtectionModes=5, supportsEnableContaminantPresenceProtection=false, supportsEnableContaminantPresenceDetection=true, supportsComplianceWarnings=false, status=UsbPortStatus{connected=true, currentMode=ufp, currentPowerRole=sink, currentDataRole=device, supportedRoleCombinations=[source:host, sink:device], contaminantDetectionStatus=2, contaminantProtectionStatus=0, usbDataStatus=enabled, isPowerTransferLimited=false, powerBrickConnectionStatus=unknown, complianceWarnings=[], plugState=0, displayPortAltModeInfo=null}, canChangeMode=true, canChangePowerRole=false, canChangeDataRole=false, connectedAtMillis=488615717, lastConnectDurationMillis=0
+06-09 14:53:37.026 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 14:53:37.073 I/UsbPortManager( 1472): USB port changed: port=UsbPort{id=port0, supportedModes=dual, supportedContaminantProtectionModes=5, supportsEnableContaminantPresenceProtection=false, supportsEnableContaminantPresenceDetection=true, supportsComplianceWarnings=false, status=UsbPortStatus{connected=true, currentMode=ufp, currentPowerRole=sink, currentDataRole=device, supportedRoleCombinations=[source:host, source:device, sink:host, sink:device], contaminantDetectionStatus=2, contaminantProtectionStatus=0, usbDataStatus=enabled, isPowerTransferLimited=false, powerBrickConnectionStatus=unknown, complianceWarnings=[], plugState=0, displayPortAltModeInfo=null}, canChangeMode=true, canChangePowerRole=true, canChangeDataRole=true, connectedAtMillis=488615717, lastConnectDurationMillis=0
+06-09 14:53:37.368 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:53:38.076 V/WindowManager( 1472):     startWCT=WindowContainerTransaction { changes = {RemoteToken{1603ef0 Task{ca6cb33 #676 type=standard}}={bounds:Rect(0, 0 - 450, 148),}} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+06-09 14:53:38.235 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:41.756 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:43.787 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:45.267 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:46.571 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:47.599 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:47.616 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:51.061 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:51.453 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:52.881 W/SyncBossFW(  927):  194424 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:53:52.881 W/SyncBossFW(  927):  194424 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:53:53.903 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:54.439 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:53:58.311 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:54:14.241 W/SyncBossFW(  927):  215782 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:54:14.241 W/SyncBossFW(  927):  215782 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:54:35.560 W/SyncBossFW(  927):  237102 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:54:35.560 W/SyncBossFW(  927):  237102 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:54:36.714 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:54:37.570 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:55:45.223 I/WindowManager( 1472): WIN DEATH: Window{e78ca27 u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity}
+06-09 14:55:45.275 W/ActivityTaskManager( 1472): Force removing ActivityRecord{22788ec u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity t1094 f}}: app died, no saved state
+06-09 14:55:45.281 W/UsageStatsService( 1472): Unexpected activity event reported! (com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity event : 23 instanceId : 12666555)
+06-09 14:55:46.030 I/ActivityTaskManager( 1472): START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+06-09 14:55:46.037 I/VolumetricWindowManagerServiceImpl( 1472): Handling SWMS response: launch into NEW_VOLUMETRIC_WINDOW VolumetricWindowPlacementResponse { volumetricToken = VolumetricWindowToken { scope = 1, token = horizonos.view.VolumetricWindowToken$InternalVolumetricToken@c0782a7, persistableToken = 500c4326-c50f-4b80-8fcc-b2e7d5b452ce }, relativeSpaceToken = SpaceToken { binderToken = android.os.BinderProxy@d2bb354, persistableToken = 00000000-0000-0000-0000-000000000000 }, pose = Pose { orientation = Vector4f { x = 0.0, y = 0.0, z = 0.0, w = 1.0 }, position = Vector3f { x = 0.0, y = 0.0, z = 0.0 } }, bounds = Extent3f { width = 0.5816597, height = 0.30479985, depth = 0.0 }, surfaceSize = 3664x1920, densityDpi = 0, visible = true } for launch request [ActivityInfo{d0c7f66 com.unity3d.player.UnityPlayerActivity}]
+06-09 14:55:46.062 I/ActivityTaskManager( 1472): START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10210100 cmp=com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} with LAUNCH_SINGLE_TASK from uid 2000 (realCallingUid=1000) (BAL_ALLOW_PENDING_INTENT) result code=0
+06-09 14:55:46.064 I/VolumetricContentMonitor( 1472): Switching to immersive app. taskId: 1097, ActivityInfo{a55d97f com.unity3d.player.UnityPlayerActivity}
+06-09 14:55:46.074 I/ActivityManager( 1472): Start proc 20666:com.yourlab.rdwtest/u0a3 for top-activity {com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity}
+06-09 14:55:46.096 V/WindowManager( 1472): Sent Transition #1159 createdAt=06-09 14:55:46.058 via request=TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=1098 displayId=0 isRunning=true baseIntent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10210100 cmp=com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity } baseActivity=ComponentInfo{com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} topActivity=ComponentInfo{com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} origActivity=null realActivity=ComponentInfo{com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} numActivities=1 numActivitiesPerUser={0=1} lastActiveTime=488744865 supportsMultiWindow=true resizeMode=0 isResizeable=false minWidth=-1 minHeight=-1 defaultMinSize=1 token=WCT{RemoteToken{e477977 Task{66ae708 #1098 type=standard A=10003:com.yourlab.rdwtest}}} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=null topActivityInfo=ActivityInfo{a55d97f com.unity3d.player.UnityPlayerActivity} launchCookies=[] telemetryLaunchIds=[] positionInParent=Point(0, 0) parentTaskId=1097 isFocused=false isVisible=false isVisibleRequested=false isSleeping=true topActivityInSizeCompat=false topActivityEligibleForLetterboxEducation= false topActivityLetterboxed= false isFromDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 locusId=null displayAreaFeatureId=1 cameraCompatControlState=hidden finishingActivityExitReason=0}, remoteTransition = null, displayChange = null }
+06-09 14:55:46.096 V/WindowManager( 1472):     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+06-09 14:55:46.180 D/CoreBackPreview( 1472): Window{3709e75 u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@9231c98, mPriority=0, mIsAnimationCallback=false}
+06-09 14:55:48.224 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:55:49.282 E/TaskPersister( 1472): File error accessing recents directory (directory doesn't exist?).
+06-09 14:55:49.375 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:55:50.708 I/UsbPortManager( 1472): USB port changed: port=UsbPort{id=port0, supportedModes=dual, supportedContaminantProtectionModes=5, supportsEnableContaminantPresenceProtection=false, supportsEnableContaminantPresenceDetection=true, supportsComplianceWarnings=false, status=UsbPortStatus{connected=false, currentMode=none, currentPowerRole=no-power, currentDataRole=no-data, supportedRoleCombinations=[no-power:no-data], contaminantDetectionStatus=2, contaminantProtectionStatus=0, usbDataStatus=enabled, isPowerTransferLimited=false, powerBrickConnectionStatus=unknown, complianceWarnings=[], plugState=0, displayPortAltModeInfo=null}, canChangeMode=true, canChangePowerRole=false, canChangeDataRole=false, connectedAtMillis=0, lastConnectDurationMillis=133796
+06-09 14:55:50.790 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 14:55:52.634 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:55:53.654 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:56:03.305 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:56:09.723 E/ActivityTaskManager( 1472): setVisibility=true while transition is not collecting or finishing ActivityRecord{b8124ab u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity t1098} caller=com.android.server.wm.ActivityRecord.setVisibility:5472 com.android.server.wm.TaskFragment.resumeTopActivity:1478 com.android.server.wm.Task.resumeTopActivityInnerLocked:5184 com.android.server.wm.Task.resumeTopActivityUncheckedLocked:5114 com.android.server.wm.Task.resumeTopActivityUncheckedLocked:5133 com.android.server.wm.Task.resumeTopActivityUncheckedLocked:5165 com.android.server.wm.RootWindowContainer.lambda$applySleepTokens$20:2443 com.android.server.wm.RootWindowContainer.$r8$lambda$9xL80GDJRExKql35hTmQVg_ieD8:0 
+06-09 14:56:09.736 W/SyncBossFW(  927):  331277 [warning] {GCM }: Camera og0ve1b[0x1] not primed yet
+06-09 14:56:09.740 W/SyncBossFW(  927):  331277 [warning] {GCM }: Camera og0ve1b[0x2] not primed yet
+06-09 14:56:09.740 W/SyncBossFW(  927):  331277 [warning] {GCM }: Camera og0ve1b[0x4] not primed yet
+06-09 14:56:09.740 W/SyncBossFW(  927):  331277 [warning] {GCM }: Camera og0ve1b[0x8] not primed yet
+06-09 14:56:10.183 D/VolumetricContentMonitor( 1472): Focused window changed to RunningWindowInfo{  pid: 20666, uid: 10003, userId: 0, windowContainerToken: 145616035, windowToken: android.view.IWindow$Stub$Proxy@9399ba0, windowId: com.android.server.wm.WindowState$WindowId@8b23359, displayId: 0, windowType: 1, activity: RunningActivityInfo { rootTask: 1097, uid: 10003, pid: 20666, userId: 0, activity: com.unity3d.player.UnityPlayerActivity, windowId: com.android.server.wm.WindowState$WindowId@8b23359, state: ACTIVITY_STATE_VISIBLE}}, from android.view.IWindow$Stub$Proxy@46bd8d2
+06-09 14:56:10.233 W/SyncBossFW(  927):  331772 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:56:10.233 W/SyncBossFW(  927):  331772 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:56:10.377 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: NONE, errors: --
+06-09 14:56:10.378 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: NONE, errors: --
+06-09 14:56:10.595 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: NONE, errors: --
+06-09 14:56:10.596 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: NONE, errors: --
+06-09 14:56:11.037 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:56:11.038 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:56:11.235 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:56:11.657 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:56:11.856 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: NONE, errors: --
+06-09 14:56:11.879 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: NONE, errors: --
+06-09 14:56:11.886 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: NONE, errors: --
+06-09 14:56:11.886 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: NONE, errors: --
+06-09 14:56:12.673 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:56:12.783 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:56:13.175 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:56:14.766 E/TaskPersister( 1472): File error accessing recents directory (directory doesn't exist?).
+06-09 14:56:32.043 W/SyncBossFW(  927):  353583 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:56:32.043 W/SyncBossFW(  927):  353583 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:56:34.950 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 14:56:36.592 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: NONE, errors: --
+06-09 14:56:45.599 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: NONE, errors: --
+06-09 14:56:52.819 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:56:52.904 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:56:53.443 W/SyncBossFW(  927):  374982 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:56:53.443 W/SyncBossFW(  927):  374982 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:57:14.762 W/SyncBossFW(  927):  396303 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:57:14.764 W/SyncBossFW(  927):  396303 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:57:36.085 W/SyncBossFW(  927):  417624 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:57:36.085 W/SyncBossFW(  927):  417624 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:57:39.443 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:57:41.889 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:57:42.878 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:57:42.887 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:57:42.959 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:57:46.262 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:57:47.830 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:57:49.745 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:57:52.396 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:57:54.016 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:57:55.050 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:57:55.200 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:57:57.364 W/SyncBossFW(  927):  438903 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:57:57.364 W/SyncBossFW(  927):  438903 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:57:58.660 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:58:18.723 W/SyncBossFW(  927):  460263 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:58:18.725 W/SyncBossFW(  927):  460263 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:58:40.083 W/SyncBossFW(  927):  481623 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 14:58:40.085 W/SyncBossFW(  927):  481623 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 14:58:47.211 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:58:47.644 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:58:49.309 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:59:01.830 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:59:16.049 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:59:20.821 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:59:22.444 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:59:27.132 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:59:28.439 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:59:29.255 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: CONNECTED_ACTIVE tracking: POSITION, errors: --
+06-09 14:59:40.320 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:59:48.002 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:59:51.402 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:59:55.933 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 14:59:56.558 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 15:00:04.801 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: CONNECTED_ACTIVE tracking: ORIENTATION, errors: --
+06-09 15:00:51.811 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: DISABLED tracking: ORIENTATION, errors: --
+06-09 15:00:51.813 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: DISABLED tracking: POSITION, errors: --
+06-09 15:01:14.760 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:01:14.760 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:01:52.756 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:01:52.756 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:04:53.757 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:04:53.757 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:04:54.052 E/android.hardware.wifi-service(  886): Error occurred while deleting old tombstone files
+06-09 15:04:54.052 E/android.hardware.wifi-service(  886): Error writing files to flash
+06-09 15:05:28.557 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 15:10:31.727 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:10:31.728 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:23:09.641 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:23:09.642 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:23:09.644 I/UsbPortManager( 1472): USB port changed: port=UsbPort{id=port0, supportedModes=dual, supportedContaminantProtectionModes=5, supportsEnableContaminantPresenceProtection=false, supportsEnableContaminantPresenceDetection=true, supportsComplianceWarnings=false, status=UsbPortStatus{connected=true, currentMode=ufp, currentPowerRole=sink, currentDataRole=device, supportedRoleCombinations=[source:host, sink:device], contaminantDetectionStatus=2, contaminantProtectionStatus=0, usbDataStatus=enabled, isPowerTransferLimited=false, powerBrickConnectionStatus=unknown, complianceWarnings=[], plugState=0, displayPortAltModeInfo=null}, canChangeMode=true, canChangePowerRole=false, canChangeDataRole=false, connectedAtMillis=490388449, lastConnectDurationMillis=0
+06-09 15:23:09.685 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 15:23:09.743 I/UsbPortManager( 1472): USB port changed: port=UsbPort{id=port0, supportedModes=dual, supportedContaminantProtectionModes=5, supportsEnableContaminantPresenceProtection=false, supportsEnableContaminantPresenceDetection=true, supportsComplianceWarnings=false, status=UsbPortStatus{connected=true, currentMode=ufp, currentPowerRole=sink, currentDataRole=device, supportedRoleCombinations=[source:host, source:device, sink:host, sink:device], contaminantDetectionStatus=2, contaminantProtectionStatus=0, usbDataStatus=enabled, isPowerTransferLimited=false, powerBrickConnectionStatus=unknown, complianceWarnings=[], plugState=0, displayPortAltModeInfo=null}, canChangeMode=true, canChangePowerRole=true, canChangeDataRole=true, connectedAtMillis=490388449, lastConnectDurationMillis=0
+06-09 15:23:09.783 W/cnss_pci 0000(    0): 01:00.0: Direct firmware load for qca6490/amss20.bin failed with error -2
+06-09 15:23:11.047 I/wlan    (19047): [19047:I:HAL] hal_reo_set_err_dst_remap_6490: HWIO_REO_R0_ERROR_DESTINATION_MAPPING_IX_0 0x55555
+06-09 15:23:11.047 I/wlan    (19047): [19047:I:HAL] hal_reo_set_err_dst_remap_6490: HWIO_REO_R0_ERROR_DESTINATION_MAPPING_IX_1 0x5555550
+06-09 15:25:36.293 W/ActivityTaskManager( 1472): Force removing ActivityRecord{b8124ab u0 com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity t1098 f}}: app died, no saved state
+06-09 15:25:36.294 W/UsageStatsService( 1472): Unexpected activity event reported! (com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity event : 23 instanceId : 102301345)
+06-09 15:25:37.126 I/ActivityLaunchInterceptorController( 1472): RequiresControllersLaunchInterceptor: com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity com.oculus.vrshell/com.oculus.vrshell.systemdialog.launchcheck.LaunchCheckControllerRequiredDialogActivity
+06-09 15:25:37.128 I/ActivityTaskManager( 1472): START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.yourlab.rdwtest/com.unity3d.player.UnityPlayerActivity} with LAUNCH_SINGLE_TASK from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+06-09 15:25:37.176 V/WindowManager( 1472):     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }
+06-09 15:25:39.300 E/TaskPersister( 1472): File error accessing recents directory (directory doesn't exist?).
+06-09 15:25:58.929 I/UsbPortManager( 1472): USB port changed: port=UsbPort{id=port0, supportedModes=dual, supportedContaminantProtectionModes=5, supportsEnableContaminantPresenceProtection=false, supportsEnableContaminantPresenceDetection=true, supportsComplianceWarnings=false, status=UsbPortStatus{connected=false, currentMode=none, currentPowerRole=no-power, currentDataRole=no-data, supportedRoleCombinations=[no-power:no-data], contaminantDetectionStatus=2, contaminantProtectionStatus=0, usbDataStatus=enabled, isPowerTransferLimited=false, powerBrickConnectionStatus=unknown, complianceWarnings=[], plugState=0, displayPortAltModeInfo=null}, canChangeMode=true, canChangePowerRole=false, canChangeDataRole=false, connectedAtMillis=0, lastConnectDurationMillis=169284
+06-09 15:25:58.998 W/BatteryExternalStatsWorker( 1472): error reading modem stats:ERROR_PHONE_NOT_AVAILABLE
+06-09 15:26:01.002 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:26:01.003 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:26:10.681 E/spcomlib( 1137): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:26:10.681 E/spcomlib( 1138): [spcom_ioctl] IOCTL failed: ret[-1], error [-4]
+06-09 15:26:10.844 W/SyncBossFW(  927):      70 [warning] {GCM }: Camera og0ve1b[0x1] not primed yet
+06-09 15:26:10.844 W/SyncBossFW(  927):      70 [warning] {GCM }: Camera og0ve1b[0x2] not primed yet
+06-09 15:26:10.844 W/SyncBossFW(  927):      70 [warning] {GCM }: Camera og0ve1b[0x4] not primed yet
+06-09 15:26:10.844 W/SyncBossFW(  927):      70 [warning] {GCM }: Camera og0ve1b[0x8] not primed yet
+06-09 15:26:10.906 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device ccaae2e6cdb71b4b: status: SEARCHING tracking: ORIENTATION, errors: --
+06-09 15:26:10.907 D/ControllerManagement( 2298): RemoteService::recordControllerStatusUpdate: device 2fad8d6ef6974b1d: status: SEARCHING tracking: POSITION, errors: --
+06-09 15:26:11.310 E/SyncBossHAL(  932): [error  ] double_tap.cpp(118): DoubleTap: Detected non-monotonic timestamp (557707 <= 613680312)
+06-09 15:26:11.329 W/SyncBossFW(  927):     565 [warning] {GCM }: Camera imx471[0x10] not primed yet
+06-09 15:26:11.329 W/SyncBossFW(  927):     565 [warning] {GCM }: Camera imx471[0x20] not primed yet
+06-09 15:26:11.409 V/WindowManager( 1472):     startWCT=WindowContainerTransaction { changes = {} hops = [] errorCallbackToken=null taskFragmentOrganizer=null }

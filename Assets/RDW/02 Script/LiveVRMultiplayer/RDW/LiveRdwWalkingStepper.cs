@@ -46,7 +46,7 @@ public class LiveRdwWalkingStepper : ILiveRdwWalkingStepper
 
         Vector2 physicalDelta = currentSample.ExperimentPosition - previousSample.ExperimentPosition;
         float physicalYawDelta = Mathf.DeltaAngle(previousSample.YawDegrees, currentSample.YawDegrees);
-        float deltaTime = Mathf.Max(Time.fixedDeltaTime, 0.0001f);
+        float deltaTime = ResolvePoseDeltaSeconds(currentSample, previousSample);
         Vector2 physicalVelocity = physicalDelta / deltaTime;
         float physicalYawRate = physicalYawDelta / deltaTime;
 
@@ -85,10 +85,8 @@ public class LiveRdwWalkingStepper : ILiveRdwWalkingStepper
             }
             else if (redirectionResult.Type == GainType.Rotation)
             {
-                virtualYawDelta = redirectionResult.UseInverseRotationGain
-                    ? physicalYawDelta / redirectionResult.RotationGainScale
-                    : redirectionResult.PrimaryRate * deltaTime;
-                injectedYawDelta = virtualYawDelta - physicalYawDelta;
+                injectedYawDelta = redirectionResult.PrimaryRate * deltaTime;
+                virtualYawDelta += injectedYawDelta;
                 if (redirectionResult.UseTranslationScale)
                     virtualDelta *= redirectionResult.TranslationScale;
             }
@@ -120,7 +118,8 @@ public class LiveRdwWalkingStepper : ILiveRdwWalkingStepper
             physicalYawDelta,
             virtualYawDelta,
             injectedYawDelta,
-            false);
+            false,
+            deltaTime);
     }
 
     private static LiveVRGainDebugSample BuildDebugSample(
@@ -133,7 +132,8 @@ public class LiveRdwWalkingStepper : ILiveRdwWalkingStepper
         float physicalYawDelta,
         float virtualYawDelta,
         float injectedYawDelta,
-        bool resetActive)
+        bool resetActive,
+        float sampleDeltaSeconds = -1.0f)
     {
         Object2D virtualUser = unit != null ? unit.GetVirtualUser() : null;
         Transform2D virtualTransform = virtualUser != null ? virtualUser.transform2D : null;
@@ -141,7 +141,11 @@ public class LiveRdwWalkingStepper : ILiveRdwWalkingStepper
         GainRedirector gainRedirector = redirector as GainRedirector;
         float newVirtualYaw = virtualTransform != null ? virtualTransform.localRotation : 0.0f;
         float previousVirtualYaw = NormalizeDegrees(newVirtualYaw - virtualYawDelta);
-        float deltaTime = Mathf.Max(Time.fixedDeltaTime, 0.0001f);
+        float deltaTime = sampleDeltaSeconds > 0.0f
+            ? sampleDeltaSeconds
+            : ResolvePoseDeltaSeconds(currentSample, previousSample);
+        float physicalDeltaMeters = Vector2.Distance(previousSample.ExperimentPosition, currentSample.ExperimentPosition);
+        bool duplicatePoseSequence = currentSample.Sequence == previousSample.Sequence;
 
         return new LiveVRGainDebugSample
         {
@@ -150,9 +154,14 @@ public class LiveRdwWalkingStepper : ILiveRdwWalkingStepper
             HasRedirection = hasRedirection,
             GainType = hasRedirection ? redirectionResult.Type : GainType.Undefined,
             RedirectorName = redirector != null ? redirector.GetType().Name : "none",
-            PhysicalDeltaMeters = Vector2.Distance(previousSample.ExperimentPosition, currentSample.ExperimentPosition),
+            PhysicalDeltaMeters = physicalDeltaMeters,
+            SampleDeltaSeconds = deltaTime,
+            PhysicalSpeedMetersPerSecond = physicalDeltaMeters / deltaTime,
             PhysicalYawDeltaDegrees = physicalYawDelta,
             PhysicalYawRateDegreesPerSecond = physicalYawDelta / deltaTime,
+            CurrentPoseSequence = currentSample.Sequence,
+            PreviousPoseSequence = previousSample.Sequence,
+            DuplicatePoseSequence = duplicatePoseSequence,
             VirtualDeltaMeters = virtualDelta.magnitude,
             VirtualYawDeltaDegrees = virtualYawDelta,
             InjectedYawDeltaDegrees = injectedYawDelta,
@@ -191,6 +200,22 @@ public class LiveRdwWalkingStepper : ILiveRdwWalkingStepper
             virtualTransform.localPosition = previousVirtualPosition;
             virtualTransform.localRotation = previousVirtualYaw;
         }
+    }
+
+    private static float ResolvePoseDeltaSeconds(LiveHmdPoseSample currentSample, LiveHmdPoseSample previousSample)
+    {
+        if (currentSample.Sequence == previousSample.Sequence)
+            return Mathf.Max(Time.fixedDeltaTime, 0.0001f);
+
+        long hostDeltaMs = currentSample.HostReceiveUnixMilliseconds - previousSample.HostReceiveUnixMilliseconds;
+        if (hostDeltaMs > 0 && hostDeltaMs < 1000)
+            return Mathf.Clamp(hostDeltaMs / 1000.0f, 0.001f, 0.25f);
+
+        long clientDeltaMs = currentSample.ClientUnixMilliseconds - previousSample.ClientUnixMilliseconds;
+        if (clientDeltaMs > 0 && clientDeltaMs < 1000)
+            return Mathf.Clamp(clientDeltaMs / 1000.0f, 0.001f, 0.25f);
+
+        return Mathf.Max(Time.fixedDeltaTime, 0.0001f);
     }
 
     private static bool TryEvaluateLiveRedirection(
@@ -270,7 +295,7 @@ public class LiveRdwWalkingStepper : ILiveRdwWalkingStepper
                 TranslationScale = 1.0f,
                 RotationGainScale = ResolveRotationGainScale(type, gainRedirector),
                 UseTranslationScale = false,
-                UseInverseRotationGain = type == GainType.Rotation && gainRedirector != null
+                UseInverseRotationGain = false
             };
         }
 
@@ -286,7 +311,7 @@ public class LiveRdwWalkingStepper : ILiveRdwWalkingStepper
                 TranslationScale = Mathf.Max(0.0f, translationScale),
                 RotationGainScale = ResolveRotationGainScale(type, gainRedirector),
                 UseTranslationScale = degrees != null && degrees.Count > 1,
-                UseInverseRotationGain = type == GainType.Rotation && gainRedirector != null
+                UseInverseRotationGain = false
             };
         }
 

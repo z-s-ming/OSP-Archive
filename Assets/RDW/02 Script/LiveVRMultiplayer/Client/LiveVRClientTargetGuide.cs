@@ -48,6 +48,7 @@ public class LiveVRClientTargetGuide : MonoBehaviour
     private bool runCompletedLocally;
     private string completedRunId = string.Empty;
     private float cumulativeTargetDistanceMeters;
+    private float nextSimulationTargetSuppressionTime;
     private readonly List<Vector2> predefinedTargets = new List<Vector2>();
 
     public bool IsLocalRunComplete
@@ -113,6 +114,8 @@ public class LiveVRClientTargetGuide : MonoBehaviour
     private void LateUpdate()
     {
         LiveVRNetworkManager manager = ResolveNetworkManager();
+        SuppressSimulationEpisodeTargetVisuals(manager);
+
         bool suppressedByReset = manager != null && manager.HasFreshResetPrompt(resetPromptSuppressSeconds);
         bool active = ShouldGuideBeActive(manager) && !suppressedByReset;
         EnsureTargetObject();
@@ -200,7 +203,7 @@ public class LiveVRClientTargetGuide : MonoBehaviour
             }
 
             if (parent != null)
-                targetObject.transform.SetParent(parent, true);
+                targetObject.transform.SetParent(parent, false);
         }
 
         targetObject.name = "LiveVR Local Target User " + ResolveUserId();
@@ -345,6 +348,16 @@ public class LiveVRClientTargetGuide : MonoBehaviour
     {
         if (targetObject == null || !hasTarget)
             return;
+
+        Transform parent = targetObject.transform.parent;
+        if (parent != null)
+        {
+            targetObject.transform.localPosition = new Vector3(
+                currentTarget.x,
+                ResolveTargetLocalHeight(parent),
+                currentTarget.y);
+            return;
+        }
 
         targetObject.transform.position = new Vector3(currentTarget.x, ResolveTargetHeight(), currentTarget.y);
     }
@@ -548,6 +561,13 @@ public class LiveVRClientTargetGuide : MonoBehaviour
     private Vector2 GetUserVirtualPosition()
     {
         Transform cameraTransform = ResolveHmdCamera();
+        Transform parentTransform = ResolveTargetParent();
+        if (cameraTransform != null && parentTransform != null)
+        {
+            Vector3 localPosition = parentTransform.InverseTransformPoint(cameraTransform.position);
+            return new Vector2(localPosition.x, localPosition.z);
+        }
+
         if (cameraTransform != null)
             return new Vector2(cameraTransform.position.x, cameraTransform.position.z);
 
@@ -574,7 +594,52 @@ public class LiveVRClientTargetGuide : MonoBehaviour
         runCompletedLocally = false;
         completedRunId = string.Empty;
         cumulativeTargetDistanceMeters = 0.0f;
+        nextSimulationTargetSuppressionTime = 0.0f;
         predefinedTargets.Clear();
+    }
+
+    private void SuppressSimulationEpisodeTargetVisuals(LiveVRNetworkManager manager)
+    {
+        if (manager == null || manager.IsHost || manager.Mode == LiveVRExperimentMode.Disabled)
+            return;
+
+        if (Time.unscaledTime < nextSimulationTargetSuppressionTime)
+            return;
+
+        nextSimulationTargetSuppressionTime = Time.unscaledTime + 0.5f;
+
+        GameObject simulationRoot = GameObject.Find("RDWSimulation");
+        if (simulationRoot == null)
+            return;
+
+        Transform virtualSpace = FindChildRecursive(simulationRoot.transform, "Virtual Space");
+        if (virtualSpace == null)
+            return;
+
+        Renderer[] renderers = virtualSpace.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null || !renderer.enabled)
+                continue;
+
+            if (IsSimulationTargetTransform(renderer.transform, virtualSpace))
+                renderer.enabled = false;
+        }
+    }
+
+    private static bool IsSimulationTargetTransform(Transform transform, Transform virtualSpace)
+    {
+        Transform current = transform;
+        while (current != null && current != virtualSpace)
+        {
+            if (current.name.StartsWith("target", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            current = current.parent;
+        }
+
+        return false;
     }
 
     private int ResolveUserId()
@@ -588,6 +653,20 @@ public class LiveVRClientTargetGuide : MonoBehaviour
         if (targetParent != null)
             return targetParent;
 
+        GameObject virtualWorldRoot = GameObject.Find("VirtualWorldRoot");
+        if (virtualWorldRoot != null)
+        {
+            targetParent = virtualWorldRoot.transform;
+            return targetParent;
+        }
+
+        GameObject clientEnvironment = GameObject.Find("LiveVR Client Visual Environment");
+        if (clientEnvironment != null)
+        {
+            targetParent = clientEnvironment.transform;
+            return targetParent;
+        }
+
         GameObject virtualSpaceObject = GameObject.Find("Virtual Space");
         if (virtualSpaceObject != null)
             targetParent = virtualSpaceObject.transform;
@@ -600,6 +679,18 @@ public class LiveVRClientTargetGuide : MonoBehaviour
         Bounds areaBounds;
         if (TryGetAreaAnchorBounds(out areaBounds))
             return areaBounds.max.y + targetHeightMeters;
+
+        return targetHeightMeters;
+    }
+
+    private float ResolveTargetLocalHeight(Transform parent)
+    {
+        Bounds areaBounds;
+        if (parent != null && TryGetAreaAnchorBounds(out areaBounds))
+        {
+            Vector3 topWorld = new Vector3(areaBounds.center.x, areaBounds.max.y, areaBounds.center.z);
+            return parent.InverseTransformPoint(topWorld).y + targetHeightMeters;
+        }
 
         return targetHeightMeters;
     }

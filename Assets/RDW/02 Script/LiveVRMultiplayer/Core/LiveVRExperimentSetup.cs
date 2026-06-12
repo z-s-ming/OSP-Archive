@@ -34,7 +34,7 @@ public class LiveVRExperimentSetup : MonoBehaviour
     [Header("Network")]
     [SerializeField] private string hostAddress = "192.168.1.100";
     [SerializeField] private int hostPosePort = 47770;
-    [SerializeField] private float sendRateHz = 30.0f;
+    [SerializeField] private float sendRateHz = 60.0f;
     [SerializeField] private bool autoAssignClientUserIds = true;
     [SerializeField] private bool enableHostDiscovery = true;
     [SerializeField] private float hostDiscoveryAckTimeoutSeconds = 3.0f;
@@ -77,6 +77,12 @@ public class LiveVRExperimentSetup : MonoBehaviour
     [SerializeField] private bool enableLiveVRPhysicalUserInput = true;
     [SerializeField] private bool forceVisualizationMode = true;
     [SerializeField] private bool forceRealtimeTimeScale = true;
+    [SerializeField] private bool forceLiveVRSendRate = true;
+    [SerializeField] private float liveVRSendRateHz = 60.0f;
+    [SerializeField] private bool forceLiveVRFixedTickRate = true;
+    [SerializeField] private float liveVRFixedTickRateHz = 60.0f;
+    [SerializeField] private bool forceQuestTargetFrameRate = true;
+    [SerializeField] private int questTargetFrameRateHz = 72;
 
     [Header("Debug Overlay")]
     [SerializeField] private bool showStatusOverlay = true;
@@ -145,7 +151,7 @@ public class LiveVRExperimentSetup : MonoBehaviour
     [SerializeField] private string clientVisualEnvironmentLayerName = "VirtualWall";
     [SerializeField] private bool applyVirtualSpaceSettingTransformToClientEnvironment = true;
     [SerializeField] private bool disableClientEnvironmentCameras = true;
-    [SerializeField] private bool keepOnlyClientWalkableEnvironment = true;
+    [SerializeField] private bool keepOnlyClientWalkableEnvironment = false;
     [SerializeField] private string[] clientWalkableEnvironmentRootNamesToKeep = { "walkingArea", "Floor_Tiles", "Terrain" };
     [SerializeField] private string[] clientWalkableEnvironmentRootNamesToHideInside =
     {
@@ -210,6 +216,8 @@ public class LiveVRExperimentSetup : MonoBehaviour
 
     public void ApplyConfiguration()
     {
+        float effectiveSendRateHz = ResolveLiveVRSendRateHz();
+
         if (networkManager != null)
         {
             NormalizeUserSources();
@@ -218,7 +226,7 @@ public class LiveVRExperimentSetup : MonoBehaviour
                 localUserId,
                 hostAddress,
                 hostPosePort,
-                sendRateHz,
+                effectiveSendRateHz,
                 headTransformOverride,
                 useUnityXRHeadPose,
                 calibrateOnStart,
@@ -337,7 +345,7 @@ public class LiveVRExperimentSetup : MonoBehaviour
                 networkManager,
                 true,
                 unitIndexToUserIdOffset,
-                sendRateHz,
+                effectiveSendRateHz,
                 sendVirtualPoseOnlyWhileRunning);
         }
 
@@ -432,6 +440,20 @@ public class LiveVRExperimentSetup : MonoBehaviour
 
         if (forceRealtimeTimeScale)
             Time.timeScale = 1.0f;
+
+        if (forceLiveVRFixedTickRate && liveVRFixedTickRateHz > 0.0f)
+            Time.fixedDeltaTime = 1.0f / liveVRFixedTickRateHz;
+
+        if (forceQuestTargetFrameRate && questTargetFrameRateHz > 0)
+            Application.targetFrameRate = questTargetFrameRateHz;
+    }
+
+    private float ResolveLiveVRSendRateHz()
+    {
+        if (forceLiveVRSendRate && liveVRSendRateHz > 0.0f)
+            return liveVRSendRateHz;
+
+        return sendRateHz;
     }
 
     private void EnsureComponents()
@@ -573,6 +595,9 @@ public class LiveVRExperimentSetup : MonoBehaviour
 
         if (forceRealtimeTimeScale)
             simulationManager.simulspeed = 1.0f;
+
+        if (forceLiveVRFixedTickRate && liveVRFixedTickRateHz > 0.0f)
+            Time.fixedDeltaTime = 1.0f / liveVRFixedTickRateHz;
 
         if (warnIfUnitCountMismatch)
         {

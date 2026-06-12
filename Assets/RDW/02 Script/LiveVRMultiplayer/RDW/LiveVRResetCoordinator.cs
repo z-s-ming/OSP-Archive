@@ -291,6 +291,11 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
         activeReset.LastWatchdogPhysicalTurnDegrees = activeReset.AccumulatedPhysicalRotationDegrees;
         activeReset.HasResetMapping = true;
 
+        LiveVRGainDebugState.LogAndResetInterval(
+            activeReset.Plan.UserId,
+            activeReset.Plan.PlanId,
+            "reset_start");
+
         Debug.Log(string.Format(
             "[LiveVR] Reset plan user={0} event={1} targetAngle={2:F1} physicalTurn={3:F1} virtualViewTurn={4:F1} extraVirtualInjected={5:F1} initialPhysicalYaw={6:F1} initialVirtualYaw={7:F1}",
             activeReset.Plan.UserId,

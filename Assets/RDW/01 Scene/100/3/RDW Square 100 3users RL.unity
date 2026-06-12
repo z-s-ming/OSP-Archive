@@ -265,7 +265,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 6
+  m_RootOrder: 7
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &705507993
 GameObject:
@@ -358,7 +358,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 1
+  m_RootOrder: 2
   m_LocalEulerAnglesHint: {x: 50, y: -30, z: 0}
 --- !u!1 &963194225
 GameObject:
@@ -586,7 +586,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e3e5bc8712128c34b8aa7480ef197465, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mode: 2
+  mode: 0
   localUserId: 0
   expectedUserCount: 1
   allowCommandLineOverrides: 1
@@ -594,7 +594,7 @@ MonoBehaviour:
   userSources: 01000000
   hostAddress: 10.13.238.5
   hostPosePort: 47770
-  sendRateHz: 30
+  sendRateHz: 60
   autoAssignClientUserIds: 1
   enableHostDiscovery: 1
   hostDiscoveryAckTimeoutSeconds: 3
@@ -631,6 +631,12 @@ MonoBehaviour:
   enableLiveVRPhysicalUserInput: 1
   forceVisualizationMode: 1
   forceRealtimeTimeScale: 1
+  forceLiveVRSendRate: 1
+  liveVRSendRateHz: 60
+  forceLiveVRFixedTickRate: 1
+  liveVRFixedTickRateHz: 60
+  forceQuestTargetFrameRate: 1
+  questTargetFrameRateHz: 72
   showStatusOverlay: 1
   overlayScreenPosition: {x: 12, y: 12}
   overlayPanelSize: {x: 420, y: 28}
@@ -663,7 +669,7 @@ MonoBehaviour:
   networkLogEveryNFrames: 5
   enableVirtualPoseSync: 1
   sendVirtualPoseOnlyWhileRunning: 1
-  clientVirtualViewRoot: {fileID: 1168563574}
+  clientVirtualViewRoot: {fileID: 1155686801}
   clientHmdCamera: {fileID: 1464236768}
   preserveTrackedHeadLocalOffset: 1
   requireExplicitClientViewRoot: 1
@@ -680,7 +686,7 @@ MonoBehaviour:
   clientVisualEnvironmentPrefab: {fileID: 5184687511815829587, guid: e4fdc9f259303204c87569bbbca05b50,
     type: 3}
   fallbackToSimulationVirtualSpacePrefab: 1
-  clientVisualEnvironmentParent: {fileID: 0}
+  clientVisualEnvironmentParent: {fileID: 1155686801}
   clientVisualEnvironmentLayerName: VirtualWall
   applyVirtualSpaceSettingTransformToClientEnvironment: 1
   disableClientEnvironmentCameras: 1
@@ -706,7 +712,7 @@ MonoBehaviour:
   useClientTargetAreaAnchorBounds: 1
   clientTargetAreaAnchorName: walkingArea
   clientTargetPrefab: {fileID: 0}
-  clientTargetParent: {fileID: 0}
+  clientTargetParent: {fileID: 1155686801}
   clientTargetAreaWidthMeters: 16
   clientTargetAreaDepthMeters: 16
   clientTargetHeightMeters: 1.35
@@ -737,7 +743,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 7
+  m_RootOrder: 8
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1103816473
 MonoBehaviour:
@@ -850,6 +856,7 @@ MonoBehaviour:
   viewHeightFallbackMeters: 1.6
   staleVirtualPoseTimeoutSeconds: 0.5
   applyOnlyWhileRunning: 1
+  maxGainApplyDeltaTimeSeconds: 0.016666668
 --- !u!114 &1103816478
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1000,6 +1007,7 @@ MonoBehaviour:
   environmentLayerName: VirtualWall
   applyVirtualSpaceSettingTransform: 1
   disableEnvironmentCameras: 1
+  hideSimulationVirtualSpaceOnClient: 1
   walkableAreaAnchorName: walkingArea
   keepOnlyWalkableEnvironment: 1
   walkableEnvironmentRootNamesToKeep:
@@ -1032,6 +1040,36 @@ MonoBehaviour:
   clientHud: {fileID: 0}
   worldHud: {fileID: 0}
   targetGuide: {fileID: 0}
+--- !u!1 &1155686800
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1155686801}
+  m_Layer: 0
+  m_Name: VirtualWorldRoot
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1155686801
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1155686800}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 1
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1168563573
 GameObject:
   m_ObjectHideFlags: 0
@@ -1061,7 +1099,7 @@ Transform:
   m_Children:
   - {fileID: 977469169}
   m_Father: {fileID: 0}
-  m_RootOrder: 9
+  m_RootOrder: 10
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1237824339
 GameObject:
@@ -1235,7 +1273,7 @@ RectTransform:
   m_Children:
   - {fileID: 1618102557}
   m_Father: {fileID: 0}
-  m_RootOrder: 4
+  m_RootOrder: 5
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 0}
@@ -1257,7 +1295,7 @@ PrefabInstance:
     - target: {fileID: 5168157814384017450, guid: 8d7d80fd881fa9c4cbb8fd4d8c986877,
         type: 3}
       propertyPath: m_RootOrder
-      value: 8
+      value: 9
       objectReference: {fileID: 0}
     - target: {fileID: 5168157814384017450, guid: 8d7d80fd881fa9c4cbb8fd4d8c986877,
         type: 3}
@@ -1522,7 +1560,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 5
+  m_RootOrder: 6
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1807211601
 GameObject:
@@ -1672,11 +1710,43 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
+    - redirectType: 6
+      resetType: 5
+      episodeType: 1
+      episodeLength: 99999
+      episodeFileName: 
+      useRandomStartReal: 1
+      useRandomStartVirtual: 1
+      userPrefab: {fileID: 3594628791589679955, guid: 9a6a8fb013cb28f418095cf7cdcb3d2c,
+        type: 3}
+      userStartRotation: 0
+      realStartRotation: 0
+      virtualStartRotation: 0
+      realStartPosition: {x: 1.5, y: -0.01}
+      virtualStartPosition: {x: 0, y: 0}
+      translationSpeed: 1
+      rotationSpeed: 90
+    - redirectType: 6
+      resetType: 5
+      episodeType: 1
+      episodeLength: 99999
+      episodeFileName: 
+      useRandomStartReal: 1
+      useRandomStartVirtual: 1
+      userPrefab: {fileID: 3594628791589679955, guid: 9a6a8fb013cb28f418095cf7cdcb3d2c,
+        type: 3}
+      userStartRotation: 0
+      realStartRotation: 0
+      virtualStartRotation: 0
+      realStartPosition: {x: 1.5, y: -0.01}
+      virtualStartPosition: {x: 0, y: 0}
+      translationSpeed: 1
+      rotationSpeed: 90
     bAllowUserReset: 1
     experimentProfile: 0
     useLiveVRPhysicalUserInput: 0
     proactiveUserReset:
-      enableStrategy: 1
+      enableStrategy: 0
       judgeMode: 4
       userSelectionMode: 0
       predictionHorizonSeconds: 1.5
@@ -1729,7 +1799,7 @@ Transform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_Children: []
   m_Father: {fileID: 0}
-  m_RootOrder: 2
+  m_RootOrder: 3
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &1807211604
 MonoBehaviour:
@@ -1773,7 +1843,7 @@ Transform:
   m_Children:
   - {fileID: 196262027}
   m_Father: {fileID: 0}
-  m_RootOrder: 3
+  m_RootOrder: 4
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &2003462195
 MonoBehaviour:
@@ -1787,11 +1857,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2dea9268e3f6ce41a56d0f1f4d5d064, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  totalUserCount: 1
+  totalUserCount: 3
   userRadius: 0.5
   shutterWidth: 0.5
   SimulationCount_max: 100
-  TargetDistancePerUser: 100
+  TargetDistancePerUser: 200
   bMixedExploration: 0
   bUseCompareExperiment: 1
   bEnable_InitPhyUserPosUni: 0

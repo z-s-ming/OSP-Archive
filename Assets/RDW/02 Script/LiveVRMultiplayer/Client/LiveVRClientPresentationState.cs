@@ -34,7 +34,7 @@ public class LiveVRClientPresentationState : MonoBehaviour
         if (networkManager != null)
             networkManager.ClearAllClientResetState();
         if (virtualViewBinder != null)
-            virtualViewBinder.ClearLocalResetState();
+            virtualViewBinder.RestoreInitialViewRootState();
         if (clientHud != null)
             clientHud.ClearResetPrompt();
         if (worldHud != null)

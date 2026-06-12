@@ -210,7 +210,7 @@ public class APFRedirector_OSP : GainRedirector
         List<Vector2> partitionedSpaceVertices2 = new List<Vector2>(partitionedSpaceVertices);
         if (partitionedSpaceVertices2.Count == 0)
         {
-            Debug.LogWarning("count 0");
+            // No partitioned space defined for this user, using full real space as fallback
             realPolygonObject = (Polygon2D)realSpace.spaceObject;
         }
         else

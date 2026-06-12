@@ -1215,18 +1215,26 @@ public struct LiveVRVirtualPoseMessage
     public long HostUnixMilliseconds;
     public Vector2 VirtualPosition;
     public float VirtualYawDegrees;
+    public float InjectedYawDeltaDegrees;
+    public GainType GainType;
+    public float GainRateDegreesPerSecond;
+    public float GainValidSeconds;
 
     public string ToNetworkMessage()
     {
         return string.Format(
             CultureInfo.InvariantCulture,
-            "VIRTUAL_POSE|{0}|{1}|{2}|{3:R}|{4:R}|{5:R}",
+            "VIRTUAL_POSE|{0}|{1}|{2}|{3:R}|{4:R}|{5:R}|{6:R}|{7}|{8:R}|{9:R}",
             UserId,
             Sequence,
             HostUnixMilliseconds,
             VirtualPosition.x,
             VirtualPosition.y,
-            VirtualYawDegrees);
+            VirtualYawDegrees,
+            InjectedYawDeltaDegrees,
+            GainType,
+            GainRateDegreesPerSecond,
+            GainValidSeconds);
     }
 
     public static bool TryParse(string message, out LiveVRVirtualPoseMessage virtualPose)
@@ -1236,7 +1244,7 @@ public struct LiveVRVirtualPoseMessage
             return false;
 
         string[] parts = message.Split('|');
-        if (parts.Length != 7 || parts[0] != "VIRTUAL_POSE")
+        if ((parts.Length != 7 && parts.Length != 9 && parts.Length != 11) || parts[0] != "VIRTUAL_POSE")
             return false;
 
         int userId;
@@ -1260,6 +1268,38 @@ public struct LiveVRVirtualPoseMessage
         virtualPose.HostUnixMilliseconds = hostTime;
         virtualPose.VirtualPosition = new Vector2(x, y);
         virtualPose.VirtualYawDegrees = yaw;
+        virtualPose.InjectedYawDeltaDegrees = 0.0f;
+        virtualPose.GainType = GainType.Undefined;
+        virtualPose.GainRateDegreesPerSecond = 0.0f;
+        virtualPose.GainValidSeconds = 0.0f;
+        if (parts.Length == 9)
+        {
+            float injectedYaw;
+            GainType gainType;
+            if (float.TryParse(parts[7], NumberStyles.Float, CultureInfo.InvariantCulture, out injectedYaw))
+                virtualPose.InjectedYawDeltaDegrees = injectedYaw;
+
+            if (Enum.TryParse(parts[8], true, out gainType))
+                virtualPose.GainType = gainType;
+        }
+        else if (parts.Length == 11)
+        {
+            float injectedYaw;
+            GainType gainType;
+            float gainRate;
+            float gainValidSeconds;
+            if (float.TryParse(parts[7], NumberStyles.Float, CultureInfo.InvariantCulture, out injectedYaw))
+                virtualPose.InjectedYawDeltaDegrees = injectedYaw;
+
+            if (Enum.TryParse(parts[8], true, out gainType))
+                virtualPose.GainType = gainType;
+
+            if (float.TryParse(parts[9], NumberStyles.Float, CultureInfo.InvariantCulture, out gainRate))
+                virtualPose.GainRateDegreesPerSecond = gainRate;
+
+            if (float.TryParse(parts[10], NumberStyles.Float, CultureInfo.InvariantCulture, out gainValidSeconds))
+                virtualPose.GainValidSeconds = gainValidSeconds;
+        }
         return true;
     }
 }
