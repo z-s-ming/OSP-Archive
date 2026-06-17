@@ -6,6 +6,7 @@ public class ProactiveResetPipeline
 
     private readonly ProactiveResetPairFilter pairFilter;
     private readonly IProactiveResetCooldownPolicy cooldownPolicy;
+    private readonly Dictionary<long, float> activeTriggerUntilTimeByPair = new Dictionary<long, float>();
 
     public ProactiveResetPipeline(IProactiveResetCooldownPolicy cooldownPolicy)
     {
@@ -18,6 +19,8 @@ public class ProactiveResetPipeline
         ProactiveResetFrameResult result = new ProactiveResetFrameResult();
         if (!IsValidContext(context))
             return result;
+
+        ReleaseExpiredTriggerSessions(context.TimeSeconds);
 
         IProactiveResetTriggerDetector triggerDetector =
             ProactiveResetTriggerDetectorFactory.Create(context.Settings.judgeMode);
@@ -88,8 +91,14 @@ public class ProactiveResetPipeline
         if (!triggerDetector.TryCreateTrigger(context, pairContext, out ProactiveResetTriggerEvent triggerEvent))
             return;
 
+        if (IsTriggerSessionActive(pairContext, context.TimeSeconds))
+            return;
+
+        RegisterTriggerSession(pairContext, context.TimeSeconds);
+
         int triggerId = ProactiveResetEventIdTracker.NextTriggerId();
         triggerEvent.TriggerId = triggerId;
+        RoadConflictTuningLogger.NotifyProactiveTrigger(pairContext, triggerEvent);
 
         if (!context.ProactiveEnabled)
             return;
@@ -102,9 +111,21 @@ public class ProactiveResetPipeline
             rejection.DecisionId = ProactiveResetEventIdTracker.NextDecisionId();
             rejection.OriginTriggerId = triggerId;
             rejection.OriginCandidateId = candidateId;
+            candidate.DecisionId = rejection.DecisionId;
+            candidate.OriginTriggerId = triggerId;
+            candidate.CandidateId = candidateId;
             ProactiveResetEventIdTracker.RecordDecision(false);
             AddRejectionIfMeaningful(result, rejection);
-            ProactiveCandidateFrameLogger.NotifyRejected(context, pairContext, rejection);
+            if (HasRejectedCandidateDetails(candidate))
+            {
+                ProactiveCandidateFrameLogger.NotifyRejected(context, pairContext, candidate, rejection);
+                RoadConflictTuningLogger.NotifyProactiveCandidate(pairContext, candidate, "REJECTED", rejection.Reason);
+            }
+            else
+            {
+                ProactiveCandidateFrameLogger.NotifyRejected(context, pairContext, rejection);
+                RoadConflictTuningLogger.NotifyProactiveCandidate(pairContext, candidate, "REJECTED", rejection.Reason);
+            }
             return;
         }
 
@@ -135,6 +156,7 @@ public class ProactiveResetPipeline
                 pairContext,
                 candidate,
                 cooldownRejection);
+            RoadConflictTuningLogger.NotifyProactiveCandidate(pairContext, candidate, "REJECTED", cooldownRejection.Reason);
             return;
         }
 
@@ -162,6 +184,7 @@ public class ProactiveResetPipeline
                 pairContext,
                 candidate,
                 cooldownRejection);
+            RoadConflictTuningLogger.NotifyProactiveCandidate(pairContext, candidate, "REJECTED", cooldownRejection.Reason);
             return;
         }
 
@@ -178,6 +201,7 @@ public class ProactiveResetPipeline
             ProactiveResetEventIdTracker.RecordDecision(false);
             AddRejectionIfMeaningful(result, safetyRejection);
             ProactiveCandidateFrameLogger.NotifyRejected(context, pairContext, candidate, safetyRejection);
+            RoadConflictTuningLogger.NotifyProactiveCandidate(pairContext, candidate, "REJECTED", safetyRejection.Reason);
             return;
         }
 
@@ -188,11 +212,64 @@ public class ProactiveResetPipeline
         ProactiveResetEventIdTracker.RecordDecision(true);
         result.Candidates.Add(candidate);
         ProactiveCandidateFrameLogger.NotifyAccepted(context, pairContext, candidate);
+        RoadConflictTuningLogger.NotifyProactiveCandidate(pairContext, candidate, "ACCEPTED", "NONE");
         if (!selectedCandidateByUser.TryGetValue(candidate.SelectedUserId, out ProactiveResetCandidate existing) ||
             ShouldReplaceCandidate(existing, candidate))
         {
             selectedCandidateByUser[candidate.SelectedUserId] = candidate;
         }
+    }
+
+    public void ClearActiveTriggerSessions()
+    {
+        activeTriggerUntilTimeByPair.Clear();
+    }
+
+    private void RegisterTriggerSession(ProactiveResetPairContext pairContext, float currentTimeSeconds)
+    {
+        long pairKey = BuildPairKey(pairContext.UnitAId, pairContext.UnitBId);
+        float horizonSeconds = System.Math.Max(pairContext.PredictionHorizonSeconds, 0.1f);
+        activeTriggerUntilTimeByPair[pairKey] = currentTimeSeconds + horizonSeconds;
+    }
+
+    private bool IsTriggerSessionActive(ProactiveResetPairContext pairContext, float currentTimeSeconds)
+    {
+        long pairKey = BuildPairKey(pairContext.UnitAId, pairContext.UnitBId);
+        return activeTriggerUntilTimeByPair.TryGetValue(pairKey, out float activeUntilTime) &&
+               activeUntilTime > currentTimeSeconds;
+    }
+
+    private void ReleaseExpiredTriggerSessions(float currentTimeSeconds)
+    {
+        if (activeTriggerUntilTimeByPair.Count == 0)
+            return;
+
+        List<long> expiredKeys = null;
+        foreach (KeyValuePair<long, float> kvp in activeTriggerUntilTimeByPair)
+        {
+            if (kvp.Value <= currentTimeSeconds)
+            {
+                if (expiredKeys == null)
+                    expiredKeys = new List<long>();
+
+                expiredKeys.Add(kvp.Key);
+            }
+        }
+
+        if (expiredKeys == null)
+            return;
+
+        for (int i = 0; i < expiredKeys.Count; i++)
+        {
+            activeTriggerUntilTimeByPair.Remove(expiredKeys[i]);
+        }
+    }
+
+    private static long BuildPairKey(int unitAId, int unitBId)
+    {
+        int minId = unitAId < unitBId ? unitAId : unitBId;
+        int maxId = unitAId < unitBId ? unitBId : unitAId;
+        return ((long)(uint)minId << 32) | (uint)maxId;
     }
 
     private static bool IsValidContext(ProactiveResetFrameContext context)
@@ -240,6 +317,11 @@ public class ProactiveResetPipeline
         if (incoming.KeepMargin > current.KeepMargin + CandidateCompareTolerance)
             return false;
 
+        if (incoming.SelectedScore > current.SelectedScore + CandidateCompareTolerance)
+            return true;
+        if (incoming.SelectedScore < current.SelectedScore - CandidateCompareTolerance)
+            return false;
+
         if (incoming.SelectedM > current.SelectedM + CandidateCompareTolerance)
             return true;
         if (incoming.SelectedM < current.SelectedM - CandidateCompareTolerance)
@@ -254,5 +336,16 @@ public class ProactiveResetPipeline
             return true;
 
         return false;
+    }
+
+    private static bool HasRejectedCandidateDetails(ProactiveResetCandidate candidate)
+    {
+        return candidate.SelectedUserId >= 0 ||
+               candidate.OtherUserId >= 0 ||
+               candidate.ResetDirection.sqrMagnitude > 0.000001f ||
+               candidate.KeepMargin != 0.0f ||
+               candidate.SelectedM != 0.0f ||
+               candidate.SelectedCSelf != 0.0f ||
+               candidate.SelectedScore != 0.0f;
     }
 }

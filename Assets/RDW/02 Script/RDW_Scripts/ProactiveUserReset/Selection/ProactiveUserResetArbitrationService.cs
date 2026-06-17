@@ -14,6 +14,7 @@ public static class ProactiveUserResetArbitrationService
         public float KeepMargin;
         public float SelectedM;
         public float SelectedCSelf;
+        public float SelectedScore;
     }
 
     public static bool TryArbitratePair(
@@ -23,6 +24,14 @@ public static class ProactiveUserResetArbitrationService
         int indexB,
         float mEpsilon,
         float cEpsilon,
+        bool useScoredArbitration,
+        float scoreAlpha,
+        float scoreBeta,
+        float scoreGamma,
+        float scoreD0Meters,
+        float scoreEpsilonMeters,
+        float scoreTieEpsilon,
+        ProactiveResetDirectionMode directionMode,
         out ArbitrationResult result)
     {
         result = new ArbitrationResult
@@ -32,7 +41,8 @@ public static class ProactiveUserResetArbitrationService
             SelectedResetDirection = Vector2.zero,
             KeepMargin = float.PositiveInfinity,
             SelectedM = 0.0f,
-            SelectedCSelf = 0.0f
+            SelectedCSelf = 0.0f,
+            SelectedScore = float.NegativeInfinity
         };
 
         if (unitA == null || unitB == null || unitA.GetRealUser() == null || unitB.GetRealUser() == null)
@@ -40,8 +50,8 @@ public static class ProactiveUserResetArbitrationService
 
         Vector2 keepDirectionA = ResolveKeepDirection(unitA);
         Vector2 keepDirectionB = ResolveKeepDirection(unitB);
-        Vector2 resetDirectionA = ResolveResetDirection(unitA, unitB);
-        Vector2 resetDirectionB = ResolveResetDirection(unitB, unitA);
+        Vector2 resetDirectionA = ResolveResetDirection(unitA, unitB, directionMode);
+        Vector2 resetDirectionB = ResolveResetDirection(unitB, unitA, directionMode);
 
         bool hasValidResetA = resetDirectionA.sqrMagnitude > EPSILON;
         bool hasValidResetB = resetDirectionB.sqrMagnitude > EPSILON;
@@ -59,9 +69,37 @@ public static class ProactiveUserResetArbitrationService
         float keepWorstDistance = Mathf.Min(keepDistanceA, keepDistanceB);
         float resetAWorstDistance = hasValidResetA ? Mathf.Min(resetDistanceA, keepDistanceB) : float.NegativeInfinity;
         float resetBWorstDistance = hasValidResetB ? Mathf.Min(resetDistanceB, keepDistanceA) : float.NegativeInfinity;
+        float resetAScore = hasValidResetA
+            ? (useScoredArbitration
+                ? ComputeArbitrationScore(
+                    resetDistanceA,
+                    keepDistanceB,
+                    scoreAlpha,
+                    scoreBeta,
+                    scoreGamma,
+                    scoreD0Meters,
+                    scoreEpsilonMeters)
+                : resetAWorstDistance)
+            : float.NegativeInfinity;
+        float resetBScore = hasValidResetB
+            ? (useScoredArbitration
+                ? ComputeArbitrationScore(
+                    resetDistanceB,
+                    keepDistanceA,
+                    scoreAlpha,
+                    scoreBeta,
+                    scoreGamma,
+                    scoreD0Meters,
+                    scoreEpsilonMeters)
+                : resetBWorstDistance)
+            : float.NegativeInfinity;
 
         bool selectA;
-        if (Mathf.Abs(resetAWorstDistance - resetBWorstDistance) > mEpsilon)
+        if (useScoredArbitration && Mathf.Abs(resetAScore - resetBScore) > scoreTieEpsilon)
+        {
+            selectA = resetAScore > resetBScore;
+        }
+        else if (Mathf.Abs(resetAWorstDistance - resetBWorstDistance) > mEpsilon)
         {
             selectA = resetAWorstDistance > resetBWorstDistance;
         }
@@ -81,6 +119,7 @@ public static class ProactiveUserResetArbitrationService
             result.SelectedResetDirection = resetDirectionA;
             result.SelectedM = resetAWorstDistance;
             result.SelectedCSelf = cSelfA;
+            result.SelectedScore = resetAScore;
         }
         else
         {
@@ -89,10 +128,33 @@ public static class ProactiveUserResetArbitrationService
             result.SelectedResetDirection = resetDirectionB;
             result.SelectedM = resetBWorstDistance;
             result.SelectedCSelf = cSelfB;
+            result.SelectedScore = resetBScore;
         }
 
         result.KeepMargin = keepWorstDistance;
         return true;
+    }
+
+    private static float ComputeArbitrationScore(
+        float selectedDistance,
+        float otherDistance,
+        float scoreAlpha,
+        float scoreBeta,
+        float scoreGamma,
+        float scoreD0Meters,
+        float scoreEpsilonMeters)
+    {
+        float distanceSum = Mathf.Max(0.0f, selectedDistance) + Mathf.Max(0.0f, otherDistance);
+        float minimumDistance = Mathf.Max(0.0f, Mathf.Min(selectedDistance, otherDistance));
+        float d0 = Mathf.Max(EPSILON, scoreD0Meters);
+        float epsilonMeters = Mathf.Max(EPSILON, scoreEpsilonMeters);
+        float shortfall = Mathf.Max(0.0f, d0 - minimumDistance);
+        float shortDistancePenalty = Mathf.Max(0.0f, scoreGamma) *
+                                     Mathf.Pow(shortfall / (minimumDistance + epsilonMeters), 2.0f);
+
+        return (Mathf.Max(0.0f, scoreAlpha) * distanceSum / (2.0f * d0)) +
+               (Mathf.Max(0.0f, scoreBeta) * minimumDistance / d0) -
+               shortDistancePenalty;
     }
 
     private static Vector2 ResolveKeepDirection(RedirectedUnit unit)
@@ -111,22 +173,84 @@ public static class ProactiveUserResetArbitrationService
         return Vector2.up;
     }
 
-    private static Vector2 ResolveResetDirection(RedirectedUnit selectedUnit, RedirectedUnit otherUnit)
+    private static Vector2 ResolveResetDirection(
+        RedirectedUnit selectedUnit,
+        RedirectedUnit otherUnit,
+        ProactiveResetDirectionMode directionMode)
     {
         if (selectedUnit == null || otherUnit == null || selectedUnit.GetRealUser() == null || otherUnit.GetRealUser() == null)
             return Vector2.zero;
+
+        if (directionMode == ProactiveResetDirectionMode.LocalAPF)
+        {
+            Vector2 apfDirection = UserResetDirectionResolver.ComputeLocalApfDirection(selectedUnit);
+            if (apfDirection.sqrMagnitude > EPSILON)
+                return apfDirection.normalized;
+        }
+
+        if (directionMode == ProactiveResetDirectionMode.MaxPhysicalRemainingDistance)
+        {
+            Vector2 bestDirection = ResolveMaxPhysicalRemainingDistanceDirection(selectedUnit, otherUnit);
+            if (bestDirection.sqrMagnitude > EPSILON)
+                return bestDirection.normalized;
+        }
 
         Vector2 awayFromPairUser = selectedUnit.GetRealUser().transform2D.localPosition -
                                    otherUnit.GetRealUser().transform2D.localPosition;
         if (awayFromPairUser.sqrMagnitude > EPSILON)
             return awayFromPairUser.normalized;
 
-        // Previous proactive reset direction policy:
-        // Vector2 apfDirection = UserResetDirectionResolver.ComputeLocalApfDirection(selectedUnit);
-        // if (apfDirection.sqrMagnitude > EPSILON)
-        //     return apfDirection.normalized;
-
         return ResolveKeepDirection(selectedUnit);
+    }
+
+    private static Vector2 ResolveMaxPhysicalRemainingDistanceDirection(RedirectedUnit selectedUnit, RedirectedUnit otherUnit)
+    {
+        if (selectedUnit == null || selectedUnit.GetRealUser() == null)
+            return Vector2.zero;
+
+        Vector2 awayFromPairUser = Vector2.zero;
+        if (otherUnit != null && otherUnit.GetRealUser() != null)
+        {
+            awayFromPairUser = selectedUnit.GetRealUser().transform2D.localPosition -
+                               otherUnit.GetRealUser().transform2D.localPosition;
+        }
+
+        Vector2 keepDirection = ResolveKeepDirection(selectedUnit);
+        Vector2 apfDirection = UserResetDirectionResolver.ComputeLocalApfDirection(selectedUnit);
+        Vector2[] candidates =
+        {
+            awayFromPairUser,
+            apfDirection,
+            keepDirection,
+            -keepDirection,
+            Vector2.up,
+            Vector2.down,
+            Vector2.left,
+            Vector2.right,
+            new Vector2(1.0f, 1.0f),
+            new Vector2(1.0f, -1.0f),
+            new Vector2(-1.0f, 1.0f),
+            new Vector2(-1.0f, -1.0f)
+        };
+
+        float bestDistance = float.NegativeInfinity;
+        Vector2 bestDirection = Vector2.zero;
+        for (int i = 0; i < candidates.Length; i++)
+        {
+            Vector2 candidate = candidates[i];
+            if (candidate.sqrMagnitude <= EPSILON)
+                continue;
+
+            candidate.Normalize();
+            float remainingDistance = ComputePhysicalRemainingDistance(selectedUnit, candidate);
+            if (remainingDistance > bestDistance)
+            {
+                bestDistance = remainingDistance;
+                bestDirection = candidate;
+            }
+        }
+
+        return bestDirection;
     }
 
     private static float ComputePhysicalRemainingDistance(RedirectedUnit unit, Vector2 direction)

@@ -719,6 +719,15 @@ public class RDWSimulationManager : MonoBehaviour
         }
     }
 
+    public void PrepareSimulationEpisode()
+    {
+        StopAllCoroutines();
+        DestroyAll();
+        GenerateSpaces();
+        GenerateUnits();
+        bStart = true;
+    }
+
     Queue<DateTime> queue_userresetinfo = new Queue<DateTime>();
     public void Enqueue_UserResetFilter(DateTime date)
     {

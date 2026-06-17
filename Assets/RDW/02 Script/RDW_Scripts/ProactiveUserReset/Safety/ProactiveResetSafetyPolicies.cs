@@ -4,9 +4,6 @@ public static class ProactiveResetSafetyPolicyFactory
 {
     public static IProactiveResetSafetyPolicy Create(ProactiveUserResetSettings settings)
     {
-        if (settings != null && settings.enableInPlaceSafetyCheck)
-            return new InPlaceProactiveResetSafetyPolicy();
-
         return new NoProactiveResetSafetyPolicy();
     }
 }

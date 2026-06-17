@@ -13,6 +13,10 @@ public static class ProactiveResetTriggerDetectorFactory
             return new VoronoiBoundaryProactiveResetTriggerDetector();
         if (judgeMode == ProactiveUserResetJudgeMode.RecoveryMarginTrend)
             return new RecoveryMarginTrendProactiveResetTriggerDetector();
+        if (judgeMode == ProactiveUserResetJudgeMode.CoverageSpread)
+            return new CoverageSpreadProactiveResetTriggerDetector();
+        if (judgeMode == ProactiveUserResetJudgeMode.OpposingFlow)
+            return new OpposingFlowProactiveResetTriggerDetector();
 
         return new RecoverabilityProactiveResetTriggerDetector();
     }
@@ -516,6 +520,254 @@ public class RecoveryMarginTrendProactiveResetTriggerDetector : IProactiveResetT
         int min = Mathf.Min(idA, idB);
         int max = Mathf.Max(idA, idB);
         return ((long)min << 32) ^ (uint)max;
+    }
+}
+
+public class CoverageSpreadProactiveResetTriggerDetector : IProactiveResetTriggerDetector
+{
+    private const float EPSILON = 0.0001f;
+    private static readonly Dictionary<long, PairSpreadTrendState> trendStatesByPair =
+        new Dictionary<long, PairSpreadTrendState>();
+
+    private struct PairSpreadTrendState
+    {
+        public bool HasLastSpread;
+        public float LastSpread;
+        public int IncreaseMask;
+        public int SampleCount;
+        public int LastFrameIndex;
+    }
+
+    public bool TryCreateTrigger(
+        ProactiveResetFrameContext context,
+        ProactiveResetPairContext pairContext,
+        out ProactiveResetTriggerEvent triggerEvent)
+    {
+        triggerEvent = default;
+        if (!TryGetPairSpread(context, pairContext, out float currentSpread, out float predictedSpread))
+            return false;
+
+        ProactiveUserResetSettings settings = context.Settings;
+        int trendWindow = Mathf.Clamp(settings.coverageSpreadTrendWindowFrames, 2, 30);
+        int requiredTrendHits = Mathf.Clamp(settings.coverageSpreadTrendRequiredFrames, 1, trendWindow);
+        UpdateTrendState(
+            pairContext.UnitAId,
+            pairContext.UnitBId,
+            currentSpread,
+            trendWindow,
+            context.FrameIndex,
+            out int trendHitCount,
+            out int trendWindowFrames);
+
+        float threshold = Mathf.Max(0.0f, settings.coverageSpreadThreshold);
+        float minImprovement = Mathf.Max(0.0f, settings.coverageSpreadMinImprovement);
+        bool spreadHigh = currentSpread >= threshold;
+        bool trendConfirmed = trendWindowFrames >= trendWindow && trendHitCount >= requiredTrendHits;
+        bool predictionWorsens = predictedSpread > currentSpread + minImprovement;
+        if (!spreadHigh || (!trendConfirmed && !predictionWorsens))
+            return false;
+
+        triggerEvent = RecoverabilityProactiveResetTriggerDetector.BuildTriggerEvent(context, pairContext);
+        triggerEvent.TriggerDistance = Mathf.Sqrt(Mathf.Max(0.0f, currentSpread));
+        return true;
+    }
+
+    public static void ResetTemporalState()
+    {
+        trendStatesByPair.Clear();
+    }
+
+    private static bool TryGetPairSpread(
+        ProactiveResetFrameContext context,
+        ProactiveResetPairContext pairContext,
+        out float currentSpread,
+        out float predictedSpread)
+    {
+        currentSpread = 0.0f;
+        predictedSpread = 0.0f;
+        if (context == null ||
+            pairContext.UnitA == null ||
+            pairContext.UnitB == null ||
+            pairContext.UnitA.GetRealUser() == null ||
+            pairContext.UnitB.GetRealUser() == null ||
+            pairContext.UnitAId < 0 ||
+            pairContext.UnitBId < 0)
+        {
+            return false;
+        }
+
+        if (!TryResolveCellCenter(context, pairContext.UnitAId, out Vector2 centerA) ||
+            !TryResolveCellCenter(context, pairContext.UnitBId, out Vector2 centerB))
+        {
+            return false;
+        }
+
+        Vector2 positionA = pairContext.UnitA.GetRealUser().transform2D.localPosition;
+        Vector2 positionB = pairContext.UnitB.GetRealUser().transform2D.localPosition;
+        float horizon = Mathf.Max(0.01f, pairContext.PredictionHorizonSeconds);
+        Vector2 predictedA = positionA + pairContext.VelocityA * horizon;
+        Vector2 predictedB = positionB + pairContext.VelocityB * horizon;
+
+        currentSpread = (positionA - centerA).sqrMagnitude + (positionB - centerB).sqrMagnitude;
+        predictedSpread = (predictedA - centerA).sqrMagnitude + (predictedB - centerB).sqrMagnitude;
+        return currentSpread > EPSILON;
+    }
+
+    private static bool TryResolveCellCenter(
+        ProactiveResetFrameContext context,
+        int userId,
+        out Vector2 center)
+    {
+        center = Vector2.zero;
+        _GCM.GlobalCoordinationManager manager = _GCM.GlobalCoordinationManager.instance;
+        if (manager != null &&
+            manager.dic_AreaSegmentsVertex != null &&
+            manager.dic_AreaSegmentsVertex.TryGetValue(userId, out List<Vector2> vertices) &&
+            vertices != null &&
+            vertices.Count >= 3)
+        {
+            center = ComputePolygonCentroid(vertices);
+            return true;
+        }
+
+        if (context.PartitionResult != null &&
+            context.PartitionResult.SeedPoints != null &&
+            userId >= 0 &&
+            userId < context.PartitionResult.SeedPoints.Count)
+        {
+            center = ToVector2(context.PartitionResult.SeedPoints[userId]);
+            return true;
+        }
+
+        return false;
+    }
+
+    private static Vector2 ComputePolygonCentroid(List<Vector2> vertices)
+    {
+        float signedArea = 0.0f;
+        float centroidX = 0.0f;
+        float centroidY = 0.0f;
+
+        for (int i = 0; i < vertices.Count; i++)
+        {
+            Vector2 current = vertices[i];
+            Vector2 next = vertices[(i + 1) % vertices.Count];
+            float cross = current.x * next.y - next.x * current.y;
+            signedArea += cross;
+            centroidX += (current.x + next.x) * cross;
+            centroidY += (current.y + next.y) * cross;
+        }
+
+        signedArea *= 0.5f;
+        if (Mathf.Abs(signedArea) <= EPSILON)
+        {
+            Vector2 average = Vector2.zero;
+            for (int i = 0; i < vertices.Count; i++)
+                average += vertices[i];
+
+            return average / vertices.Count;
+        }
+
+        float factor = 1.0f / (6.0f * signedArea);
+        return new Vector2(centroidX * factor, centroidY * factor);
+    }
+
+    private static Vector2 ToVector2(Vector2f value)
+    {
+        return new Vector2(value.x, value.y);
+    }
+
+    private static void UpdateTrendState(
+        int unitAId,
+        int unitBId,
+        float spread,
+        int trendWindow,
+        int frameIndex,
+        out int trendHitCount,
+        out int trendWindowFrames)
+    {
+        long key = BuildPairKey(unitAId, unitBId);
+        PairSpreadTrendState state;
+        if (!trendStatesByPair.TryGetValue(key, out state))
+            state = new PairSpreadTrendState();
+        else if (state.LastFrameIndex > 0 && frameIndex - state.LastFrameIndex > 1)
+            state = new PairSpreadTrendState();
+
+        bool increased = state.HasLastSpread && spread > state.LastSpread + EPSILON;
+        int windowMask = (1 << trendWindow) - 1;
+        state.IncreaseMask = ((state.IncreaseMask << 1) | (increased ? 1 : 0)) & windowMask;
+        state.SampleCount = Mathf.Min(state.SampleCount + 1, trendWindow);
+        state.LastSpread = spread;
+        state.HasLastSpread = true;
+        state.LastFrameIndex = frameIndex;
+        trendStatesByPair[key] = state;
+
+        trendHitCount = CountBits(state.IncreaseMask);
+        trendWindowFrames = state.SampleCount;
+    }
+
+    private static int CountBits(int value)
+    {
+        int count = 0;
+        while (value != 0)
+        {
+            count += value & 1;
+            value >>= 1;
+        }
+
+        return count;
+    }
+
+    private static long BuildPairKey(int idA, int idB)
+    {
+        int min = Mathf.Min(idA, idB);
+        int max = Mathf.Max(idA, idB);
+        return ((long)min << 32) ^ (uint)max;
+    }
+}
+
+public class OpposingFlowProactiveResetTriggerDetector : IProactiveResetTriggerDetector
+{
+    private const float EPSILON = 0.0001f;
+
+    public bool TryCreateTrigger(
+        ProactiveResetFrameContext context,
+        ProactiveResetPairContext pairContext,
+        out ProactiveResetTriggerEvent triggerEvent)
+    {
+        triggerEvent = default;
+        if (context == null || context.Settings == null)
+            return false;
+
+        ProactiveUserResetSettings settings = context.Settings;
+        float distance = pairContext.OffsetAB.magnitude;
+        float maxDistance = Mathf.Max(0.1f, settings.opposingFlowMaxDistanceMeters);
+        if (distance <= EPSILON || distance > maxDistance)
+            return false;
+
+        float speedA = pairContext.VelocityA.magnitude;
+        float speedB = pairContext.VelocityB.magnitude;
+        float minSpeed = Mathf.Max(0.0f, settings.opposingFlowMinSpeedMetersPerSecond);
+        if (speedA < minSpeed || speedB < minSpeed)
+            return false;
+
+        Vector2 dirA = pairContext.VelocityA / speedA;
+        Vector2 dirB = pairContext.VelocityB / speedB;
+        float opposingFlow = Mathf.Max(0.0f, -Vector2.Dot(dirA, dirB));
+        if (opposingFlow <= EPSILON)
+            return false;
+
+        float sigma = Mathf.Max(0.01f, settings.opposingFlowKernelSigmaMeters);
+        float densityKernel = Mathf.Exp(-(distance * distance) / (2.0f * sigma * sigma));
+        float closingSpeed = Mathf.Max(0.0f, pairContext.ClosingSpeed);
+        float risk = densityKernel * opposingFlow * (closingSpeed + 0.5f * (speedA + speedB));
+        if (risk < Mathf.Max(0.0f, settings.opposingFlowRiskThreshold))
+            return false;
+
+        triggerEvent = RecoverabilityProactiveResetTriggerDetector.BuildTriggerEvent(context, pairContext);
+        triggerEvent.TriggerDistance = distance;
+        triggerEvent.ClosingSpeed = risk;
+        return true;
     }
 }
 

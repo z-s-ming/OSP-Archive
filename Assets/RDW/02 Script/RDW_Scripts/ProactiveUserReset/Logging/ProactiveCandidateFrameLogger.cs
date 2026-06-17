@@ -13,7 +13,7 @@ public static class ProactiveCandidateFrameLogger
         public float HorizonSeconds;
     }
 
-    private const string HEADER = "Date,Timestamp,episodeObjectId,frame,simTime,originTriggerId,candidateId,decisionId,executionId,userId,otherUserId,pairMinUserId,pairMaxUserId,judgeMode,selectionMode,candidateStatus,accepted,executed,resetDirectionX,resetDirectionY,keepMargin,selectedM,selectedCSelf,rejectReason";
+    private const string HEADER = "Date,Timestamp,episodeObjectId,frame,simTime,originTriggerId,candidateId,decisionId,executionId,userId,otherUserId,pairMinUserId,pairMaxUserId,judgeMode,selectionMode,candidateStatus,accepted,executed,resetDirectionX,resetDirectionY,keepMargin,selectedM,selectedCSelf,selectedScore,rejectReason";
     private static string logFilePath = string.Empty;
     private static readonly Dictionary<long, CandidateSession> activeSessionsByPair = new Dictionary<long, CandidateSession>();
 
@@ -64,6 +64,7 @@ public static class ProactiveCandidateFrameLogger
             KeepMargin = 0.0f,
             SelectedM = 0.0f,
             SelectedCSelf = 0.0f,
+            SelectedScore = 0.0f,
             Accepted = false,
             Executed = false,
             RejectReason = rejection.Reason
@@ -154,6 +155,7 @@ public static class ProactiveCandidateFrameLogger
         sb.Append(ToInvariant(candidate.KeepMargin)).Append(',');
         sb.Append(ToInvariant(candidate.SelectedM)).Append(',');
         sb.Append(ToInvariant(candidate.SelectedCSelf)).Append(',');
+        sb.Append(ToInvariant(candidate.SelectedScore)).Append(',');
         sb.Append(SanitizeCsv(string.IsNullOrEmpty(rejectReason) ? "NONE" : rejectReason));
         sb.AppendLine();
 

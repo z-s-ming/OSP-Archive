@@ -262,6 +262,7 @@ public class RedirectedUnit
                 int executionId = ProactiveResetEventIdTracker.NextExecutionId();
                 ProactiveResetEventIdTracker.RecordExecution(true);
                 _GCM.GlobalCoordinationManager.instance?.RegisterProactiveUserResetExecution(userId, otherUserId);
+                RoadConflictTuningLogger.NotifyProactiveExecution(userId, otherUserId, executionId);
                 _GCM.GM_DataRecord.instance?.LogInterResetDistance(
                     userId,
                     controller != null ? controller.GetEpisodeID() : -1,

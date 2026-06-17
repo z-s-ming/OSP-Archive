@@ -7,7 +7,8 @@ public static class ProactiveResetCandidateSelectorFactory
         if (selectionMode == ProactiveUserResetUserSelectionMode.None)
             return new NoProactiveResetCandidateSelector();
 
-        return new ArbitrationProactiveResetCandidateSelector();
+        bool useScoredArbitration = selectionMode == ProactiveUserResetUserSelectionMode.ScoredArbitration;
+        return new ArbitrationProactiveResetCandidateSelector(useScoredArbitration);
     }
 }
 
@@ -33,6 +34,13 @@ public class NoProactiveResetCandidateSelector : IProactiveResetCandidateSelecto
 
 public class ArbitrationProactiveResetCandidateSelector : IProactiveResetCandidateSelector
 {
+    private readonly bool useScoredArbitration;
+
+    public ArbitrationProactiveResetCandidateSelector(bool useScoredArbitration)
+    {
+        this.useScoredArbitration = useScoredArbitration;
+    }
+
     public bool TrySelectCandidate(
         ProactiveResetFrameContext context,
         ProactiveResetPairContext pairContext,
@@ -49,6 +57,14 @@ public class ArbitrationProactiveResetCandidateSelector : IProactiveResetCandida
             pairContext.UnitBId,
             Mathf.Max(0.0f, settings.arbitrationMEpsilon),
             Mathf.Max(0.0f, settings.arbitrationCEpsilon),
+            useScoredArbitration,
+            Mathf.Max(0.0f, settings.arbitrationScoreAlpha),
+            Mathf.Max(0.0f, settings.arbitrationScoreBeta),
+            Mathf.Max(0.0f, settings.arbitrationScoreGamma),
+            Mathf.Max(0.001f, settings.arbitrationScoreD0Meters),
+            Mathf.Max(0.001f, settings.arbitrationScoreEpsilonMeters),
+            Mathf.Max(0.0f, settings.arbitrationScoreTieEpsilon),
+            settings.resetDirectionMode,
             out ProactiveUserResetArbitrationService.ArbitrationResult arbitrationResult);
 
         if (!arbitrationSucceeded)
@@ -69,6 +85,19 @@ public class ArbitrationProactiveResetCandidateSelector : IProactiveResetCandida
         if (minExpectedImprovement > 0.0f &&
             arbitrationResult.SelectedM < arbitrationResult.KeepMargin + minExpectedImprovement)
         {
+            candidate = new ProactiveResetCandidate
+            {
+                SelectedUserId = arbitrationResult.SelectedUnitIndex,
+                OtherUserId = arbitrationResult.OtherUnitIndex,
+                ResetDirection = arbitrationResult.SelectedResetDirection,
+                KeepMargin = arbitrationResult.KeepMargin,
+                SelectedM = arbitrationResult.SelectedM,
+                SelectedCSelf = arbitrationResult.SelectedCSelf,
+                SelectedScore = arbitrationResult.SelectedScore,
+                Accepted = false,
+                Executed = false,
+                RejectReason = "InsufficientExpectedImprovement"
+            };
             rejection = new ProactiveResetRejection
             {
                 UserAId = pairContext.UnitAId,
@@ -86,7 +115,8 @@ public class ArbitrationProactiveResetCandidateSelector : IProactiveResetCandida
             ResetDirection = arbitrationResult.SelectedResetDirection,
             KeepMargin = arbitrationResult.KeepMargin,
             SelectedM = arbitrationResult.SelectedM,
-            SelectedCSelf = arbitrationResult.SelectedCSelf
+            SelectedCSelf = arbitrationResult.SelectedCSelf,
+            SelectedScore = arbitrationResult.SelectedScore
         };
         return true;
     }

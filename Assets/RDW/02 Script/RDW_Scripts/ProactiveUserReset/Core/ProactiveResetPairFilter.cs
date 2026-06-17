@@ -4,6 +4,7 @@ public class ProactiveResetPairFilter
 {
     private const float DirectionEpsilon = 0.0001f;
     private const float ClosingSpeedThreshold = 0.05f;
+    private const float ResetStatusFallbackSpeedMetersPerSecond = 1.0f;
 
     public bool TryBuildPairContext(
         ProactiveResetFrameContext context,
@@ -22,29 +23,36 @@ public class ProactiveResetPairFilter
         if (unitA == null || unitB == null || unitA.GetRealUser() == null || unitB.GetRealUser() == null)
             return false;
 
-        Vector2 movementA = unitA.GetLastMovementDirection();
-        Vector2 movementB = unitB.GetLastMovementDirection();
+        Vector2 offsetAB = unitB.GetRealUser().transform2D.localPosition - unitA.GetRealUser().transform2D.localPosition;
+        bool unitAIsResetting = IsResetStatus(unitA.GetStatus());
+        bool unitBIsResetting = IsResetStatus(unitB.GetStatus());
+
+        Vector2 movementA = ResolveMovementDirection(unitA, offsetAB, unitAIsResetting, true);
+        Vector2 movementB = ResolveMovementDirection(unitB, offsetAB, unitBIsResetting, false);
         if (movementA.sqrMagnitude <= DirectionEpsilon ||
             movementB.sqrMagnitude <= DirectionEpsilon)
         {
             return false;
         }
 
-        float speedA = Mathf.Max(0.0f, unitA.GetLastInstantaneousSpeed());
-        float speedB = Mathf.Max(0.0f, unitB.GetLastInstantaneousSpeed());
+        float speedA = ResolveSpeed(unitA, unitAIsResetting);
+        float speedB = ResolveSpeed(unitB, unitBIsResetting);
         Vector2 velocityA = NormalizeOrZero(movementA) * speedA;
         Vector2 velocityB = NormalizeOrZero(movementB) * speedB;
 
-        Vector2 offsetAB = unitB.GetRealUser().transform2D.localPosition - unitA.GetRealUser().transform2D.localPosition;
         float closingSpeed = ResolveClosingSpeedFromKinematics(offsetAB, velocityA, velocityB);
 
-        if (Vector2.Dot(velocityA, velocityB) >= 0.0f)
+        bool resetInvolved = unitAIsResetting || unitBIsResetting;
+        if (!resetInvolved && Vector2.Dot(velocityA, velocityB) >= 0.0f)
             return false;
 
-        if (closingSpeed <= ClosingSpeedThreshold)
+        if (resetInvolved)
+            closingSpeed = Mathf.Max(closingSpeed, ResetStatusFallbackSpeedMetersPerSecond);
+
+        if (!resetInvolved && closingSpeed <= ClosingSpeedThreshold)
             return false;
 
-        if (IsPotentialSingleSideCollision(offsetAB, velocityA, velocityB))
+        if (!resetInvolved && IsPotentialSingleSideCollision(offsetAB, velocityA, velocityB))
             return false;
 
         ProactiveUserResetSettings settings = context.Settings;
@@ -62,6 +70,35 @@ public class ProactiveResetPairFilter
             PredictionSampleCount = Mathf.Max(settings.predictionSampleCount, 2)
         };
         return true;
+    }
+
+    private static bool IsResetStatus(string status)
+    {
+        return string.Equals(status, "WALL_RESET", System.StringComparison.Ordinal) ||
+               string.Equals(status, "USER_RESET", System.StringComparison.Ordinal) ||
+               string.Equals(status, "SHUTTER_RESET", System.StringComparison.Ordinal) ||
+               string.Equals(status, "PROACTIVE_USER_RESET", System.StringComparison.Ordinal);
+    }
+
+    private static Vector2 ResolveMovementDirection(
+        RedirectedUnit unit,
+        Vector2 offsetAB,
+        bool isResetting,
+        bool isUnitA)
+    {
+        if (isResetting && offsetAB.sqrMagnitude > DirectionEpsilon)
+            return isUnitA ? offsetAB.normalized : -offsetAB.normalized;
+
+        return unit.GetLastMovementDirection();
+    }
+
+    private static float ResolveSpeed(RedirectedUnit unit, bool isResetting)
+    {
+        float speed = Mathf.Max(0.0f, unit.GetLastInstantaneousSpeed());
+        if (isResetting && speed <= ClosingSpeedThreshold)
+            return ResetStatusFallbackSpeedMetersPerSecond;
+
+        return speed;
     }
 
     private static Vector2 NormalizeOrZero(Vector2 vector)

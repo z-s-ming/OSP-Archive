@@ -57,10 +57,19 @@ namespace _GCM
         [SerializeField]
         private bool bUseCompareExperiment = true;
 
+        [Tooltip("Write the generated real/virtual initial pose and room bounds at every episode start.")]
+        [SerializeField]
+        private bool bExportEpisodeInitialState = true;
+
+        [Tooltip("Only replay seed-file initialization and export episode_initial_state.csv without running movement/reset simulation.")]
+        [SerializeField]
+        private bool bExportInitialStateOnlyFromSeedReplay = false;
+
         private const string CompareSeedFileName = "experiment_seeds_100.txt";
         private readonly List<int> compareExperimentSeeds = new List<int>();
         private bool compareSeedsLoaded = false;
         private int currentEpisodeSeed = int.MinValue;
+        private bool replayNextInitialStateEpisodeScheduled = false;
 
         /// <summary>
         /// Use Lloyd Relaxation for initial uniform distribution
@@ -217,6 +226,21 @@ namespace _GCM
             proactiveResetIntentDispatcher = new ProactiveResetIntentDispatcher(proactiveResetCooldown);
 
             //Academy.Instance.AutomaticSteppingEnabled = false;
+        }
+
+        public bool IsExperimentCompleted
+        {
+            get { return episodeService != null && episodeService.IsExperimentCompleted; }
+        }
+
+        public int CurrentCompletedEpisodeCount
+        {
+            get { return episodeService != null ? episodeService.CurrentSimulationCount : 0; }
+        }
+
+        public int CurrentEpisodeSeed
+        {
+            get { return currentEpisodeSeed; }
         }
 
         private void Start()
@@ -556,6 +580,9 @@ namespace _GCM
 
             SetResetParameters();
 
+            if (bExportInitialStateOnlyFromSeedReplay)
+                return;
+
             if (predictionEvaluator != null)
             {
                 predictionEvaluator.BeginEpisode(GetCurrentEpisodeId());
@@ -574,7 +601,12 @@ namespace _GCM
             BidirectionalCollisionRecoverabilityEvaluator.ResetTemporalState();
             VoronoiBoundaryProactiveResetTriggerDetector.ResetTemporalState();
             RecoveryMarginTrendProactiveResetTriggerDetector.ResetTemporalState();
+            CoverageSpreadProactiveResetTriggerDetector.ResetTemporalState();
             ProactiveResetEventIdTracker.ResetSession();
+            if (proactiveResetPipeline != null)
+            {
+                proactiveResetPipeline.ClearActiveTriggerSessions();
+            }
             ProactiveTriggerWindowLogger.ResetSession();
             ProactiveCandidateFrameLogger.ResetSession();
             BidirectionalCollisionDebugVisualizer.ResetSession();
@@ -1274,13 +1306,20 @@ namespace _GCM
         public void SetResetParameters()
         {
             RDWSimulationManager.instance.BStart = false;
-            RDWSimulationManager.instance.StartSimulation();
-
             bool seeded = TryApplyCompareSeedForEpisode();
             if (seeded)
             {
                 Debug.Log($"[CompareExperiment] Episode {episodeService.CurrentSimulationCount + 1} uses seed {currentEpisodeSeed}.");
             }
+            else
+            {
+                Debug.Log($"[CompareExperiment] Episode {episodeService.CurrentSimulationCount + 1} runs without a fixed compare seed.");
+            }
+
+            if (bExportInitialStateOnlyFromSeedReplay)
+                RDWSimulationManager.instance.PrepareSimulationEpisode();
+            else
+                RDWSimulationManager.instance.StartSimulation();
 
             if (!RDWSimulationManager.instance.TryGetRealSpaceHalfExtents(out physicalRoom_width_half, out physicalRoom_height_half))
             {
@@ -1333,7 +1372,46 @@ namespace _GCM
             stateCollector.SyncPreAndCurrentToUsers(totalUserCount);
             episodeService.BeginEpisode(stateCollector);
 
+            if (bExportEpisodeInitialState || bExportInitialStateOnlyFromSeedReplay)
+            {
+                GM_DataRecord.instance?.LogEpisodeInitialState(
+                    episodeService.CurrentSimulationCount + 1,
+                    currentEpisodeSeed,
+                    bExportInitialStateOnlyFromSeedReplay);
+            }
+
+            if (bExportInitialStateOnlyFromSeedReplay)
+            {
+                RDWSimulationManager.instance.BStart = false;
+                episodeService.CompleteInitialStateReplayEpisode();
+                if (episodeService.IsExperimentCompleted)
+                {
+                    Debug.Log($"[InitialStateReplay] Completed {episodeService.CurrentSimulationCount}/{episodeService.SimulationCountMax} episodes.");
+                }
+                else
+                {
+                    ScheduleNextInitialStateReplayEpisode();
+                }
+                return;
+            }
+
             InitializeInfoQueues();
+        }
+
+        private void ScheduleNextInitialStateReplayEpisode()
+        {
+            if (replayNextInitialStateEpisodeScheduled)
+                return;
+
+            replayNextInitialStateEpisodeScheduled = true;
+            StartCoroutine(RunNextInitialStateReplayEpisode());
+        }
+
+        private IEnumerator RunNextInitialStateReplayEpisode()
+        {
+            yield return null;
+            replayNextInitialStateEpisodeScheduled = false;
+            ResetEpisode();
         }
 
         /// </summary>

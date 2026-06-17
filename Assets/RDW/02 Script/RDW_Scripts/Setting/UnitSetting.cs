@@ -7,7 +7,7 @@ public enum RedirectType { Null, Default, S2C, APF, Space, Arrangement,
 public enum ResetType { Default, TwoOneTurn, APF_R_Turn, FreezeTurn, CenterTurn,
     APF_R_Turn_OSP, ARC_Turn, ARC_Turn_OSP
 }
-public enum EpisodeType { LongWalk, Random, PreDefined, WanderingEpisodeForFixedReset, WanderingEpisodeForAnyReset, NaturalTouring };
+public enum EpisodeType { LongWalk, Random, PreDefined, WanderingEpisodeForFixedReset, WanderingEpisodeForAnyReset, NaturalTouring, RoadWalk };
 
 [System.Serializable]
 public class UnitSetting
@@ -85,6 +85,12 @@ public class UnitSetting
                 virtualUser = new Circle2DBuilder().SetLocalPosition(virtualStartPosition).SetLocalRotation(virtualStartRotation).SetRadius(0.5f).SetParent(virtualSpace.spaceObject).Build();
         }
 
+        if (episodeType == EpisodeType.RoadWalk)
+        {
+            AlignRoadWalkStartDirection(realUser, realSpace, realStartPosition);
+            AlignRoadWalkStartDirection(virtualUser, virtualSpace, virtualStartPosition);
+        }
+
         return new RedirectedUnitBuilder()
             .SetController(GetController())
             .SetRedirector(GetRedirector())
@@ -94,6 +100,23 @@ public class UnitSetting
             .SetRealUser(realUser)
             .SetVirtualUser(virtualUser)
             .Build();
+    }
+
+    private void AlignRoadWalkStartDirection(Object2D user, Space2D space, Vector2 startPosition)
+    {
+        if (user == null || space == null || space.spaceObject == null)
+            return;
+
+        Bounds2D bounds = space.spaceObject.bound;
+        bool roadAlongX = bounds.size.x >= bounds.size.y;
+        Vector2 center = (bounds.min + bounds.max) * 0.5f;
+        Vector2 forward = roadAlongX
+            ? (startPosition.x <= center.x ? Vector2.right : Vector2.left)
+            : (startPosition.y <= center.y ? Vector2.up : Vector2.down);
+
+        user.transform2D.forward = forward;
+        if (user.gameObject != null)
+            user.gameObject.transform.forward = Utility.CastVector2Dto3D(forward);
     }
 
     public SimulationController GetController()
@@ -196,6 +219,9 @@ public class UnitSetting
                 break;
             case EpisodeType.NaturalTouring:
                 episode = new _GCM.NaturalTouringEpisode(episodeLength);
+                break;
+            case EpisodeType.RoadWalk:
+                episode = new RoadWalkEpisode(episodeLength);
                 break;
             default:
                 episode = new Episode(episodeLength);

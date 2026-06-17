@@ -219,6 +219,64 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 196262026}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &219103034
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 219103036}
+  - component: {fileID: 219103035}
+  m_Layer: 0
+  m_Name: RoadConflictTuningLogger_6x6_RoadWalk
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &219103035
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 219103034}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e3240517c4d346f44864e410f4071cab, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scenarioLabel: 6x6_RoadWalk_HeadOn
+  collisionDistanceMeters: 1
+  severeCloseDistanceMeters: 1.2
+  closeDistanceMeters: 1.5
+  releaseHysteresisMeters: 0.2
+  walkingDistanceBinMeters: 10
+  useMeanUserDistance: 1
+  logFrameSamples: 0
+  frameSampleStride: 10
+  writeLiveStatus: 1
+  flushIntervalSeconds: 2
+  outputSubfolder: roadConflictTuning
+  diagnosticDistanceMeters: 1.2
+  continuousCloseMinFrames: 5
+  writeOnlyProblemEvents: 1
+--- !u!4 &219103036
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 219103034}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 19.41567, y: 395.6727, z: 13.789024}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 11
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &346647690
 GameObject:
   m_ObjectHideFlags: 0
@@ -1513,7 +1571,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!114 &1648864910
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1613,10 +1671,10 @@ MonoBehaviour:
         count: 4
         size: 1
         vertices:
-        - {x: -5, y: 5}
-        - {x: 5, y: 5}
-        - {x: 5, y: -5}
-        - {x: -5, y: -5}
+        - {x: -3, y: 3}
+        - {x: 3, y: 3}
+        - {x: 3, y: -3}
+        - {x: -3, y: -3}
         radius: 0
         p1: {x: 0, y: 0}
         p2: {x: 0, y: 0}
@@ -1679,83 +1737,51 @@ MonoBehaviour:
         type: 0
         name: Virtual Space
         prefab: {fileID: 0}
-        position: {x: 100, y: 0}
+        position: {x: 25, y: 0}
         rotation: 0
         useRegularPolygon: 0
         count: 4
         size: 5
         vertices:
-        - {x: -50, y: 50}
-        - {x: 50, y: 50}
-        - {x: 50, y: -50}
-        - {x: -50, y: -50}
+        - {x: -12, y: 2}
+        - {x: 12, y: 2}
+        - {x: 12, y: -2}
+        - {x: -12, y: -2}
         radius: 0
         p1: {x: 0, y: 0}
         p2: {x: 0, y: 0}
       obstacleObjectSettings: []
     unitSettings:
-    - redirectType: 6
-      resetType: 5
-      episodeType: 1
+    - redirectType: 3
+      resetType: 2
+      episodeType: 6
       episodeLength: 99999
       episodeFileName: 
-      useRandomStartReal: 1
-      useRandomStartVirtual: 1
+      useRandomStartReal: 0
+      useRandomStartVirtual: 0
       userPrefab: {fileID: 3594628791589679955, guid: 9a6a8fb013cb28f418095cf7cdcb3d2c,
         type: 3}
-      userStartRotation: 0
-      realStartRotation: 0
+      userStartRotation: 270
+      realStartRotation: 270
       virtualStartRotation: 0
-      realStartPosition: {x: 1.5, y: -0.01}
-      virtualStartPosition: {x: 0, y: 0}
+      realStartPosition: {x: -1.8, y: 0}
+      virtualStartPosition: {x: -10.5, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
-      episodeType: 1
+    - redirectType: 3
+      resetType: 2
+      episodeType: 6
       episodeLength: 99999
       episodeFileName: 
-      useRandomStartReal: 1
-      useRandomStartVirtual: 1
+      useRandomStartReal: 0
+      useRandomStartVirtual: 0
       userPrefab: {fileID: 3594628791589679955, guid: 9a6a8fb013cb28f418095cf7cdcb3d2c,
         type: 3}
-      userStartRotation: 0
-      realStartRotation: 0
+      userStartRotation: 90
+      realStartRotation: 90
       virtualStartRotation: 0
-      realStartPosition: {x: 1.5, y: -0.01}
-      virtualStartPosition: {x: 0, y: 0}
-      translationSpeed: 1
-      rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
-      episodeType: 1
-      episodeLength: 99999
-      episodeFileName: 
-      useRandomStartReal: 1
-      useRandomStartVirtual: 1
-      userPrefab: {fileID: 3594628791589679955, guid: 9a6a8fb013cb28f418095cf7cdcb3d2c,
-        type: 3}
-      userStartRotation: 0
-      realStartRotation: 0
-      virtualStartRotation: 0
-      realStartPosition: {x: 1.5, y: -0.01}
-      virtualStartPosition: {x: 0, y: 0}
-      translationSpeed: 1
-      rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
-      episodeType: 1
-      episodeLength: 99999
-      episodeFileName: 
-      useRandomStartReal: 1
-      useRandomStartVirtual: 1
-      userPrefab: {fileID: 3594628791589679955, guid: 9a6a8fb013cb28f418095cf7cdcb3d2c,
-        type: 3}
-      userStartRotation: 0
-      realStartRotation: 0
-      virtualStartRotation: 0
-      realStartPosition: {x: 1.5, y: -0.01}
-      virtualStartPosition: {x: 0, y: 0}
+      realStartPosition: {x: 1.8, y: 0}
+      virtualStartPosition: {x: 10.5, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
     bAllowUserReset: 1
@@ -1765,21 +1791,14 @@ MonoBehaviour:
       enableStrategy: 1
       judgeMode: 4
       userSelectionMode: 0
-      resetDirectionMode: 0
       predictionHorizonSeconds: 1.5
       predictionSampleCount: 60
       simpleTriggerDistanceMeters: 1.5
       simpleClosingSpeedThreshold: 0.05
-      ttcCollisionDistanceMeters: 1
-      ttcMinTimeToHitSeconds: 0.5
+      ttcCollisionDistanceMeters: 1.2
+      ttcMinTimeToHitSeconds: 0.2
       arbitrationMEpsilon: 0.02
       arbitrationCEpsilon: 0.05
-      arbitrationScoreAlpha: 1
-      arbitrationScoreBeta: 1
-      arbitrationScoreGamma: 1.5
-      arbitrationScoreD0Meters: 2
-      arbitrationScoreEpsilonMeters: 0.1
-      arbitrationScoreTieEpsilon: 0.001
       enableInPlaceSafetyCheck: 1
       inPlaceSafetyBufferSeconds: 0.2
       executionCooldownSeconds: 1.5
@@ -1794,15 +1813,7 @@ MonoBehaviour:
       recoveryMarginMaxThresholdMeters: 0.5
       recoveryMarginTrendWindowFrames: 5
       recoveryMarginTrendRequiredFrames: 3
-      proactiveMinExpectedImprovementMeters: 0.2
-      coverageSpreadThreshold: 1
-      coverageSpreadMinImprovement: 0.1
-      coverageSpreadTrendWindowFrames: 5
-      coverageSpreadTrendRequiredFrames: 3
-      opposingFlowKernelSigmaMeters: 2
-      opposingFlowRiskThreshold: 0.15
-      opposingFlowMinSpeedMetersPerSecond: 0.05
-      opposingFlowMaxDistanceMeters: 4
+      proactiveMinExpectedImprovementMeters: 0
     enableProactiveResetPairDistanceLogging: 1
     showTarget: 0
     showResetLocator: 0
@@ -1888,11 +1899,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2dea9268e3f6ce41a56d0f1f4d5d064, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  totalUserCount: 4
+  totalUserCount: 2
   userRadius: 0.5
   shutterWidth: 0.5
   SimulationCount_max: 100
-  TargetDistancePerUser: 200
+  TargetDistancePerUser: 100
   bMixedExploration: 0
   bUseCompareExperiment: 1
   bEnable_InitPhyUserPosUni: 0

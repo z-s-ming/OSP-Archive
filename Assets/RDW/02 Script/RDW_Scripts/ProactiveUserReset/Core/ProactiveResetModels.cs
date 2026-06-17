@@ -60,6 +60,7 @@ public struct ProactiveResetCandidate
     public float KeepMargin;
     public float SelectedM;
     public float SelectedCSelf;
+    public float SelectedScore;
     public bool Accepted;
     public bool Executed;
     public string RejectReason;

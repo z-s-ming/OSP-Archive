@@ -70,6 +70,9 @@ namespace _GCM
             int singleActionCount = RDWSimulationManager.instance.GetEpisodeSingleUserResetEventCount();
             int boundaryCollisionCount = 0;
             List<int> userResetCounts = new List<int>();
+            int episodeSeed = GlobalCoordinationManager.instance != null
+                ? GlobalCoordinationManager.instance.CurrentEpisodeSeed
+                : int.MinValue;
 
             for (int i = 0; i < _totalUserCount; i++)
             {
@@ -90,6 +93,7 @@ namespace _GCM
 
             float userResetVariance = CalculateVariance(userResetCounts);
 
+            sb.Append(episodeSeed == int.MinValue ? "NA" : episodeSeed.ToString()).Append(',');
             sb.Append(totalResetCountFromUsers).Append(',');
             sb.Append(userResetVariance.ToString("F4")).Append(',');
             sb.Append(boundaryCollisionCount).Append(',');
@@ -120,6 +124,25 @@ namespace _GCM
             {
                 IsExperimentCompleted = true;
                 GM_DataRecord.instance?.Save_SteamingData_Batch();
+                GM_DataRecord.instance?.Save_InterResetDistance_Batch();
+            }
+        }
+
+        public void CompleteInitialStateReplayEpisode()
+        {
+            if (IsExperimentCompleted)
+                return;
+
+            CurrentSimulationCount++;
+            if (_textCurrentEpisode != null)
+            {
+                int nextEpisodeDisplay = Mathf.Min(CurrentSimulationCount + 1, SimulationCountMax);
+                _textCurrentEpisode.text = "Current Episode : " + nextEpisodeDisplay;
+            }
+
+            if (CurrentSimulationCount >= SimulationCountMax)
+            {
+                IsExperimentCompleted = true;
                 GM_DataRecord.instance?.Save_InterResetDistance_Batch();
             }
         }

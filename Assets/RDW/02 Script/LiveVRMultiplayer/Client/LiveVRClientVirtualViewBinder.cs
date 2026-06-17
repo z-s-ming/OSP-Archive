@@ -162,6 +162,12 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
             return;
         }
 
+        if (manager.Mode == LiveVRExperimentMode.Disabled)
+        {
+            ClearActiveHostGain();
+            return;
+        }
+
         if (manager.IsHost)
         {
             LogApplyGainSkip("host_mode", manager, null);
