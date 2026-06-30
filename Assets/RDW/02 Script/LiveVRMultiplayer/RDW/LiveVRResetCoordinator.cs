@@ -95,6 +95,9 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
         if (!CanCoordinate(manager) || unit == null || plan.UserId < 0)
             return false;
 
+        if (manager.IsUserRunComplete(plan.UserId))
+            return false;
+
         if (manager.ShouldUseSimulatedUser(plan.UserId, stalePoseTimeoutSeconds, requireFreshCalibratedPose))
             return false;
 
@@ -163,6 +166,14 @@ public class LiveVRResetCoordinator : MonoBehaviour, IRdwResetExecutionCoordinat
         foreach (KeyValuePair<int, ActiveReset> item in activeByPlanId)
         {
             ActiveReset activeReset = item.Value;
+            if (manager.IsUserRunComplete(activeReset.Plan.UserId))
+            {
+                if (activeReset.Unit != null)
+                    activeReset.Unit.CancelExternalResetForLiveRestart();
+                completedPlanIds.Add(activeReset.Plan.PlanId);
+                continue;
+            }
+
             TickActiveReset(manager, activeReset);
 
             if (IsResetTimedOut(activeReset))

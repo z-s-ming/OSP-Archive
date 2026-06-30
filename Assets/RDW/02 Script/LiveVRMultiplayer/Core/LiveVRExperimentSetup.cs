@@ -28,6 +28,8 @@ public class LiveVRExperimentSetup : MonoBehaviour
 
     [Header("Hybrid Fallback")]
     [SerializeField] private bool allowSimulatedFallbackForMissingUsersOnStart = false;
+    [SerializeField] private bool waitForSimulatedFallbackUntilLiveUserMoves = true;
+    [SerializeField] private float liveMovementReleaseDistanceMeters = 0.08f;
     [HideInInspector]
     [SerializeField] private LiveVRUserSource[] userSources = new LiveVRUserSource[0];
 
@@ -151,26 +153,11 @@ public class LiveVRExperimentSetup : MonoBehaviour
     [SerializeField] private string clientVisualEnvironmentLayerName = "VirtualWall";
     [SerializeField] private bool applyVirtualSpaceSettingTransformToClientEnvironment = true;
     [SerializeField] private bool disableClientEnvironmentCameras = true;
-    [SerializeField] private bool keepOnlyClientWalkableEnvironment = false;
-    [SerializeField] private string[] clientWalkableEnvironmentRootNamesToKeep = { "walkingArea", "Floor_Tiles", "Terrain" };
-    [SerializeField] private string[] clientWalkableEnvironmentRootNamesToHideInside =
-    {
-        "Trees",
-        "Rocks",
-        "Props",
-        "Mushrooms",
-        "Plants",
-        "Water",
-        "Mountains",
-        "obstacle_*",
-        "Cube*"
-    };
 
     [Header("Client Target Guide")]
     [SerializeField] private bool enableClientTargetGuide = true;
     [SerializeField] private bool suppressHostEpisodeTargetsInLiveUser = true;
     [SerializeField] private bool showClientTargetOnlyWhileRunning = true;
-    [SerializeField] private LiveVRClientTargetGuideMode clientTargetGuideMode = LiveVRClientTargetGuideMode.Random;
     [SerializeField] private string clientTargetLayerName = "VirtualWall";
     [SerializeField] private bool useClientTargetAreaAnchorBounds = true;
     [SerializeField] private string clientTargetAreaAnchorName = "walkingArea";
@@ -181,11 +168,6 @@ public class LiveVRExperimentSetup : MonoBehaviour
     [SerializeField] private float clientTargetHeightMeters = 1.35f;
     [SerializeField] private float clientTargetRadiusMeters = 0.18f;
     [SerializeField] private float clientTargetReachDistanceMeters = 0.65f;
-    [SerializeField] private float clientTargetMinDistanceFromUserMeters = 2.0f;
-    [SerializeField] private float clientTargetMinSpawnDistanceMeters = 4.0f;
-    [SerializeField] private float clientTargetMaxSpawnDistanceMeters = 8.0f;
-    [SerializeField] private int clientTargetCountPerRun = 1;
-    [SerializeField] private int clientTargetBaseSeed = 1000;
 
     [Header("Client Host Connection")]
     [SerializeField] private bool useSavedClientHostConnection = true;
@@ -261,6 +243,8 @@ public class LiveVRExperimentSetup : MonoBehaviour
                 stalePoseTimeoutSeconds,
                 requireCalibratedPose,
                 logMissingPoses,
+                waitForSimulatedFallbackUntilLiveUserMoves,
+                liveMovementReleaseDistanceMeters,
                 userSources);
         }
 
@@ -396,10 +380,7 @@ public class LiveVRExperimentSetup : MonoBehaviour
                 loadClientVisualEnvironment,
                 clientVisualEnvironmentLayerName,
                 applyVirtualSpaceSettingTransformToClientEnvironment,
-                disableClientEnvironmentCameras,
-                keepOnlyClientWalkableEnvironment,
-                clientWalkableEnvironmentRootNamesToKeep,
-                clientWalkableEnvironmentRootNamesToHideInside);
+                disableClientEnvironmentCameras);
         }
 
         if (clientTargetGuide != null)
@@ -411,7 +392,6 @@ public class LiveVRExperimentSetup : MonoBehaviour
                 clientTargetPrefab,
                 enableClientTargetGuide,
                 showClientTargetOnlyWhileRunning,
-                clientTargetGuideMode,
                 clientTargetLayerName,
                 useClientTargetAreaAnchorBounds,
                 clientTargetAreaAnchorName,
@@ -419,12 +399,7 @@ public class LiveVRExperimentSetup : MonoBehaviour
                 clientTargetAreaDepthMeters,
                 clientTargetHeightMeters,
                 clientTargetRadiusMeters,
-                clientTargetReachDistanceMeters,
-                clientTargetMinDistanceFromUserMeters,
-                clientTargetMinSpawnDistanceMeters,
-                clientTargetMaxSpawnDistanceMeters,
-                clientTargetCountPerRun,
-                clientTargetBaseSeed);
+                clientTargetReachDistanceMeters);
         }
 
         if (liveSpaceProfileProvider != null)

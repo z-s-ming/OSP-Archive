@@ -708,6 +708,24 @@ public class RDWSimulationManager : MonoBehaviour
 
     public void StartSimulation()
     {
+        if (IsLiveUserExperiment())
+        {
+            StopAllCoroutines();
+
+            if (redirectedUnits == null ||
+                simulationSetting == null ||
+                simulationSetting.unitSettings == null ||
+                redirectedUnits.Length != simulationSetting.unitSettings.Length)
+            {
+                DestroyAll();
+                GenerateSpaces();
+                GenerateUnits();
+            }
+
+            bStart = true;
+            return;
+        }
+
         if (!bStart)
         {
             StopAllCoroutines();
@@ -725,7 +743,13 @@ public class RDWSimulationManager : MonoBehaviour
         DestroyAll();
         GenerateSpaces();
         GenerateUnits();
-        bStart = true;
+        bStart = false;
+    }
+
+    private bool IsLiveUserExperiment()
+    {
+        return simulationSetting != null &&
+               simulationSetting.experimentProfile == ExperimentProfile.LiveUser;
     }
 
     Queue<DateTime> queue_userresetinfo = new Queue<DateTime>();

@@ -24,6 +24,14 @@ namespace _GCM
         public int CurrentSimulationCount { get; private set; }
         public bool IsExperimentCompleted { get; private set; }
 
+        public void ResetExperimentProgress()
+        {
+            CurrentSimulationCount = 0;
+            IsExperimentCompleted = false;
+            if (_textCurrentEpisode != null)
+                _textCurrentEpisode.text = "Current Episode : 1";
+        }
+
         public void BeginEpisode(StateCollector stateCollector)
         {
             stateCollector?.ResetEpisodeDistance();

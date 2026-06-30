@@ -4,8 +4,6 @@ using UnityEngine;
 
 public class RandomEpisode : Episode
 {
-    private const float MinSegmentDistance = 4.0f;
-    private const float MaxSegmentDistance = 8.0f;
     private const float MinFallbackSegmentDistance = 0.5f;
     private const float FallbackDistanceStep = 0.25f;
     private const float FallbackAngleStep = 10.0f;
@@ -13,6 +11,10 @@ public class RandomEpisode : Episode
     private const float TargetInsideBound = 0.5f;
     private const int MaxSamplingAttempts = 10000;
     private readonly List<float> turnAngles = new List<float>();
+
+    protected virtual float MinSegmentDistance { get { return 4.0f; } }
+    protected virtual float MaxSegmentDistance { get { return 8.0f; } }
+    protected virtual string EpisodeName { get { return "RandomEpisode"; } }
 
     public RandomEpisode() : base()
     {
@@ -89,7 +91,11 @@ public class RandomEpisode : Episode
             out Vector2 fallbackTarget,
             out float fallbackDistance))
         {
-            Debug.LogWarning("RandomEpisode failed to sample a valid 4-8m target. Using a shorter reachable target instead.");
+            Debug.LogWarning(string.Format(
+                "{0} failed to sample a valid {1:F0}-{2:F0}m target. Using a shorter reachable target instead.",
+                EpisodeName,
+                MinSegmentDistance,
+                MaxSegmentDistance));
             generatedPathDistance += fallbackDistance;
             currentTargetPosition = fallbackTarget;
 
@@ -99,7 +105,7 @@ public class RandomEpisode : Episode
             return;
         }
 
-        Debug.LogWarning("RandomEpisode failed to find any reachable target. Ending this user's episode path.");
+        Debug.LogWarning(EpisodeName + " failed to find any reachable target. Ending this user's episode path.");
         episodeLength = currentEpisodeIndex;
         currentTargetPosition = userPosition;
     }

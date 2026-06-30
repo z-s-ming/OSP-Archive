@@ -13,6 +13,8 @@ public struct LiveVRPoseSample
     public float YawDegrees;
     public float HeightMeters;
     public bool IsCalibrated;
+    public string ClientSessionId;
+    public int CalibrationVersion;
 
     public float AgeSeconds
     {
@@ -28,7 +30,7 @@ public struct LiveVRPoseSample
         CultureInfo c = CultureInfo.InvariantCulture;
         return string.Format(
             c,
-            "POSE|{0}|{1}|{2}|{3:R}|{4:R}|{5:R}|{6:R}|{7}",
+            "POSE|{0}|{1}|{2}|{3:R}|{4:R}|{5:R}|{6:R}|{7}|{8}|{9}",
             UserId,
             Sequence,
             ClientUnixMilliseconds,
@@ -36,7 +38,9 @@ public struct LiveVRPoseSample
             ExperimentPosition.y,
             YawDegrees,
             HeightMeters,
-            IsCalibrated ? 1 : 0);
+            IsCalibrated ? 1 : 0,
+            Escape(ClientSessionId),
+            CalibrationVersion);
     }
 
     public static bool TryParse(string message, out LiveVRPoseSample sample)
@@ -46,7 +50,7 @@ public struct LiveVRPoseSample
             return false;
 
         string[] parts = message.Split('|');
-        if (parts.Length != 9 || parts[0] != "POSE")
+        if ((parts.Length != 9 && parts.Length != 11) || parts[0] != "POSE")
             return false;
 
         CultureInfo c = CultureInfo.InvariantCulture;
@@ -79,6 +83,29 @@ public struct LiveVRPoseSample
         sample.YawDegrees = yaw;
         sample.HeightMeters = height;
         sample.IsCalibrated = calibrated != 0;
+        sample.ClientSessionId = parts.Length >= 10 ? Unescape(parts[9]) : string.Empty;
+        if (parts.Length >= 11)
+        {
+            int calibrationVersion;
+            if (int.TryParse(parts[10], NumberStyles.Integer, c, out calibrationVersion))
+                sample.CalibrationVersion = calibrationVersion;
+        }
         return true;
+    }
+
+    private static string Escape(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value.Replace("%", "%25").Replace("|", "%7C");
+    }
+
+    private static string Unescape(string value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return string.Empty;
+
+        return value.Replace("%7C", "|").Replace("%25", "%");
     }
 }

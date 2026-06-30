@@ -446,17 +446,19 @@ public struct LiveVRHelloMessage
     public bool ProactiveResetEnabled;
     public string DeviceKey;
     public string DeviceName;
+    public string ClientSessionId;
 
     public string ToNetworkMessage()
     {
         return string.Format(
             CultureInfo.InvariantCulture,
-            "HELLO|{0}|{1}|{2}|{3}|{4}",
+            "HELLO|{0}|{1}|{2}|{3}|{4}|{5}",
             UserId,
             ClientUnixMilliseconds,
             ProactiveResetEnabled ? 1 : 0,
             Escape(DeviceKey),
-            Escape(DeviceName));
+            Escape(DeviceName),
+            Escape(ClientSessionId));
     }
 
     public static bool TryParse(string message, out LiveVRHelloMessage hello)
@@ -466,7 +468,7 @@ public struct LiveVRHelloMessage
             return false;
 
         string[] parts = message.Split('|');
-        if (parts.Length < 3 || parts.Length > 6 || parts[0] != "HELLO")
+        if (parts.Length < 3 || parts.Length > 7 || parts[0] != "HELLO")
             return false;
 
         int userId;
@@ -482,6 +484,7 @@ public struct LiveVRHelloMessage
         hello.ProactiveResetEnabled = parts.Length < 4 || parts[3] != "0";
         hello.DeviceKey = parts.Length >= 5 ? Unescape(parts[4]) : string.Empty;
         hello.DeviceName = parts.Length >= 6 ? Unescape(parts[5]) : string.Empty;
+        hello.ClientSessionId = parts.Length >= 7 ? Unescape(parts[6]) : string.Empty;
         return true;
     }
 
@@ -644,24 +647,29 @@ public struct LiveVRStateMessage
 {
     public LiveVRExperimentState ExperimentState;
     public long HostUnixMilliseconds;
+    public int TargetSeed;
+    public int TargetSeedVersion;
 
     public string ToNetworkMessage()
     {
         return string.Format(
             CultureInfo.InvariantCulture,
-            "STATE|{0}|{1}",
+            "STATE|{0}|{1}|{2}|{3}",
             ExperimentState,
-            HostUnixMilliseconds);
+            HostUnixMilliseconds,
+            TargetSeed,
+            TargetSeedVersion);
     }
 
     public static bool TryParse(string message, out LiveVRStateMessage stateMessage)
     {
         stateMessage = default(LiveVRStateMessage);
+        stateMessage.TargetSeed = int.MinValue;
         if (string.IsNullOrEmpty(message))
             return false;
 
         string[] parts = message.Split('|');
-        if (parts.Length != 3 || parts[0] != "STATE")
+        if ((parts.Length != 3 && parts.Length != 5) || parts[0] != "STATE")
             return false;
 
         LiveVRExperimentState state;
@@ -674,6 +682,17 @@ public struct LiveVRStateMessage
 
         stateMessage.ExperimentState = state;
         stateMessage.HostUnixMilliseconds = hostTime;
+        if (parts.Length >= 5)
+        {
+            int targetSeed;
+            int targetSeedVersion;
+            if (int.TryParse(parts[3], NumberStyles.Integer, CultureInfo.InvariantCulture, out targetSeed) &&
+                int.TryParse(parts[4], NumberStyles.Integer, CultureInfo.InvariantCulture, out targetSeedVersion))
+            {
+                stateMessage.TargetSeed = targetSeed;
+                stateMessage.TargetSeedVersion = targetSeedVersion;
+            }
+        }
         return true;
     }
 }

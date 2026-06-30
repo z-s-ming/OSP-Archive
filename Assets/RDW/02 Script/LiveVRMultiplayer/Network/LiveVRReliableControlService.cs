@@ -17,6 +17,7 @@ public class LiveVRReliableControlService
     }
 
     private readonly Dictionary<string, PendingMessage> pendingByMessageId = new Dictionary<string, PendingMessage>();
+    private readonly HashSet<string> timedOutMessageTypes = new HashSet<string>();
     private readonly List<string> scratchIds = new List<string>();
     private readonly object pendingLock = new object();
     private Action<int, string> sendToUser;
@@ -65,7 +66,10 @@ public class LiveVRReliableControlService
             NextSendTime = 0.0f
         };
         lock (pendingLock)
+        {
+            timedOutMessageTypes.Remove(messageType);
             pendingByMessageId[messageId] = pending;
+        }
         SendPending(pending);
         return messageId;
     }
@@ -102,6 +106,12 @@ public class LiveVRReliableControlService
         return false;
     }
 
+    public bool HasTimedOutType(string messageType)
+    {
+        lock (pendingLock)
+            return timedOutMessageTypes.Contains(messageType);
+    }
+
     public void Tick()
     {
         if (sendToUser == null)
@@ -126,6 +136,7 @@ public class LiveVRReliableControlService
                 {
                     pending.TimedOut = true;
                     TimeoutCountTotal++;
+                    timedOutMessageTypes.Add(pending.MessageType);
                     if (logWarning != null)
                         logWarning(string.Format("[LiveVR] Reliable control timed out: type={0} target={1} messageId={2}", pending.MessageType, pending.TargetUserId, pending.MessageId));
                     scratchIds.Add(pair.Key);
@@ -144,7 +155,10 @@ public class LiveVRReliableControlService
     public void Clear()
     {
         lock (pendingLock)
+        {
             pendingByMessageId.Clear();
+            timedOutMessageTypes.Clear();
+        }
     }
 
     private void SendPending(PendingMessage pending)

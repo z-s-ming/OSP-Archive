@@ -12,6 +12,8 @@ public struct LiveHmdPoseSample
     public float YawDegrees;
     public float HeightMeters;
     public bool IsCalibrated;
+    public string ClientSessionId;
+    public int CalibrationVersion;
 
     public float AgeSeconds
     {
@@ -32,6 +34,8 @@ public struct LiveHmdPoseSample
         YawDegrees = sample.YawDegrees;
         HeightMeters = sample.HeightMeters;
         IsCalibrated = sample.IsCalibrated;
+        ClientSessionId = sample.ClientSessionId;
+        CalibrationVersion = sample.CalibrationVersion;
     }
 
     public LiveVRPoseSample ToLiveVRPoseSample()
@@ -45,7 +49,9 @@ public struct LiveHmdPoseSample
             ExperimentPosition = ExperimentPosition,
             YawDegrees = YawDegrees,
             HeightMeters = HeightMeters,
-            IsCalibrated = IsCalibrated
+            IsCalibrated = IsCalibrated,
+            ClientSessionId = ClientSessionId,
+            CalibrationVersion = CalibrationVersion
         };
     }
 

@@ -62,7 +62,7 @@ public class LiveVRProtocolVersionContext
 
         if (envelope.CalibrationVersion > 0 &&
             calibrationVersion > 0 &&
-            envelope.CalibrationVersion != calibrationVersion)
+            envelope.CalibrationVersion < calibrationVersion)
         {
             return false;
         }

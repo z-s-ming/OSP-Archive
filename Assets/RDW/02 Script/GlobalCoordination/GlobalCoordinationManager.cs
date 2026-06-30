@@ -69,6 +69,7 @@ namespace _GCM
         private readonly List<int> compareExperimentSeeds = new List<int>();
         private bool compareSeedsLoaded = false;
         private int currentEpisodeSeed = int.MinValue;
+        private int manualRestartSeedOffset = 0;
         private bool replayNextInitialStateEpisodeScheduled = false;
 
         /// <summary>
@@ -243,6 +244,23 @@ namespace _GCM
             get { return currentEpisodeSeed; }
         }
 
+        public int CurrentEpisodeSeedVersion
+        {
+            get { return manualRestartSeedOffset; }
+        }
+
+        public void ResetExperimentProgressForManualRestart()
+        {
+            ResetExperimentProgressForManualRestart(false);
+        }
+
+        public void ResetExperimentProgressForManualRestart(bool advanceSeed)
+        {
+            episodeService?.ResetExperimentProgress();
+            if (advanceSeed)
+                manualRestartSeedOffset++;
+        }
+
         private void Start()
         {
             EnsureModuleConfig();
@@ -343,7 +361,7 @@ namespace _GCM
             if (compareExperimentSeeds.Count == 0)
                 return false;
 
-            int seedIndex = episodeService.CurrentSimulationCount % compareExperimentSeeds.Count;
+            int seedIndex = (manualRestartSeedOffset + episodeService.CurrentSimulationCount) % compareExperimentSeeds.Count;
             currentEpisodeSeed = compareExperimentSeeds[seedIndex];
             Random.InitState(currentEpisodeSeed);
             return true;
@@ -728,7 +746,9 @@ namespace _GCM
             episodeService.TargetDistancePerUser = TargetDistancePerUser;
             episodeService.Tick(stateCollector);
 
-            if (!episodeService.ShouldEndEpisode(stateCollector))
+            bool liveVRCompletedByDistance = TryMarkLiveVRUsersCompleteFromDistance();
+            bool shouldEndEpisode = liveVRCompletedByDistance || episodeService.ShouldEndEpisode(stateCollector);
+            if (!shouldEndEpisode)
                 return false;
 
             Debug.Log($"Episode Finished. Total Virtual Dist: {stateCollector.CurrentEpisodeTotalDistance}");
@@ -801,6 +821,28 @@ namespace _GCM
 
             ResetEpisode();
             return true;
+        }
+
+        private bool TryMarkLiveVRUsersCompleteFromDistance()
+        {
+            global::LiveVRNetworkManager liveVRNetworkManager = global::LiveVRNetworkManager.Instance;
+            if (liveVRNetworkManager == null || !liveVRNetworkManager.IsHost || stateCollector == null)
+                return false;
+
+            int count = Mathf.Min(totalUserCount, stateCollector.UsersCumulativeDist.Count);
+            for (int userId = 0; userId < count; userId++)
+            {
+                float cumulativeDistance = stateCollector.UsersCumulativeDist[userId];
+                if (cumulativeDistance >= TargetDistancePerUser)
+                {
+                    liveVRNetworkManager.MarkUserRunCompleteFromHost(
+                        userId,
+                        cumulativeDistance,
+                        "gcm_virtual_distance");
+                }
+            }
+
+            return liveVRNetworkManager.AreAllExpectedUsersRunComplete();
         }
 
         private void EvaluatePartitionAndRisk(
@@ -1317,6 +1359,9 @@ namespace _GCM
             }
 
             if (bExportInitialStateOnlyFromSeedReplay)
+                RDWSimulationManager.instance.PrepareSimulationEpisode();
+            else if (RDWSimulationManager.instance.simulationSetting != null &&
+                     RDWSimulationManager.instance.simulationSetting.experimentProfile == ExperimentProfile.LiveUser)
                 RDWSimulationManager.instance.PrepareSimulationEpisode();
             else
                 RDWSimulationManager.instance.StartSimulation();

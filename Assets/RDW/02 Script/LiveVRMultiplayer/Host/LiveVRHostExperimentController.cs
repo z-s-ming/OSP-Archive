@@ -77,10 +77,17 @@ public class LiveVRHostExperimentController : MonoBehaviour
         if (manager == null || !manager.IsHost)
             return;
 
-        if (manager.ExperimentState == LiveVRExperimentState.WaitingForUsers && AreExpectedUsersReady())
+        if (manager.ExperimentState == LiveVRExperimentState.WaitingForUsers &&
+            !HasPendingRestartRecovery(manager) &&
+            AreExpectedUsersReady())
+        {
             manager.SetExperimentState(LiveVRExperimentState.Ready);
-        else if (manager.ExperimentState == LiveVRExperimentState.Ready && !AreExpectedUsersReady())
+        }
+        else if (manager.ExperimentState == LiveVRExperimentState.Ready &&
+                 (HasPendingRestartRecovery(manager) || !AreExpectedUsersReady()))
+        {
             manager.SetExperimentState(LiveVRExperimentState.WaitingForUsers);
+        }
 
         if (!enableKeyboardControls)
             return;
@@ -99,6 +106,8 @@ public class LiveVRHostExperimentController : MonoBehaviour
             SoftRestartRun();
         if (Input.GetKeyDown(KeyCode.F9))
             RecalibrateAndRestart();
+        if (Input.GetKeyDown(KeyCode.F10))
+            NewSeedRestartRun();
     }
 
     private void OnGUI()
@@ -113,7 +122,7 @@ public class LiveVRHostExperimentController : MonoBehaviour
         EnsureGuiStyles();
         LiveVRClientConnectionInfo[] clients = manager.GetClientConnectionsSnapshot();
 
-        Rect panel = new Rect(Screen.width - 360.0f, 12.0f, 348.0f, 318.0f);
+        Rect panel = new Rect(Screen.width - 360.0f, 12.0f, 348.0f, 354.0f);
         GUI.Box(panel, GUIContent.none, panelStyle);
         GUI.Label(new Rect(panel.x + 12.0f, panel.y + 10.0f, 320.0f, 24.0f), "LiveVR Host Controls", labelStyle);
         GUI.Label(new Rect(panel.x + 12.0f, panel.y + 34.0f, 320.0f, 22.0f), string.Format("Run ID: {0}", GetHostRunIdLabel()), labelStyle);
@@ -144,10 +153,12 @@ public class LiveVRHostExperimentController : MonoBehaviour
             SoftRestartRun();
         if (GUI.Button(new Rect(panel.x + 170.0f, panel.y + 232.0f, 154.0f, 30.0f), "Recalibrate Restart", buttonStyle))
             RecalibrateAndRestart();
+        if (GUI.Button(new Rect(panel.x + 12.0f, panel.y + 268.0f, 312.0f, 30.0f), "New Seed Restart", buttonStyle))
+            NewSeedRestartRun();
 
         GUI.Label(
-            new Rect(panel.x + 12.0f, panel.y + 270.0f, 320.0f, 38.0f),
-            string.Format("Auto assignment active. Clients seen: {0}. F8 soft restart, F9 recalibrate restart.", clients != null ? clients.Length : 0),
+            new Rect(panel.x + 12.0f, panel.y + 306.0f, 320.0f, 38.0f),
+            string.Format("Auto assignment active. Clients seen: {0}. F8 soft, F9 recalibrate, F10 new seed.", clients != null ? clients.Length : 0),
             labelStyle);
     }
 
@@ -165,7 +176,9 @@ public class LiveVRHostExperimentController : MonoBehaviour
         }
 
         manager.ClearRuntimeSimulatedFallbacks();
-        manager.SetExperimentState(AreExpectedUsersReady() ? LiveVRExperimentState.Ready : LiveVRExperimentState.WaitingForUsers);
+        manager.SetExperimentState(!HasPendingRestartRecovery(manager) && AreExpectedUsersReady()
+            ? LiveVRExperimentState.Ready
+            : LiveVRExperimentState.WaitingForUsers);
     }
 
     public void StartExperiment()
@@ -185,6 +198,13 @@ public class LiveVRHostExperimentController : MonoBehaviour
             manager.ActivateSimulatedFallbackForMissingUsers(expectedUserCount, stalePoseTimeoutSeconds, true);
         else
             manager.ClearRuntimeSimulatedFallbacks();
+
+        if (HasPendingRestartRecovery(manager))
+        {
+            manager.SetExperimentState(LiveVRExperimentState.WaitingForUsers);
+            Debug.LogWarning("[LiveVR] Cannot start experiment: waiting for restart recovery acknowledgements.");
+            return;
+        }
 
         if (!AreExpectedUsersReady())
         {
@@ -226,16 +246,31 @@ public class LiveVRHostExperimentController : MonoBehaviour
         manager.SetHostRunId(hostRunId);
         manager.BroadcastClientResetClear("soft_restart");
         ClearLivePoseCache();
-        ResetRdwRuntimeForNextRun();
+        ResetRdwRuntimeForNextRun(false);
         manager.ClearRuntimeSimulatedFallbacks();
 
-        LiveVRExperimentState nextState = manager.HasPendingReliableControlType("CLIENT_RESET_CLEAR")
-            ? LiveVRExperimentState.WaitingForUsers
-            : AreExpectedUsersReady()
-            ? LiveVRExperimentState.Ready
-            : LiveVRExperimentState.WaitingForUsers;
-        manager.SetExperimentState(nextState);
-        Debug.Log(string.Format("[LiveVR] Soft Restart Run complete. state={0} runId={1}", nextState, GetHostRunIdLabel()));
+        manager.SetExperimentState(LiveVRExperimentState.WaitingForUsers);
+        Debug.Log(string.Format("[LiveVR] Soft Restart Run complete. state={0} runId={1}", LiveVRExperimentState.WaitingForUsers, GetHostRunIdLabel()));
+    }
+
+    public void NewSeedRestartRun()
+    {
+        LiveVRNetworkManager manager = ResolveNetworkManager();
+        if (manager == null || !manager.IsHost)
+            return;
+
+        StopRdwRuntime();
+        ClearLiveResetRuntime(true);
+        manager.BeginRestartEpoch();
+        BeginNewRunSession("new_seed_restart");
+        manager.SetHostRunId(hostRunId);
+        manager.BroadcastClientResetClear("new_seed_restart");
+        ClearLivePoseCache();
+        ResetRdwRuntimeForNextRun(true);
+        manager.ClearRuntimeSimulatedFallbacks();
+
+        manager.SetExperimentState(LiveVRExperimentState.WaitingForUsers);
+        Debug.Log(string.Format("[LiveVR] New Seed Restart complete. Calibration preserved; users should return to start. state={0} runId={1}", LiveVRExperimentState.WaitingForUsers, GetHostRunIdLabel()));
     }
 
     public void RecalibrateAndRestart()
@@ -251,7 +286,7 @@ public class LiveVRHostExperimentController : MonoBehaviour
         manager.SetHostRunId(hostRunId);
         manager.BroadcastClientResetClear("recalibrate_restart");
         ClearLivePoseCache();
-        ResetRdwRuntimeForNextRun();
+        ResetRdwRuntimeForNextRun(true);
         manager.ClearRuntimeSimulatedFallbacks();
         manager.ClearHostCalibrationStateForAllUsers();
         manager.IncrementCalibrationVersion();
@@ -399,6 +434,13 @@ public class LiveVRHostExperimentController : MonoBehaviour
         return string.IsNullOrEmpty(GetReadinessFailureReason());
     }
 
+    private static bool HasPendingRestartRecovery(LiveVRNetworkManager manager)
+    {
+        return manager != null &&
+               (manager.HasPendingReliableControlType("CLIENT_RESET_CLEAR") ||
+                manager.HasTimedOutReliableControlType("CLIENT_RESET_CLEAR"));
+    }
+
     private string GetReadinessFailureReason()
     {
         LiveVRNetworkManager manager = ResolveNetworkManager();
@@ -425,6 +467,13 @@ public class LiveVRHostExperimentController : MonoBehaviour
 
             if (!sample.IsCalibrated)
                 return string.Format("user {0} is not calibrated", userId);
+
+            if (!manager.IsPoseCalibrationCurrent(sample))
+                return string.Format(
+                    "user {0} calibration version is stale (pose={1}, host={2})",
+                    userId,
+                    sample.CalibrationVersion,
+                    manager.CalibrationVersion);
 
             if (requireUsersInsideLiveSpaceBeforeStart && !IsUserInsideLiveSpace(userId))
                 return string.Format("user {0} is outside LiveSpace or inside safety margin", userId);
@@ -561,10 +610,11 @@ public class LiveVRHostExperimentController : MonoBehaviour
         }
     }
 
-    private void ResetRdwRuntimeForNextRun()
+    private void ResetRdwRuntimeForNextRun(bool advanceSeed)
     {
         if (_GCM.GlobalCoordinationManager.instance != null)
         {
+            _GCM.GlobalCoordinationManager.instance.ResetExperimentProgressForManualRestart(advanceSeed);
             _GCM.GlobalCoordinationManager.instance.ResetEpisode();
             StopRdwRuntime();
             return;

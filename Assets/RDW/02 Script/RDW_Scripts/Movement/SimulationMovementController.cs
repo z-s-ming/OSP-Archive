@@ -7,7 +7,13 @@ public class SimulationMovementController : IMovementController
 
         for (int i = 0; i < units.Length; i++)
         {
-            if (units[i] != null)
+            if (units[i] == null)
+                continue;
+
+            LiveVRNetworkManager liveVRNetworkManager = LiveVRNetworkManager.Instance;
+            if (liveVRNetworkManager != null && liveVRNetworkManager.IsUserRunComplete(i))
+                continue;
+
                 units[i].Simulate(units);
         }
     }

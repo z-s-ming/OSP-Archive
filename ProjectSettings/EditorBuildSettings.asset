@@ -5,12 +5,15 @@ EditorBuildSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 2
   m_Scenes:
-  - enabled: 1
+  - enabled: 0
     path: Assets/RDW/01 Scene/100/3/RDW Square 100.unity
     guid: 8b01522d3bdc27f4388c105879af82cf
   - enabled: 0
     path: Assets/New Scene.unity
     guid: 53eec7de538c37b4585a7b77065862f8
+  - enabled: 1
+    path: Assets/RDW/01 Scene/RDW_liveStudy.unity
+    guid: ac6f16873c00d0d40849b9cb6946a0d0
   m_configObjects:
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 7ee1b8e755c357748ba86014abe30f08,
       type: 2}

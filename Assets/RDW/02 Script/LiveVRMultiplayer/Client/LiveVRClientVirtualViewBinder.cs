@@ -23,6 +23,10 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
     [SerializeField] private bool applyOnlyWhileRunning = true;
     [HideInInspector]
     [SerializeField] private float maxGainApplyDeltaTimeSeconds = 1.0f / 60.0f;
+    [HideInInspector]
+    [SerializeField] private float minHostGainRateDegreesPerSecond = 0.5f;
+    [HideInInspector]
+    [SerializeField] private float hostGainRateSmoothingTimeSeconds = 0.08f;
 
     private uint lastAppliedSequence;
     private uint lastGainCommandSequence;
@@ -51,6 +55,7 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
     private float localResetLastAppliedInjectedRootTurn;
     private GainType activeHostGainType = GainType.Undefined;
     private float activeHostGainRateDegreesPerSecond;
+    private float targetHostGainRateDegreesPerSecond;
     private float activeHostGainExpiresAtTime;
     private float applyGainWindowStartTime;
     private float nextApplyGainSummaryLogTime;
@@ -227,10 +232,15 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
             hasLastHostVirtualPose = true;
         }
 
-        if (hasFreshVirtualPose && virtualPose.Sequence != lastAppliedSequence)
+        bool shouldApplyHostVirtualPose = ShouldApplyHostVirtualPose(manager, virtualPose);
+        if (hasFreshVirtualPose && shouldApplyHostVirtualPose && virtualPose.Sequence != lastAppliedSequence)
         {
             ApplyVirtualPose(root, hasFreshVirtualPose, virtualPose, manager);
             lastAppliedSequence = virtualPose.Sequence;
+            lastVirtualPoseHostTime = virtualPose.HostUnixMilliseconds;
+        }
+        else if (hasFreshVirtualPose)
+        {
             lastVirtualPoseHostTime = virtualPose.HostUnixMilliseconds;
         }
         else if (hasVirtualPose && !hasFreshVirtualPose)
@@ -239,6 +249,21 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
         }
 
         ApplyActiveHostGain(root, manager);
+    }
+
+    private bool ShouldApplyHostVirtualPose(LiveVRNetworkManager manager, LiveVRVirtualPoseMessage virtualPose)
+    {
+        if (manager == null)
+            return false;
+
+        if (manager.ExperimentState != LiveVRExperimentState.Running)
+            return true;
+
+        // During live Running, the Host virtual pose is an anchor/diagnostic stream.
+        // Continuous RDW display changes must come from the gain command and be
+        // applied locally each LateUpdate, otherwise Host pose sync and local gain
+        // injection fight each other and amplify HMD jitter.
+        return Mathf.Abs(virtualPose.InjectedYawDeltaDegrees) > Mathf.Epsilon;
     }
 
     private void LogApplyGainSkip(string reason, LiveVRNetworkManager manager, Transform root)
@@ -313,7 +338,7 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
         lastGainCommandSequence = virtualPose.Sequence;
 
         if (virtualPose.GainType == GainType.Undefined ||
-            Mathf.Abs(virtualPose.GainRateDegreesPerSecond) <= Mathf.Epsilon ||
+            Mathf.Abs(virtualPose.GainRateDegreesPerSecond) < Mathf.Max(0.0f, minHostGainRateDegreesPerSecond) ||
             virtualPose.GainValidSeconds <= 0.0f)
         {
             ClearActiveHostGain();
@@ -328,7 +353,9 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
         }
 
         activeHostGainType = virtualPose.GainType;
-        activeHostGainRateDegreesPerSecond = virtualPose.GainRateDegreesPerSecond;
+        targetHostGainRateDegreesPerSecond = virtualPose.GainRateDegreesPerSecond;
+        if (Mathf.Abs(activeHostGainRateDegreesPerSecond) < Mathf.Epsilon)
+            activeHostGainRateDegreesPerSecond = targetHostGainRateDegreesPerSecond;
         activeHostGainExpiresAtTime = Time.unscaledTime + remainingValidSeconds;
     }
 
@@ -346,7 +373,6 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
 
         applyGainActiveFrames++;
         applyGainLastType = activeHostGainType;
-        applyGainLastRate = activeHostGainRateDegreesPerSecond;
         applyGainLastExpiresIn = activeHostGainExpiresAtTime - Time.unscaledTime;
 
         if (Time.unscaledTime > activeHostGainExpiresAtTime)
@@ -366,6 +392,24 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
         }
 
         float applyDeltaTime = Mathf.Min(Time.deltaTime, Mathf.Max(0.001f, maxGainApplyDeltaTimeSeconds));
+        if (hostGainRateSmoothingTimeSeconds > 0.0f)
+        {
+            float smoothing = 1.0f - Mathf.Exp(-applyDeltaTime / Mathf.Max(0.001f, hostGainRateSmoothingTimeSeconds));
+            activeHostGainRateDegreesPerSecond = Mathf.Lerp(activeHostGainRateDegreesPerSecond, targetHostGainRateDegreesPerSecond, smoothing);
+        }
+        else
+        {
+            activeHostGainRateDegreesPerSecond = targetHostGainRateDegreesPerSecond;
+        }
+
+        if (Mathf.Abs(activeHostGainRateDegreesPerSecond) < Mathf.Max(0.0f, minHostGainRateDegreesPerSecond))
+        {
+            applyGainLastRate = activeHostGainRateDegreesPerSecond;
+            LogApplyGainSummaryIfNeeded(root);
+            return;
+        }
+
+        applyGainLastRate = activeHostGainRateDegreesPerSecond;
         float injectedYawDelta = activeHostGainRateDegreesPerSecond * applyDeltaTime;
         if (Mathf.Abs(injectedYawDelta) <= Mathf.Epsilon)
         {
@@ -393,6 +437,7 @@ public class LiveVRClientVirtualViewBinder : MonoBehaviour
     {
         activeHostGainType = GainType.Undefined;
         activeHostGainRateDegreesPerSecond = 0.0f;
+        targetHostGainRateDegreesPerSecond = 0.0f;
         activeHostGainExpiresAtTime = 0.0f;
     }
 

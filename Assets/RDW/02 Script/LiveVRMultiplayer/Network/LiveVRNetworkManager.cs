@@ -20,6 +20,7 @@ public struct LiveVRClientConnectionInfo
     public string EndpointKey;
     public string DeviceKey;
     public string DeviceName;
+    public string ClientSessionId;
     public string Address;
     public int Port;
     public int ReportedUserId;
@@ -95,6 +96,14 @@ public class LiveVRNetworkManager : MonoBehaviour
     [SerializeField] private float experimentYawOffsetDegrees = 0.0f;
     [HideInInspector]
     [SerializeField] private float metersScale = 1.0f;
+    [HideInInspector]
+    [SerializeField] private bool enablePoseJumpGuard = true;
+    [HideInInspector]
+    [SerializeField] private float maxCalibratedPoseStepMeters = 0.75f;
+    [HideInInspector]
+    [SerializeField] private float maxCalibratedPoseSpeedMetersPerSecond = 4.0f;
+    [HideInInspector]
+    [SerializeField] private float maxCalibratedYawRateDegreesPerSecond = 720.0f;
 
     private readonly object posesLock = new object();
     private readonly object endpointsLock = new object();
@@ -104,6 +113,8 @@ public class LiveVRNetworkManager : MonoBehaviour
     private readonly Dictionary<int, LiveVRPoseSample> latestPoses = new Dictionary<int, LiveVRPoseSample>();
     private readonly Dictionary<int, IPEndPoint> clientEndpoints = new Dictionary<int, IPEndPoint>();
     private readonly Dictionary<int, long> latestHelloReceiveUnixMs = new Dictionary<int, long>();
+    private readonly Dictionary<int, long> nextPoseJumpWarningUnixMsByUserId = new Dictionary<int, long>();
+    private readonly Dictionary<int, long> nextCalibrationInvalidWarningUnixMsByUserId = new Dictionary<int, long>();
     private readonly Dictionary<string, LiveVRClientConnectionInfo> clientConnectionsByEndpoint = new Dictionary<string, LiveVRClientConnectionInfo>();
     private readonly Dictionary<int, string> assignedEndpointByUserId = new Dictionary<int, string>();
     private readonly Dictionary<string, int> assignedUserIdByDeviceKey = new Dictionary<string, int>();
@@ -172,6 +183,8 @@ public class LiveVRNetworkManager : MonoBehaviour
     private float nextClientGainReceivedLogTime;
     private string lastClientSendError = string.Empty;
     private string lastPoseSourceStatus = "not sampled";
+    private bool hasLastAcceptedLocalPose;
+    private LiveVRPoseSample lastAcceptedLocalPose;
     private string hostDiscoveryStatus = "idle";
     private uint hostRawPacketCount;
     private uint hostPosePacketCount;
@@ -186,9 +199,13 @@ public class LiveVRNetworkManager : MonoBehaviour
     private bool autoAssignClientUserIds = true;
     private int expectedUserCountForAssignment;
     private string hostRunId = string.Empty;
+    private string lastAssignedHostRunId = string.Empty;
+    private string clientSessionId = Guid.NewGuid().ToString("N");
     private string clientDeviceKey = string.Empty;
     private string clientDeviceName = string.Empty;
     private string clientAssignmentStatus = "waiting for host assignment";
+    private int targetSeed = int.MinValue;
+    private int targetSeedVersion = 0;
     private LiveVRUserSource[] userSources = new LiveVRUserSource[0];
     private readonly HashSet<int> runtimeSimulatedFallbackUsers = new HashSet<int>();
     private readonly LiveVRProtocolVersionContext protocolContext = new LiveVRProtocolVersionContext();
@@ -255,6 +272,8 @@ public class LiveVRNetworkManager : MonoBehaviour
     public int ReliableControlTimeoutCountTotal { get { return reliableControl.TimeoutCountTotal; } }
     public LiveVRTrialEndState LastTrialEndState { get { return lastTrialEndState; } }
     public string CurrentRunId { get { return protocolContext.RunId; } }
+    public int TargetSeed { get { return targetSeed; } }
+    public int TargetSeedVersion { get { return targetSeedVersion; } }
     public bool IsWaitingForClientStartupConfirmation
     {
         get { return mode == LiveVRExperimentMode.ClientOnly && waitForClientStartupConfirmation && !clientStartupConfirmed; }
@@ -406,9 +425,59 @@ public class LiveVRNetworkManager : MonoBehaviour
         }
     }
 
+    public bool IsUserRunComplete(int userId)
+    {
+        lock (clientStateLock)
+        {
+            return targetReachedUserIds.Contains(userId);
+        }
+    }
+
+    public bool MarkUserRunCompleteFromHost(int userId, float cumulativeDistanceMeters, string reason)
+    {
+        bool added;
+        bool allTargetsReached;
+        lock (clientStateLock)
+        {
+            added = targetReachedUserIds.Add(userId);
+            allTargetsReached = AreAllExpectedTargetsReachedLocked();
+        }
+
+        if (added)
+        {
+            Debug.Log(string.Format(
+                "[LiveVR] Host marked user {0} complete reason={1} cumulative={2:F2}.",
+                userId,
+                string.IsNullOrEmpty(reason) ? "distance_goal" : reason,
+                cumulativeDistanceMeters));
+        }
+
+        if (experimentState == LiveVRExperimentState.Running && allTargetsReached)
+        {
+            SetTrialEndState(LiveVRTrialEndState.Normal);
+            SetExperimentState(LiveVRExperimentState.Completed);
+            Debug.Log("[LiveVR] All expected users reached their target distance. Trial completed.");
+        }
+
+        return added;
+    }
+
+    public bool AreAllExpectedUsersRunComplete()
+    {
+        lock (clientStateLock)
+        {
+            return AreAllExpectedTargetsReachedLocked();
+        }
+    }
+
     public bool HasPendingReliableControlType(string messageType)
     {
         return reliableControl.HasPendingType(messageType);
+    }
+
+    public bool HasTimedOutReliableControlType(string messageType)
+    {
+        return reliableControl.HasTimedOutType(messageType);
     }
 
     public void ClearAllClientResetState()
@@ -440,11 +509,22 @@ public class LiveVRNetworkManager : MonoBehaviour
             HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         };
 
+        int targetCount = 0;
         for (int userId = 0; userId < expectedUserCountForAssignment; userId++)
         {
             if (IsUserConnected(userId, 10.0f))
+            {
                 SendReliableToUser(userId, "CLIENT_RESET_CLEAR", clear.ToNetworkMessage());
+                targetCount++;
+            }
         }
+
+        Debug.Log(string.Format(
+            "[LiveVR] Broadcast CLIENT_RESET_CLEAR reason={0} restartEpoch={1} targets={2} pending={3}.",
+            string.IsNullOrEmpty(reason) ? "unknown" : reason,
+            protocolContext.RestartEpoch,
+            targetCount,
+            reliableControl.PendingCount));
     }
 
     public void ConfirmClientStartup()
@@ -577,7 +657,21 @@ public class LiveVRNetworkManager : MonoBehaviour
         if (requireCalibratedPose && !sample.IsCalibrated)
             return false;
 
+        if (requireCalibratedPose && !IsPoseCalibrationCurrent(sample))
+            return false;
+
         return sample.AgeSeconds <= Mathf.Max(0.0f, staleTimeoutSeconds);
+    }
+
+    public bool IsPoseCalibrationCurrent(LiveVRPoseSample sample)
+    {
+        if (!sample.IsCalibrated)
+            return false;
+
+        if (protocolContext.CalibrationVersion <= 0)
+            return true;
+
+        return sample.CalibrationVersion >= protocolContext.CalibrationVersion;
     }
 
     public bool RequiresLivePoseForStart(int userId)
@@ -586,12 +680,41 @@ public class LiveVRNetworkManager : MonoBehaviour
                !runtimeSimulatedFallbackUsers.Contains(userId);
     }
 
+    public bool ConsumePoseReanchorRequest(int userId)
+    {
+        lock (clientStateLock)
+        {
+            LiveVRUserConnectionState state;
+            if (!userConnectionStates.TryGetValue(userId, out state) ||
+                state != LiveVRUserConnectionState.NeedsPoseReanchor)
+            {
+                return false;
+            }
+
+            userConnectionStates[userId] = LiveVRUserConnectionState.ConnectedFresh;
+            return true;
+        }
+    }
+
+    public void MarkUserNeedsPoseReanchor(int userId)
+    {
+        lock (clientStateLock)
+        {
+            userConnectionStates[userId] = LiveVRUserConnectionState.NeedsPoseReanchor;
+        }
+    }
+
     public bool ShouldUseSimulatedUser(int userId, float staleTimeoutSeconds, bool requireCalibratedPose)
     {
         LiveVRUserSource source = GetConfiguredUserSource(userId);
         if (source == LiveVRUserSource.SimulatedOnly)
             return true;
 
+        return runtimeSimulatedFallbackUsers.Contains(userId);
+    }
+
+    public bool IsRuntimeSimulatedFallback(int userId)
+    {
         return runtimeSimulatedFallbackUsers.Contains(userId);
     }
 
@@ -623,7 +746,7 @@ public class LiveVRNetworkManager : MonoBehaviour
 
         if (userChanged)
         {
-            hasCalibration = false;
+            ClearLocalCalibration("runtime_user_id_changed");
             lastCenterCalibrationCommandEventId = -1;
             lastCenterCalibrationStatus = "user changed; waiting for host command";
         }
@@ -673,9 +796,10 @@ public class LiveVRNetworkManager : MonoBehaviour
 
     public void SetManualCenterCalibrationRequired(bool required)
     {
+        bool previous = requireManualCenterCalibration;
         requireManualCenterCalibration = required;
-        if (required)
-            hasCalibration = false;
+        if (required && !previous && hasCalibration)
+            ClearLocalCalibration("manual_center_calibration_enabled");
     }
 
     public void CalibrateNow()
@@ -691,6 +815,7 @@ public class LiveVRNetworkManager : MonoBehaviour
         calibrationOriginPosition = new Vector2(position.x, position.z);
         calibrationOriginYaw = ToProjectYaw(rotation);
         hasCalibration = true;
+        hasLastAcceptedLocalPose = false;
         lastCenterCalibrationCompleteUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         lastCenterCalibrationStatus = string.Format("calibrated at event {0}", lastCenterCalibrationCommandEventId);
         Debug.Log(string.Format("[LiveVR] Calibrated user {0}: origin={1}, yaw={2:F2}", localUserId, calibrationOriginPosition, calibrationOriginYaw));
@@ -801,7 +926,24 @@ public class LiveVRNetworkManager : MonoBehaviour
                 LiveVRPoseSample sample = latestPoses[userIds[i]];
                 sample.IsCalibrated = false;
                 latestPoses[userIds[i]] = sample;
+                LogCalibrationInvalidated(
+                    sample.UserId,
+                    "host_clear_all_calibration",
+                    sample.CalibrationVersion,
+                    protocolContext.CalibrationVersion,
+                    sample.ClientSessionId);
             }
+        }
+    }
+
+    public void ClearHostPoseStateForUser(int userId)
+    {
+        if (!IsHost)
+            return;
+
+        lock (posesLock)
+        {
+            latestPoses.Remove(userId);
         }
     }
 
@@ -975,13 +1117,39 @@ public class LiveVRNetworkManager : MonoBehaviour
         LiveVRStateMessage stateMessage = new LiveVRStateMessage
         {
             ExperimentState = experimentState,
-            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
+            HostUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            TargetSeed = ResolveCurrentTargetSeed(),
+            TargetSeedVersion = ResolveCurrentTargetSeedVersion()
         };
+        targetSeed = stateMessage.TargetSeed;
+        targetSeedVersion = stateMessage.TargetSeedVersion;
         for (int userId = 0; userId < expectedUserCountForAssignment; userId++)
         {
             if (IsUserConnected(userId, 10.0f))
                 SendReliableToUser(userId, "STATE", stateMessage.ToNetworkMessage());
         }
+    }
+
+    private int ResolveCurrentTargetSeed()
+    {
+        if (_GCM.GlobalCoordinationManager.instance != null)
+        {
+            int currentSeed = _GCM.GlobalCoordinationManager.instance.CurrentEpisodeSeed;
+            if (currentSeed != int.MinValue)
+                return currentSeed;
+
+            return 1000 + _GCM.GlobalCoordinationManager.instance.CurrentEpisodeSeedVersion;
+        }
+
+        return targetSeed;
+    }
+
+    private int ResolveCurrentTargetSeedVersion()
+    {
+        if (_GCM.GlobalCoordinationManager.instance != null)
+            return _GCM.GlobalCoordinationManager.instance.CurrentEpisodeSeedVersion;
+
+        return targetSeedVersion;
     }
 
     public void SendResetPrompt(int userId, string resetType, Vector2 directionHint, int eventId)
@@ -1297,6 +1465,7 @@ public class LiveVRNetworkManager : MonoBehaviour
         float experimentYaw = hasCalibration
             ? NormalizeDegrees(rawYaw - calibrationOriginYaw + experimentYawOffsetDegrees)
             : NormalizeDegrees(rawYaw + experimentYawOffsetDegrees);
+        bool sampleIsCalibrated = hasCalibration;
 
         sample.UserId = localUserId;
         sample.Sequence = sequence++;
@@ -1305,24 +1474,57 @@ public class LiveVRNetworkManager : MonoBehaviour
         sample.ExperimentPosition = experimentPosition;
         sample.YawDegrees = experimentYaw;
         sample.HeightMeters = rawPosition.y;
-        sample.IsCalibrated = hasCalibration;
-        lastPoseSourceStatus = string.Format("ok raw=({0:F2},{1:F2},{2:F2}) yaw={3:F1}", rawPosition.x, rawPosition.y, rawPosition.z, rawYaw);
+        sample.IsCalibrated = sampleIsCalibrated;
+        sample.ClientSessionId = clientSessionId;
+        sample.CalibrationVersion = protocolContext.CalibrationVersion;
+        if (sample.IsCalibrated && ShouldRejectPoseJump(sample, lastAcceptedLocalPose, hasLastAcceptedLocalPose, out string localJumpReason))
+        {
+            ClearLocalCalibration("local_pose_jump");
+            lastCenterCalibrationStatus = "tracking jump detected; recalibrate";
+
+            sample.ExperimentPosition = raw2D * metersScale + experimentOriginOffset;
+            sample.YawDegrees = NormalizeDegrees(rawYaw + experimentYawOffsetDegrees);
+            sample.IsCalibrated = false;
+
+            Debug.LogWarning(string.Format(
+                "[LiveVR] Local HMD pose jump rejected for user {0}; calibration cleared. {1}",
+                localUserId,
+                localJumpReason));
+        }
+
+        if (sample.IsCalibrated)
+        {
+            lastAcceptedLocalPose = sample;
+            hasLastAcceptedLocalPose = true;
+        }
+
+        lastPoseSourceStatus = string.Format(
+            "ok raw=({0:F2},{1:F2},{2:F2}) rawYaw={3:F1} mapped=({4:F2},{5:F2}) yaw={6:F1} cal={7} scale={8:F3}",
+            rawPosition.x,
+            rawPosition.y,
+            rawPosition.z,
+            rawYaw,
+            sample.ExperimentPosition.x,
+            sample.ExperimentPosition.y,
+            sample.YawDegrees,
+            sample.IsCalibrated,
+            metersScale);
         return true;
     }
 
     private bool TryReadHeadPose(out Vector3 position, out Quaternion rotation)
     {
+        if (useUnityXRHeadPose && XRSettings.isDeviceActive)
+        {
+            position = InputTracking.GetLocalPosition(XRNode.Head);
+            rotation = InputTracking.GetLocalRotation(XRNode.Head);
+            return true;
+        }
+
         if (headTransformOverride != null)
         {
             position = headTransformOverride.localPosition;
             rotation = headTransformOverride.localRotation;
-            return true;
-        }
-
-        if (useUnityXRHeadPose)
-        {
-            position = InputTracking.GetLocalPosition(XRNode.Head);
-            rotation = InputTracking.GetLocalRotation(XRNode.Head);
             return true;
         }
 
@@ -1442,7 +1644,7 @@ public class LiveVRNetworkManager : MonoBehaviour
                 LiveVRControlAckMessage controlAck;
                 if (LiveVRControlAckMessage.TryParse(message, out controlAck))
                 {
-                    reliableControl.Acknowledge(controlAck.MessageId);
+                    HandleControlAck(controlAck);
                     continue;
                 }
 
@@ -1463,8 +1665,8 @@ public class LiveVRNetworkManager : MonoBehaviour
                         continue;
                     }
 
+                    StoreClientConnection(remote, sample.UserId, clientProactiveResetEnabled, true, string.Empty, string.Empty, sample.ClientSessionId);
                     StorePose(sample);
-                    StoreClientConnection(remote, sample.UserId, clientProactiveResetEnabled, true, string.Empty, string.Empty);
                     StoreClientEndpoint(sample.UserId, remote);
                     SendAck(sample.UserId, sample.Sequence, remote);
                     continue;
@@ -1473,7 +1675,7 @@ public class LiveVRNetworkManager : MonoBehaviour
                 LiveVRHostDiscoveryRequestMessage discoveryRequest;
                 if (LiveVRHostDiscoveryRequestMessage.TryParse(message, out discoveryRequest))
                 {
-                    StoreClientConnection(remote, -1, true, false, discoveryRequest.DeviceKey, discoveryRequest.DeviceName);
+                    StoreClientConnection(remote, -1, true, false, discoveryRequest.DeviceKey, discoveryRequest.DeviceName, string.Empty);
                     SendHostAdvertisement(remote);
                     continue;
                 }
@@ -1482,7 +1684,7 @@ public class LiveVRNetworkManager : MonoBehaviour
                 if (LiveVRHelloMessage.TryParse(message, out hello))
                 {
                     hostHelloPacketCount++;
-                    StoreClientConnection(remote, hello.UserId, hello.ProactiveResetEnabled, false, hello.DeviceKey, hello.DeviceName);
+                    StoreClientConnection(remote, hello.UserId, hello.ProactiveResetEnabled, false, hello.DeviceKey, hello.DeviceName, hello.ClientSessionId);
                     int assignedUserId;
                     if (TryAssignUserIdForHello(remote, hello, out assignedUserId))
                     {
@@ -1587,7 +1789,8 @@ public class LiveVRNetworkManager : MonoBehaviour
                 ClientUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
                 ProactiveResetEnabled = clientProactiveResetEnabled,
                 DeviceKey = clientDeviceKey,
-                DeviceName = clientDeviceName
+                DeviceName = clientDeviceName,
+                ClientSessionId = clientSessionId
             };
             byte[] data = Encoding.UTF8.GetBytes(hello.ToNetworkMessage());
             clientSender.Send(data, data.Length, hostEndPoint);
@@ -1769,7 +1972,7 @@ public class LiveVRNetworkManager : MonoBehaviour
         LiveVRControlAckMessage controlAck;
         if (LiveVRControlAckMessage.TryParse(message, out controlAck))
         {
-            reliableControl.Acknowledge(controlAck.MessageId);
+            HandleControlAck(controlAck);
             return;
         }
 
@@ -1843,6 +2046,8 @@ public class LiveVRNetworkManager : MonoBehaviour
             {
                 lastHostExperimentState = stateMessage.ExperimentState;
                 lastAckUnixMilliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                targetSeed = stateMessage.TargetSeed;
+                targetSeedVersion = stateMessage.TargetSeedVersion;
             }
             if (stateMessage.ExperimentState != LiveVRExperimentState.Running && clientPresentationState != null)
                 clientPresentationState.ClearForRestart(protocolContext.RestartEpoch, "state_" + stateMessage.ExperimentState);
@@ -1873,7 +2078,7 @@ public class LiveVRNetworkManager : MonoBehaviour
             if (clearCalibration.UserId != localUserId)
                 return;
 
-            hasCalibration = false;
+            ClearLocalCalibration("clear_calibration_command");
             lock (clientStateLock)
             {
                 lastCenterCalibrationCommandEventId = -1;
@@ -2246,7 +2451,18 @@ public class LiveVRNetworkManager : MonoBehaviour
         assignedUserIdByDeviceKey[deviceKey] = assignedUserId;
         assignedDeviceKeyByUserId[assignedUserId] = deviceKey;
         runtimeSimulatedFallbackUsers.Remove(assignedUserId);
-        userConnectionStates[assignedUserId] = LiveVRUserConnectionState.ConnectedFresh;
+        if (!endpointChanged)
+        {
+            lock (clientStateLock)
+            {
+                LiveVRUserConnectionState state;
+                if (!userConnectionStates.TryGetValue(assignedUserId, out state) ||
+                    state != LiveVRUserConnectionState.NeedsPoseReanchor)
+                {
+                    userConnectionStates[assignedUserId] = LiveVRUserConnectionState.ConnectedFresh;
+                }
+            }
+        }
 
         IPEndPoint assignedEndpoint = BuildEndpoint(info);
         if (assignedEndpoint != null)
@@ -2254,8 +2470,10 @@ public class LiveVRNetworkManager : MonoBehaviour
 
         if (endpointChanged)
         {
+            ClearHostPoseStateForUser(assignedUserId);
+            MarkUserNeedsPoseReanchor(assignedUserId);
             Debug.LogFormat(
-                "[LiveVR] Client user {0} endpoint updated {1} -> {2}; fallback cleared.",
+                "[LiveVR] Client user {0} endpoint updated {1} -> {2}; fallback and cached pose cleared.",
                 assignedUserId,
                 previousEndpointKey,
                 endpointKey);
@@ -2344,8 +2562,39 @@ public class LiveVRNetworkManager : MonoBehaviour
 
     private void StorePose(LiveVRPoseSample sample)
     {
+        if (sample.CalibrationVersion > 0 &&
+            protocolContext.CalibrationVersion > 0 &&
+            sample.CalibrationVersion < protocolContext.CalibrationVersion)
+        {
+            sample.IsCalibrated = false;
+            LogCalibrationInvalidated(
+                sample.UserId,
+                "stale_calibration_version",
+                sample.CalibrationVersion,
+                protocolContext.CalibrationVersion,
+                sample.ClientSessionId);
+        }
+
         lock (posesLock)
         {
+            LiveVRPoseSample previousSample;
+            bool hasPreviousSample = latestPoses.TryGetValue(sample.UserId, out previousSample);
+            if (sample.IsCalibrated && ShouldRejectPoseJump(sample, previousSample, hasPreviousSample, out string jumpReason))
+            {
+                MarkUserNeedsPoseReanchor(sample.UserId);
+                long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                long nextWarningUnixMs;
+                if (!nextPoseJumpWarningUnixMsByUserId.TryGetValue(sample.UserId, out nextWarningUnixMs) || now >= nextWarningUnixMs)
+                {
+                    nextPoseJumpWarningUnixMsByUserId[sample.UserId] = now + 1000;
+                    Debug.LogWarning(string.Format(
+                        "[LiveVR] Host rejected calibrated pose jump for user {0}; keeping previous pose until fresh calibration/reanchor. {1}",
+                        sample.UserId,
+                        jumpReason));
+                }
+                return;
+            }
+
             latestPoses[sample.UserId] = sample;
         }
     }
@@ -2367,7 +2616,8 @@ public class LiveVRNetworkManager : MonoBehaviour
         bool proactiveResetEnabled,
         bool posePacket,
         string deviceKey,
-        string deviceName)
+        string deviceName,
+        string clientSession)
     {
         if (endpoint == null)
             return;
@@ -2390,11 +2640,17 @@ public class LiveVRNetworkManager : MonoBehaviour
                 };
             }
 
+            bool sessionChanged = !string.IsNullOrEmpty(clientSession) &&
+                                  !string.IsNullOrEmpty(info.ClientSessionId) &&
+                                  !string.Equals(info.ClientSessionId, clientSession, StringComparison.Ordinal);
+
             info.ReportedUserId = reportedUserId;
             if (!string.IsNullOrEmpty(deviceKey))
                 info.DeviceKey = BuildAssignmentDeviceKey(endpointKey, deviceKey);
             if (!string.IsNullOrEmpty(deviceName))
                 info.DeviceName = deviceName;
+            if (!string.IsNullOrEmpty(clientSession))
+                info.ClientSessionId = clientSession;
 
             if (posePacket)
             {
@@ -2407,6 +2663,16 @@ public class LiveVRNetworkManager : MonoBehaviour
             }
 
             clientConnectionsByEndpoint[endpointKey] = info;
+
+            if (sessionChanged && info.AssignedUserId >= 0)
+            {
+                ClearHostPoseStateForUser(info.AssignedUserId);
+                MarkUserNeedsPoseReanchor(info.AssignedUserId);
+                Debug.LogFormat(
+                    "[LiveVR] Client user {0} session changed on {1}; cached pose cleared and reanchor required.",
+                    info.AssignedUserId,
+                    endpointKey);
+            }
         }
     }
 
@@ -2468,9 +2734,17 @@ public class LiveVRNetworkManager : MonoBehaviour
             return;
 
         int previousUserId = localUserId;
+        bool hostRunChanged = !string.IsNullOrEmpty(assignment.HostRunId) &&
+                              !string.Equals(lastAssignedHostRunId, assignment.HostRunId, StringComparison.Ordinal);
         localUserId = Mathf.Max(0, assignment.UserId);
         clientProactiveResetEnabled = assignment.ProactiveResetEnabled;
         hasHostAssignment = true;
+        if (!string.IsNullOrEmpty(assignment.HostRunId))
+        {
+            lastAssignedHostRunId = assignment.HostRunId;
+            protocolContext.HostRunId = assignment.HostRunId;
+            protocolContext.RunId = assignment.HostRunId;
+        }
         clientAssignmentStatus = string.Format(
             "assigned user {0}/{1} run={2}",
             localUserId,
@@ -2479,9 +2753,19 @@ public class LiveVRNetworkManager : MonoBehaviour
 
         if (previousUserId != localUserId)
         {
-            hasCalibration = false;
+            ClearLocalCalibration("assigned_user_changed");
             lastCenterCalibrationCommandEventId = -1;
             lastCenterCalibrationStatus = "host assigned user; waiting for calibration";
+            if (clientPresentationState != null)
+                clientPresentationState.ClearForRestart(protocolContext.RestartEpoch, "assignment");
+        }
+        else if (hostRunChanged)
+        {
+            lastCenterCalibrationStatus = hasCalibration
+                ? "new host run assigned; calibration preserved"
+                : "new host run assigned; waiting for calibration";
+            if (clientPresentationState != null)
+                clientPresentationState.ClearForRestart(protocolContext.RestartEpoch, "assignment_run");
         }
 
         lock (clientStateLock)
@@ -2491,9 +2775,73 @@ public class LiveVRNetworkManager : MonoBehaviour
 
         LiveVRClientPreferences.SaveHostConnection(hostAddress, hostPosePort);
         Debug.LogFormat(
-            "[LiveVR] Host assignment received: user={0}, proactiveReset={1}.",
+            "[LiveVR] Host assignment received: user={0}, proactiveReset={1}, hostRunChanged={2}, calibration={3}, calVersion={4}.",
             localUserId,
-            clientProactiveResetEnabled);
+            clientProactiveResetEnabled,
+            hostRunChanged,
+            hasCalibration,
+            protocolContext.CalibrationVersion);
+    }
+
+    private void HandleControlAck(LiveVRControlAckMessage controlAck)
+    {
+        if (controlAck.Accepted)
+        {
+            reliableControl.Acknowledge(controlAck.MessageId);
+            return;
+        }
+
+        Debug.LogWarning(string.Format(
+            "[LiveVR] Reliable control rejected by client user={0} type={1} messageId={2} reason={3}; pending kept for retry/timeout.",
+            controlAck.UserId,
+            controlAck.MessageType,
+            controlAck.MessageId,
+            string.IsNullOrEmpty(controlAck.Reason) ? "unknown" : controlAck.Reason));
+    }
+
+    private void ClearLocalCalibration(string reason)
+    {
+        hasCalibration = false;
+        hasLastAcceptedLocalPose = false;
+        LogLocalCalibrationCleared(reason);
+    }
+
+    private void LogLocalCalibrationCleared(string reason)
+    {
+        Debug.LogWarning(string.Format(
+            "[LiveVR] Local calibration cleared user={0} reason={1} hostRun={2} restartEpoch={3} calibrationVersion={4} session={5} state={6}.",
+            localUserId,
+            string.IsNullOrEmpty(reason) ? "unknown" : reason,
+            protocolContext.HostRunId,
+            protocolContext.RestartEpoch,
+            protocolContext.CalibrationVersion,
+            clientSessionId,
+            ExperimentState));
+    }
+
+    private void LogCalibrationInvalidated(
+        int userId,
+        string reason,
+        int sampleCalibrationVersion,
+        int hostCalibrationVersion,
+        string sampleClientSessionId)
+    {
+        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        long nextWarningUnixMs;
+        if (nextCalibrationInvalidWarningUnixMsByUserId.TryGetValue(userId, out nextWarningUnixMs) && now < nextWarningUnixMs)
+            return;
+
+        nextCalibrationInvalidWarningUnixMsByUserId[userId] = now + 1000;
+        Debug.LogWarning(string.Format(
+            "[LiveVR] Host marked pose uncalibrated user={0} reason={1} sampleCalVersion={2} hostCalVersion={3} hostRun={4} restartEpoch={5} sampleSession={6} state={7}.",
+            userId,
+            string.IsNullOrEmpty(reason) ? "unknown" : reason,
+            sampleCalibrationVersion,
+            hostCalibrationVersion,
+            protocolContext.HostRunId,
+            protocolContext.RestartEpoch,
+            string.IsNullOrEmpty(sampleClientSessionId) ? "-" : sampleClientSessionId,
+            experimentState));
     }
 
     private void StoreHello(int userId, IPEndPoint endpoint)
@@ -2532,7 +2880,7 @@ public class LiveVRNetworkManager : MonoBehaviour
         {
             if (targetReached.RunComplete)
                 targetReachedUserIds.Add(targetReached.UserId);
-            allTargetsReached = AreRequiredLiveTargetsReachedLocked();
+            allTargetsReached = AreAllExpectedTargetsReachedLocked();
         }
 
         Debug.Log(string.Format(
@@ -2551,25 +2899,23 @@ public class LiveVRNetworkManager : MonoBehaviour
         {
             SetTrialEndState(LiveVRTrialEndState.Normal);
             SetExperimentState(LiveVRExperimentState.Completed);
-            Debug.Log("[LiveVR] All required live users reached their targets. Trial completed.");
+            Debug.Log("[LiveVR] All expected users reached their targets. Trial completed.");
         }
     }
 
-    private bool AreRequiredLiveTargetsReachedLocked()
+    private bool AreAllExpectedTargetsReachedLocked()
     {
         int requiredCount = Mathf.Max(0, expectedUserCountForAssignment);
-        bool hasRequiredLiveUser = false;
+        if (requiredCount == 0)
+            return false;
+
         for (int userId = 0; userId < requiredCount; userId++)
         {
-            if (!RequiresLivePoseForStart(userId))
-                continue;
-
-            hasRequiredLiveUser = true;
             if (!targetReachedUserIds.Contains(userId))
                 return false;
         }
 
-        return hasRequiredLiveUser;
+        return true;
     }
 
     private static LiveVRUserSource ResolveConfiguredUserSource(LiveVRUserSource[] configuredUserSources, int userId)
@@ -2583,6 +2929,66 @@ public class LiveVRNetworkManager : MonoBehaviour
     private static float ToProjectYaw(Quaternion rotation)
     {
         return NormalizeDegrees(-rotation.eulerAngles.y);
+    }
+
+    private bool ShouldRejectPoseJump(
+        LiveVRPoseSample current,
+        LiveVRPoseSample previous,
+        bool hasPrevious,
+        out string reason)
+    {
+        reason = string.Empty;
+        if (!enablePoseJumpGuard || !hasPrevious)
+            return false;
+
+        if (!current.IsCalibrated || !previous.IsCalibrated)
+            return false;
+
+        if (current.UserId != previous.UserId)
+            return false;
+
+        if (!string.Equals(current.ClientSessionId, previous.ClientSessionId, StringComparison.Ordinal))
+            return false;
+
+        if (current.CalibrationVersion != previous.CalibrationVersion)
+            return false;
+
+        float deltaSeconds = (current.ClientUnixMilliseconds - previous.ClientUnixMilliseconds) / 1000.0f;
+        if (deltaSeconds <= 0.0001f)
+            deltaSeconds = (current.HostReceiveUnixMilliseconds - previous.HostReceiveUnixMilliseconds) / 1000.0f;
+
+        if (deltaSeconds <= 0.0001f)
+            return false;
+
+        float distance = Vector2.Distance(previous.ExperimentPosition, current.ExperimentPosition);
+        float speed = distance / deltaSeconds;
+        float yawDelta = Mathf.Abs(Mathf.DeltaAngle(previous.YawDegrees, current.YawDegrees));
+        float yawRate = yawDelta / deltaSeconds;
+
+        bool impossibleTranslation =
+            distance > Mathf.Max(0.05f, maxCalibratedPoseStepMeters) &&
+            speed > Mathf.Max(0.1f, maxCalibratedPoseSpeedMetersPerSecond);
+        bool impossiblePoseSnap =
+            distance > Mathf.Max(0.25f, maxCalibratedPoseStepMeters * 0.5f) &&
+            yawRate > Mathf.Max(1.0f, maxCalibratedYawRateDegreesPerSecond);
+
+        if (!impossibleTranslation && !impossiblePoseSnap)
+            return false;
+
+        reason = string.Format(
+            "prevSeq={0} seq={1} dt={2:F3}s dist={3:F2}m speed={4:F1}m/s yawDelta={5:F1}deg yawRate={6:F0}deg/s prev=({7:F2},{8:F2}) curr=({9:F2},{10:F2})",
+            previous.Sequence,
+            current.Sequence,
+            deltaSeconds,
+            distance,
+            speed,
+            yawDelta,
+            yawRate,
+            previous.ExperimentPosition.x,
+            previous.ExperimentPosition.y,
+            current.ExperimentPosition.x,
+            current.ExperimentPosition.y);
+        return true;
     }
 
     private static Vector2 Rotate2D(Vector2 value, float degrees)

@@ -1694,8 +1694,8 @@ MonoBehaviour:
         p2: {x: 0, y: 0}
       obstacleObjectSettings: []
     unitSettings:
-    - redirectType: 6
-      resetType: 5
+    - redirectType: 3
+      resetType: 2
       episodeType: 1
       episodeLength: 99999
       episodeFileName: 
@@ -1710,8 +1710,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
+    - redirectType: 3
+      resetType: 2
       episodeType: 1
       episodeLength: 99999
       episodeFileName: 
@@ -1726,8 +1726,8 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
+    - redirectType: 3
+      resetType: 2
       episodeType: 1
       episodeLength: 99999
       episodeFileName: 
@@ -1742,8 +1742,40 @@ MonoBehaviour:
       virtualStartPosition: {x: 0, y: 0}
       translationSpeed: 1
       rotationSpeed: 90
-    - redirectType: 6
-      resetType: 5
+    - redirectType: 3
+      resetType: 2
+      episodeType: 1
+      episodeLength: 99999
+      episodeFileName: 
+      useRandomStartReal: 1
+      useRandomStartVirtual: 1
+      userPrefab: {fileID: 3594628791589679955, guid: 9a6a8fb013cb28f418095cf7cdcb3d2c,
+        type: 3}
+      userStartRotation: 0
+      realStartRotation: 0
+      virtualStartRotation: 0
+      realStartPosition: {x: 1.5, y: -0.01}
+      virtualStartPosition: {x: 0, y: 0}
+      translationSpeed: 1
+      rotationSpeed: 90
+    - redirectType: 3
+      resetType: 2
+      episodeType: 1
+      episodeLength: 99999
+      episodeFileName: 
+      useRandomStartReal: 1
+      useRandomStartVirtual: 1
+      userPrefab: {fileID: 3594628791589679955, guid: 9a6a8fb013cb28f418095cf7cdcb3d2c,
+        type: 3}
+      userStartRotation: 0
+      realStartRotation: 0
+      virtualStartRotation: 0
+      realStartPosition: {x: 1.5, y: -0.01}
+      virtualStartPosition: {x: 0, y: 0}
+      translationSpeed: 1
+      rotationSpeed: 90
+    - redirectType: 3
+      resetType: 2
       episodeType: 1
       episodeLength: 99999
       episodeFileName: 
@@ -1763,10 +1795,10 @@ MonoBehaviour:
     useLiveVRPhysicalUserInput: 0
     proactiveUserReset:
       enableStrategy: 1
-      judgeMode: 4
+      judgeMode: 0
       userSelectionMode: 0
       resetDirectionMode: 0
-      predictionHorizonSeconds: 1.5
+      predictionHorizonSeconds: 3
       predictionSampleCount: 60
       simpleTriggerDistanceMeters: 1.5
       simpleClosingSpeedThreshold: 0.05
@@ -1808,7 +1840,7 @@ MonoBehaviour:
     showResetLocator: 0
     showRealWall: 0
   userResetTotalCount: 0
-  simulspeed: 1
+  simulspeed: 50
   autoSeparateVirtualSpaceFromRealSpace: 0
   virtualSpaceSeparationOffset: {x: 50, y: 0}
   keepOnlyOneVirtualTrail: 0
@@ -1888,14 +1920,16 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f2dea9268e3f6ce41a56d0f1f4d5d064, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  totalUserCount: 4
+  totalUserCount: 6
   userRadius: 0.5
   shutterWidth: 0.5
   SimulationCount_max: 100
   TargetDistancePerUser: 200
   bMixedExploration: 0
   bUseCompareExperiment: 1
-  bEnable_InitPhyUserPosUni: 0
+  bExportEpisodeInitialState: 1
+  bExportInitialStateOnlyFromSeedReplay: 0
+  bEnable_InitPhyUserPosUni: 1
   moduleConfig:
     Velocity:
       UseVelocityOffset: 0

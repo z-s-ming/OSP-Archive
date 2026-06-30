@@ -7,7 +7,7 @@ public enum RedirectType { Null, Default, S2C, APF, Space, Arrangement,
 public enum ResetType { Default, TwoOneTurn, APF_R_Turn, FreezeTurn, CenterTurn,
     APF_R_Turn_OSP, ARC_Turn, ARC_Turn_OSP
 }
-public enum EpisodeType { LongWalk, Random, PreDefined, WanderingEpisodeForFixedReset, WanderingEpisodeForAnyReset, NaturalTouring, RoadWalk };
+public enum EpisodeType { LongWalk, Random, PreDefined, WanderingEpisodeForFixedReset, WanderingEpisodeForAnyReset, NaturalTouring, RoadWalk, LongRandom };
 
 [System.Serializable]
 public class UnitSetting
@@ -207,6 +207,9 @@ public class UnitSetting
                 break;
             case EpisodeType.Random:
                 episode = new RandomEpisode(episodeLength);
+                break;
+            case EpisodeType.LongRandom:
+                episode = new LongRandomEpisode(episodeLength);
                 break;
             case EpisodeType.PreDefined:
                 episode = new PreDefinedEpisode(episodeFileName);

@@ -40,7 +40,7 @@ public class LiveVRClientPresentationState : MonoBehaviour
         if (worldHud != null)
             worldHud.ClearResetPrompt();
         if (targetGuide != null)
-            targetGuide.ClearResetSuppression();
+            targetGuide.ClearForRestart();
 
         Debug.Log(string.Format("[LiveVR] Client presentation reset clear epoch={0} reason={1}", restartEpoch, string.IsNullOrEmpty(reason) ? "unspecified" : reason));
     }
